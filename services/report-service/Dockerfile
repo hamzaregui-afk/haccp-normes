@@ -27,6 +27,8 @@ RUN npm install -g prisma@5.11.0 --no-audit --no-fund --quiet
 COPY --from=builder /app/services/report-service/dist         ./dist
 COPY --from=builder /app/services/report-service/prisma       ./prisma
 COPY --from=builder /app/node_modules/.prisma                 ./node_modules/.prisma
+COPY --from=builder /app/node_modules/.pnpm                   ./node_modules/.pnpm
+COPY --from=builder /app/packages                             ./packages
 COPY --from=builder /app/services/report-service/node_modules ./node_modules
 
 EXPOSE 3016

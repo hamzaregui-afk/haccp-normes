@@ -13,6 +13,12 @@ RUN pnpm install --frozen-lockfile
 COPY services/user-service/ ./services/user-service/
 COPY tsconfig.base.json ./
 
+# Build shared packages first so their dist/ is available at runtime
+RUN pnpm --filter @haccp/shared-types build \
+ && pnpm --filter @haccp/shared-validators build \
+ && pnpm --filter @haccp/shared-errors build \
+ && pnpm --filter @haccp/shared-utils build
+
 RUN pnpm --filter @haccp/user-service build
 RUN pnpm --filter @haccp/user-service exec prisma generate
 
@@ -27,6 +33,8 @@ RUN npm install -g prisma@5.11.0 --no-audit --no-fund --quiet
 COPY --from=builder /app/services/user-service/dist         ./dist
 COPY --from=builder /app/services/user-service/prisma       ./prisma
 COPY --from=builder /app/node_modules/.prisma               ./node_modules/.prisma
+COPY --from=builder /app/node_modules/.pnpm                 ./node_modules/.pnpm
+COPY --from=builder /app/packages                           ./packages
 COPY --from=builder /app/services/user-service/node_modules ./node_modules
 
 EXPOSE 3011

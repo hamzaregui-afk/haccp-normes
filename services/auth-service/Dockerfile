@@ -13,6 +13,12 @@ RUN pnpm install --frozen-lockfile
 COPY services/auth-service/ ./services/auth-service/
 COPY tsconfig.base.json ./
 
+# Build shared packages first so their dist/ JS is available at runtime
+RUN pnpm --filter @haccp/shared-types build \
+ && pnpm --filter @haccp/shared-validators build \
+ && pnpm --filter @haccp/shared-errors build \
+ && pnpm --filter @haccp/shared-utils build
+
 RUN pnpm --filter @haccp/auth-service build
 RUN pnpm --filter @haccp/auth-service exec prisma generate
 
@@ -27,7 +33,15 @@ RUN npm install -g prisma@5.11.0 --no-audit --no-fund --quiet
 
 COPY --from=builder /app/services/auth-service/dist         ./dist
 COPY --from=builder /app/services/auth-service/prisma       ./prisma
+# ARCH-DECISION: pnpm isolated linker creates relative symlinks from each
+# service's node_modules into the ROOT node_modules/.pnpm virtual store.
+# Without copying .pnpm the symlinks are dangling at runtime — every
+# require('@nestjs/*') and require('@haccp/*') would fail with MODULE_NOT_FOUND.
+# We also copy packages/ because workspace package symlinks ultimately resolve
+# to their source in packages/<name>/ (where dist/ now lives after building).
 COPY --from=builder /app/node_modules/.prisma               ./node_modules/.prisma
+COPY --from=builder /app/node_modules/.pnpm                 ./node_modules/.pnpm
+COPY --from=builder /app/packages                           ./packages
 COPY --from=builder /app/services/auth-service/node_modules ./node_modules
 
 EXPOSE 3010
