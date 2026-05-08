@@ -162,8 +162,37 @@ export default function ReportsPage() {
   const [typeFilter, setTypeFilter]     = useState('');
   const [modalOpen, setModalOpen]       = useState(false);
   const [form, setForm]                 = useState<CreateReportValues>(INITIAL_FORM);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
+
+  // ARCH-DECISION: PDF download uses api.get with responseType 'blob' rather than
+  // a plain <a href> because the report endpoint is protected by JwtAuthGuard.
+  // A bare anchor tag does not send the Authorization header, causing a 401.
+  // We fetch as a blob, create an ephemeral object URL, click it programmatically,
+  // then revoke it to release memory.
+  async function downloadPdf(reportId: string) {
+    if (downloadingId) return;
+    setDownloadingId(reportId);
+    try {
+      const response = await api.get(`/api/v1/reports/${reportId}/pdf`, {
+        responseType: 'blob',
+      });
+      const blob     = new Blob([response.data as BlobPart], { type: 'application/pdf' });
+      const url      = URL.createObjectURL(blob);
+      const anchor   = document.createElement('a');
+      anchor.href    = url;
+      anchor.download = `rapport-haccp-${reportId.slice(0, 8)}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+    } catch {
+      // Silent — user can retry
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   const { data: stats }                      = useReportStats();
   const { data, isLoading, isError }         = useReports(page, statusFilter, typeFilter);
@@ -334,16 +363,14 @@ export default function ReportsPage() {
                           </Button>
                         )}
                         {(report.status === 'VALIDATED' || report.status === 'SENT') && (
-                          <a
-                            href={`/api/v1/reports/${report.id}/pdf`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            download={`rapport-haccp-${report.id.slice(0, 8)}.pdf`}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-brand-medium px-3 py-1.5 text-xs font-medium text-brand-medium hover:bg-brand-lighter transition-colors"
+                          <button
+                            onClick={() => void downloadPdf(report.id)}
+                            disabled={downloadingId === report.id}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-brand-medium px-3 py-1.5 text-xs font-medium text-brand-medium hover:bg-brand-lighter transition-colors disabled:opacity-50"
                           >
                             <Download className="h-3.5 w-3.5" />
-                            PDF
-                          </a>
+                            {downloadingId === report.id ? '…' : 'PDF'}
+                          </button>
                         )}
                       </div>
                     </td>
