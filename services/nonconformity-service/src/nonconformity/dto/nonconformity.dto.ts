@@ -33,7 +33,8 @@ export type UpdateNcDto = z.infer<typeof UpdateNcDtoSchema>;
 
 export const NcQuerySchema = z.object({
   page:     z.coerce.number().int().positive().default(1),
-  limit:    z.coerce.number().int().positive().max(100).default(20),
+  // max(500): dashboard chart queries fetch up to 200 NCs for 6-month trend graphs
+  limit:    z.coerce.number().int().positive().max(500).default(20),
   status:   z.nativeEnum(NCStatus).optional(),
   severity: z.nativeEnum(NCSeverity).optional(),
   search:   z.string().optional(),

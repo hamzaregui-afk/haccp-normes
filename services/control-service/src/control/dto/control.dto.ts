@@ -66,7 +66,8 @@ export type TemplateQuery = z.infer<typeof TemplateQuerySchema>;
 
 export const TaskQuerySchema = z.object({
   page:       z.coerce.number().int().min(1).default(1),
-  limit:      z.coerce.number().int().min(1).max(100).default(20),
+  // max(500): dashboard chart queries fetch up to 200 tasks for 6-month compliance graphs
+  limit:      z.coerce.number().int().min(1).max(500).default(20),
   status:     z.string().optional(),
   assigneeId: z.string().optional(),
   from:       z.coerce.date().optional(),
