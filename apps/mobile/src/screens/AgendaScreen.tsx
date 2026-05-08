@@ -20,12 +20,16 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'FAILED';
+// ARCH-DECISION: TaskStatus mirrors TaskStatusSchema in control-service exactly.
+// The original screen used PENDING/DONE/FAILED which don't exist on the backend —
+// queries returned empty results and canStart was always false.
+type TaskStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'OVERDUE' | 'CANCELLED';
 
 interface ControlTask {
   id: string;
-  title: string;
-  scheduledDate: string;
+  // backend returns template.name via include — no top-level `title` field
+  template: { id: string; name: string; type: string };
+  scheduledAt: string;   // was scheduledDate — matches Prisma field name
   status: TaskStatus;
   templateId: string;
 }
@@ -37,10 +41,11 @@ interface TasksResponse {
 // ── Status badge styles ───────────────────────────────────────────────────────
 
 const STATUS_STYLES: Record<TaskStatus, { bg: string; text: string; label: string }> = {
-  PENDING:     { bg: '#E5E7EB', text: '#374151', label: 'En attente' },
+  PLANNED:     { bg: '#E5E7EB', text: '#374151', label: 'Planifié' },
   IN_PROGRESS: { bg: '#DBEAFE', text: '#1D4ED8', label: 'En cours' },
-  DONE:        { bg: '#D1FAE5', text: '#065F46', label: 'Terminé' },
-  FAILED:      { bg: '#FEE2E2', text: '#991B1B', label: 'Échoué' },
+  COMPLETED:   { bg: '#D1FAE5', text: '#065F46', label: 'Terminé' },
+  OVERDUE:     { bg: '#FEE2E2', text: '#991B1B', label: 'En retard' },
+  CANCELLED:   { bg: '#F3F4F6', text: '#6B7280', label: 'Annulé' },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -68,21 +73,21 @@ interface TaskCardProps {
 
 function TaskCard({ task, onStart, starting }: TaskCardProps) {
   const badge = STATUS_STYLES[task.status] ?? STATUS_STYLES.PENDING;
-  const canStart = task.status === 'PENDING' || task.status === 'IN_PROGRESS';
+  const canStart = task.status === 'PLANNED' || task.status === 'IN_PROGRESS';
 
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <Text style={styles.taskTitle}>{task.title}</Text>
+        <Text style={styles.taskTitle}>{task.template.name}</Text>
         <View style={[styles.badge, { backgroundColor: badge.bg }]}>
           <Text style={[styles.badgeText, { color: badge.text }]}>{badge.label}</Text>
         </View>
       </View>
-      <Text style={styles.taskTime}>⏰ {formatDateFR(task.scheduledDate)}</Text>
+      <Text style={styles.taskTime}>⏰ {formatDateFR(task.scheduledAt)}</Text>
       {canStart && (
         <TouchableOpacity
           style={[styles.startButton, starting && styles.startButtonDisabled]}
-          onPress={() => onStart(task.id, task.title)}
+          onPress={() => onStart(task.id, task.template.name)}
           disabled={starting}
           activeOpacity={0.8}
         >
@@ -118,8 +123,17 @@ export function AgendaScreen({ navigation }: Props) {
   } = useQuery<ControlTask[]>({
     queryKey: ['tasks', 'today'],
     queryFn: async () => {
+      // TaskQuerySchema accepts `from`/`to` date range (z.coerce.date) and
+      // `status` as a plain string. The original used non-existent `date` param
+      // (silently ignored) and status 'PENDING' (no such value → empty results).
+      const today = todayISO();
       const res = await controlClient.get<TasksResponse>('/api/v1/controls/tasks', {
-        params: { date: todayISO(), status: 'PENDING' },
+        params: {
+          from:   `${today}T00:00:00.000Z`,
+          to:     `${today}T23:59:59.999Z`,
+          status: 'PLANNED',
+          limit:  100,
+        },
       });
       return res.data.data;
     },
