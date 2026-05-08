@@ -44,7 +44,11 @@ interface TaskResponse {
 }
 
 interface SubmitPayload {
-  status: 'DONE';
+  // ARCH-DECISION: 'COMPLETED' is the canonical status value per TaskStatusSchema.
+  // The mobile screen previously sent 'DONE' which Zod rejected with a 400 error,
+  // causing tasks to never be marked complete and the compliance KPI to stay at 0%.
+  status: 'COMPLETED';
+  completedAt: string;
   resultJson: {
     checkpoints: Array<{ description: string; temperature: string; result: string | null }>;
     completedAt: string;
@@ -164,15 +168,17 @@ export function ChecklistScreen({ route, navigation }: Props) {
       );
       return;
     }
+    const now = new Date().toISOString();
     submitMutation.mutate({
-      status: 'DONE',
+      status: 'COMPLETED',
+      completedAt: now,
       resultJson: {
         checkpoints: entries.map((e) => ({
           description: e.description,
           temperature: e.temperature,
           result: e.result,
         })),
-        completedAt: new Date().toISOString(),
+        completedAt: now,
       },
     });
   };

@@ -18,22 +18,25 @@ import type { MainTabParamList } from '../navigation/MainNavigator';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+// ARCH-DECISION: These types mirror CalculateDlcDtoSchema in dlc-service exactly.
+// The original screen sent { fabricationDate, shelfLifeDays, lotNumber } which
+// Zod rejected (missing required `productId`, wrong field names) → always 400.
+// `productId` is set to the product name for manual entries since the calculate
+// endpoint only requires z.string().min(1) — not a CUID — and echoes it back.
 interface DLCCalculatePayload {
+  productId:   string;  // productName used as de-facto id for manual entries
   productName: string;
-  lotNumber: string;
-  fabricationDate: string;
-  shelfLifeDays: number;
+  dlcDays:     number;  // was shelfLifeDays — renamed to match backend
+  producedAt:  string;  // was fabricationDate — renamed to match backend
 }
 
+// Mirrors the actual response shape from dlc-service calculate()
 interface DLCResult {
-  expirationDate: string;
-  label: {
-    productName: string;
-    lotNumber: string;
-    fabricationDate: string;
-    expirationDate: string;
-    shelfLifeDays: number;
-  };
+  productId:   string;
+  productName: string;
+  dlcDays:     number;
+  producedAt:  string;
+  expiresAt:   string;  // was expirationDate — corrected to match backend field
 }
 
 interface DLCResponse {
@@ -42,9 +45,17 @@ interface DLCResponse {
 
 // ── HTML label template ───────────────────────────────────────────────────────
 
-function buildLabelHtml(result: DLCResult['label']): string {
-  const expDate = new Date(result.expirationDate).toLocaleDateString('fr-FR');
-  const fabDate = new Date(result.fabricationDate).toLocaleDateString('fr-FR');
+interface LabelData {
+  productName: string;
+  lotNumber:   string;  // local form value — not part of backend DTO
+  producedAt:  string;
+  expiresAt:   string;
+  dlcDays:     number;
+}
+
+function buildLabelHtml(label: LabelData): string {
+  const expDate = new Date(label.expiresAt).toLocaleDateString('fr-FR');
+  const fabDate = new Date(label.producedAt).toLocaleDateString('fr-FR');
 
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -98,11 +109,11 @@ function buildLabelHtml(result: DLCResult['label']): string {
 <div class="label">
   <div class="label-header">NORMES HACCP</div>
   <div class="label-body">
-    <div class="product-name">${result.productName}</div>
+    <div class="product-name">${label.productName}</div>
     <table>
-      <tr><td>N° Lot</td><td>${result.lotNumber}</td></tr>
+      <tr><td>N° Lot</td><td>${label.lotNumber}</td></tr>
       <tr><td>Fabrication</td><td>${fabDate}</td></tr>
-      <tr><td>DLC (jours)</td><td>${result.shelfLifeDays} j</td></tr>
+      <tr><td>DLC (jours)</td><td>${label.dlcDays} j</td></tr>
       <tr class="expiry-row">
         <td>Date limite</td>
         <td class="expiry-value">${expDate}</td>
@@ -146,18 +157,30 @@ export function DLCScreen(_props: Props) {
 
     setCalculating(true);
     try {
+      // ARCH-DECISION: `productId` is set to productName for manual entries.
+      // The backend only requires z.string().min(1) (not a CUID), so this is valid.
+      // lotNumber stays local — the calculate endpoint doesn't store it.
       const payload: DLCCalculatePayload = {
+        productId:   productName.trim(),
         productName: productName.trim(),
-        lotNumber: lotNumber.trim(),
-        fabricationDate: fabDate.trim(),
-        shelfLifeDays: days,
+        dlcDays:     days,
+        producedAt:  fabDate.trim(),
       };
       const res = await dlcClient.post<DLCResponse>('/api/v1/dlc/calculate', payload);
       const result = res.data.data;
       setLastResult(result);
 
+      // Build label data — merge API response with local lotNumber
+      const labelData: LabelData = {
+        productName: result.productName,
+        lotNumber:   lotNumber.trim(),
+        producedAt:  result.producedAt,
+        expiresAt:   result.expiresAt,
+        dlcDays:     result.dlcDays,
+      };
+
       // Generate and print PDF
-      const html = buildLabelHtml(result.label);
+      const html = buildLabelHtml(labelData);
       const { uri } = await Print.printToFileAsync({ html, base64: false });
 
       const canShare = await Sharing.isAvailableAsync();
@@ -181,7 +204,7 @@ export function DLCScreen(_props: Props) {
   };
 
   const expirationLabel = lastResult
-    ? new Date(lastResult.expirationDate).toLocaleDateString('fr-FR', {
+    ? new Date(lastResult.expiresAt).toLocaleDateString('fr-FR', {
         day: '2-digit',
         month: 'long',
         year: 'numeric',
