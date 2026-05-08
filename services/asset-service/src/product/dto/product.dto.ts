@@ -1,13 +1,17 @@
 import { z } from 'zod';
 
+// Helper: HTML number inputs submit empty string when blank — treat as undefined
+const emptyToUndefined = (v: unknown) => (v === '' || v === null ? undefined : v);
+
 export const CreateProductDtoSchema = z.object({
   code:        z.string().min(1).max(50),
   name:        z.string().min(1).max(200),
   category:    z.string().min(1).max(100),
-  packaging:   z.string().max(100).optional(),
-  dlcDays:     z.coerce.number().int().positive().optional(),
-  tempStorage: z.coerce.number().optional(),
-  supplierId:  z.string().cuid().optional(),
+  packaging:   z.preprocess(emptyToUndefined, z.string().max(100).optional()),
+  dlcDays:     z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),
+  tempStorage: z.preprocess(emptyToUndefined, z.coerce.number().optional()),
+  // Empty string from an unselected <select> must map to undefined, not fail .cuid()
+  supplierId:  z.preprocess(emptyToUndefined, z.string().cuid().optional()),
 });
 export type CreateProductDto = z.infer<typeof CreateProductDtoSchema>;
 

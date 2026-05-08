@@ -1,14 +1,19 @@
 import { z } from 'zod';
 
+// HTML inputs submit "" when blank — treat as undefined so optional fields behave correctly
+const emptyToUndefined = (v: unknown) => (v === '' || v === null ? undefined : v);
+
 export const CreateEquipmentDtoSchema = z.object({
   code:         z.string().min(1).max(50),
   name:         z.string().min(1).max(200),
-  type:         z.string().max(100).optional(),
-  serialNumber: z.string().max(100).optional(),
-  brand:        z.string().max(100).optional(),
-  siteId:       z.string().cuid().optional(),
-  tempMin:      z.coerce.number().optional(),
-  tempMax:      z.coerce.number().optional(),
+  type:         z.preprocess(emptyToUndefined, z.string().max(100).optional()),
+  serialNumber: z.preprocess(emptyToUndefined, z.string().max(100).optional()),
+  brand:        z.preprocess(emptyToUndefined, z.string().max(100).optional()),
+  // Empty string from an unselected <select> must not fail .cuid()
+  siteId:       z.preprocess(emptyToUndefined, z.string().cuid().optional()),
+  // Empty number inputs coerce "" → 0, triggering the tempMin < tempMax refine falsely
+  tempMin:      z.preprocess(emptyToUndefined, z.coerce.number().optional()),
+  tempMax:      z.preprocess(emptyToUndefined, z.coerce.number().optional()),
 }).refine(
   (d) => {
     if (d.tempMin !== undefined && d.tempMax !== undefined) return d.tempMin < d.tempMax;
