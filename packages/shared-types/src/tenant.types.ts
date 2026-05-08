@@ -9,6 +9,13 @@ export const TenantSchema = z.object({
   slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),
   status: TenantStatusSchema.default('ACTIVE'),
   plan: z.string().default('standard'),
+  // Business / settings fields added in migration 20260508120000
+  siret:                   z.string().max(14).nullish(),
+  address:                 z.string().max(500).nullish(),
+  sector:                  z.string().max(100).nullish(),
+  notifyNewNc:             z.boolean().default(false),
+  notifyValidatedReports:  z.boolean().default(false),
+  notifyCriticalDlc:       z.boolean().default(false),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
