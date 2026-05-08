@@ -11,15 +11,20 @@ import { api } from '@/lib/api';
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
+// ARCH-DECISION: Field names mirror the Prisma DlcLabel model exactly.
+// Previous version used fabricationDate/expirationDate/shelfLifeDays/createdAt
+// which don't exist on the backend — all queries displayed blank/NaN values.
 interface DLCLabel {
   id: string;
+  productId: string;
   productName: string;
-  lotNumber: string;
-  fabricationDate: string;
-  expirationDate: string;
-  shelfLifeDays: number;
+  lotNumber: string | null;  // optional HACCP batch ID
+  producedAt: string;        // was fabricationDate
+  expiresAt: string;         // was expirationDate
+  dlcDays?: number;          // not stored in DB — only present on calculate responses
+  printedBy: string;
+  printedAt: string;         // was createdAt
   tenantId: string;
-  createdAt: string;
 }
 
 interface ApiResponse<T> {
@@ -53,8 +58,8 @@ const STATUS_LABELS: Record<DLCStatus, string> = {
   OK:       'OK',
 };
 
-function daysLeft(expirationDate: string): number {
-  return Math.ceil((new Date(expirationDate).getTime() - Date.now()) / 86_400_000);
+function daysLeft(expiresAt: string): number {
+  return Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86_400_000);
 }
 
 // ─── Tab definition ───────────────────────────────────────────────────────────
@@ -138,17 +143,19 @@ function DLCTable({ labels }: DLCTableProps) {
         </thead>
         <tbody className="divide-y divide-gray-100">
           {labels.map((label) => {
-            const remaining = daysLeft(label.expirationDate);
+            const remaining = daysLeft(label.expiresAt);  // was label.expirationDate → undefined
             const status    = getDLCStatus(remaining);
             return (
               <tr key={label.id} className="transition-colors hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium text-gray-900">{label.productName}</td>
-                <td className="px-4 py-3 font-mono text-xs text-gray-600">{label.lotNumber}</td>
-                <td className="px-4 py-3 text-gray-500">
-                  {new Date(label.fabricationDate).toLocaleDateString('fr-FR')}
+                <td className="px-4 py-3 font-mono text-xs text-gray-600">
+                  {label.lotNumber ?? '—'}
                 </td>
                 <td className="px-4 py-3 text-gray-500">
-                  {new Date(label.expirationDate).toLocaleDateString('fr-FR')}
+                  {new Date(label.producedAt).toLocaleDateString('fr-FR')}
+                </td>
+                <td className="px-4 py-3 text-gray-500">
+                  {new Date(label.expiresAt).toLocaleDateString('fr-FR')}
                 </td>
                 <td className="px-4 py-3 text-center font-semibold text-gray-800">
                   {remaining <= 0 ? '—' : remaining}
@@ -171,18 +178,29 @@ function DLCTable({ labels }: DLCTableProps) {
 
 // ─── Create label form values ─────────────────────────────────────────────────
 
-interface CreateLabelValues {
+// ARCH-DECISION: CreateLabelPayload mirrors PrintLabelDtoSchema exactly.
+// Previous CreateLabelValues used fabricationDate/shelfLifeDays (wrong field names)
+// and was missing the required productId field — every POST returned 400.
+interface CreateLabelPayload {
+  productId:   string;  // required by PrintLabelDtoSchema (using productName as de-facto ID for manual entries)
   productName: string;
-  lotNumber: string;
-  fabricationDate: string;
-  shelfLifeDays: number;
+  lotNumber:   string;  // optional in DTO but we require it in the UI for full traceability
+  dlcDays:     number;  // was shelfLifeDays
+  producedAt:  string;  // was fabricationDate
 }
 
-const INITIAL_FORM: CreateLabelValues = {
-  productName:     '',
-  lotNumber:       '',
-  fabricationDate: '',
-  shelfLifeDays:   1,
+interface CreateLabelFormState {
+  productName:  string;
+  lotNumber:    string;
+  producedAt:   string;
+  dlcDays:      number;
+}
+
+const INITIAL_FORM: CreateLabelFormState = {
+  productName: '',
+  lotNumber:   '',
+  producedAt:  '',
+  dlcDays:     1,
 };
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -190,7 +208,7 @@ const INITIAL_FORM: CreateLabelValues = {
 export default function DLCWebPage() {
   const [activeTab, setActiveTab]   = useState<Tab>('today');
   const [modalOpen, setModalOpen]   = useState(false);
-  const [form, setForm]             = useState<CreateLabelValues>(INITIAL_FORM);
+  const [form, setForm]             = useState<CreateLabelFormState>(INITIAL_FORM);
   const [allPage, setAllPage]       = useState(1);
 
   const queryClient = useQueryClient();
@@ -200,8 +218,8 @@ export default function DLCWebPage() {
   const allQuery    = useAllLabels(allPage);
 
   const createMutation = useMutation({
-    mutationFn: (body: CreateLabelValues) =>
-      api.post('/api/v1/dlc/labels', body),
+    mutationFn: (payload: CreateLabelPayload) =>
+      api.post('/api/v1/dlc/labels', payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['dlc'] });
       setModalOpen(false);
@@ -211,7 +229,18 @@ export default function DLCWebPage() {
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    createMutation.mutate(form);
+    // ARCH-DECISION: productId reuses productName for manual web entries because
+    // the web DLC form is a free-text entry (no product catalog lookup).
+    // PrintLabelDtoSchema validates productId as z.string().min(1), not CUID,
+    // so any non-empty string is accepted.
+    const payload: CreateLabelPayload = {
+      productId:   form.productName.trim(),
+      productName: form.productName.trim(),
+      lotNumber:   form.lotNumber.trim(),
+      dlcDays:     form.dlcDays,
+      producedAt:  form.producedAt,
+    };
+    createMutation.mutate(payload);
   }
 
   // Determine which data / state to show for current tab
@@ -340,7 +369,7 @@ export default function DLCWebPage() {
               />
             </div>
 
-            {/* Fabrication date */}
+            {/* Production date */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-gray-700">
                 Date de fabrication <span className="text-red-500">*</span>
@@ -348,8 +377,8 @@ export default function DLCWebPage() {
               <input
                 required
                 type="date"
-                value={form.fabricationDate}
-                onChange={(e) => setForm((f) => ({ ...f, fabricationDate: e.target.value }))}
+                value={form.producedAt}
+                onChange={(e) => setForm((f) => ({ ...f, producedAt: e.target.value }))}
                 className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-medium"
               />
             </div>
@@ -364,9 +393,9 @@ export default function DLCWebPage() {
                 type="number"
                 min={1}
                 placeholder="3"
-                value={form.shelfLifeDays}
+                value={form.dlcDays}
                 onChange={(e) =>
-                  setForm((f) => ({ ...f, shelfLifeDays: parseInt(e.target.value, 10) || 1 }))
+                  setForm((f) => ({ ...f, dlcDays: parseInt(e.target.value, 10) || 1 }))
                 }
                 className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-medium"
               />

@@ -92,7 +92,7 @@ export function Sidebar() {
           if (!visible.length) return null;
 
           return (
-            <div key={section.title}>
+            <div key={section.titleKey}>
               <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-green-400/70">
                 {t(section.titleKey)}
               </p>

@@ -1,16 +1,19 @@
 import { z } from 'zod';
 
+// ARCH-DECISION: Field names mirror PrintLabelDtoSchema in dlc-service/src/dlc/dto/dlc.dto.ts.
+// Prior version used fabricationDate/shelfLifeDays which do not exist in the
+// backend DTO — any service importing these schemas would produce 400 errors.
+
 export const CalculateDLCSchema = z.object({
-  productName:     z.string().min(1).max(200),
-  lotNumber:       z.string().min(1).max(100),
-  fabricationDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format YYYY-MM-DD requis'),
-  shelfLifeDays:   z.coerce.number().int().min(1).max(3650),
+  productId:   z.string().min(1),
+  productName: z.string().min(1).max(200),
+  lotNumber:   z.string().max(100).optional(), // optional HACCP batch ID
+  dlcDays:     z.coerce.number().int().min(1).max(3650), // was shelfLifeDays
+  producedAt:  z.coerce.date().default(() => new Date()), // was fabricationDate (YYYY-MM-DD string)
 });
 export type CalculateDLCDto = z.infer<typeof CalculateDLCSchema>;
 
-// Creating a persisted DLC label has the same shape as the calculation input
+// Creating a persisted DLC label uses the same payload shape as calculation
 export const CreateDLCLabelSchema = CalculateDLCSchema;
 export type CreateDLCLabelDto = CalculateDLCDto;
 

@@ -121,7 +121,7 @@ function computeComplianceByMonth(
     const key = toMonthKey(new Date(task.createdAt));
     if (key in totals) {
       totals[key]++;
-      if (task.status === 'DONE') done[key]++;
+      if (task.status === 'COMPLETED') done[key]++; // matches TaskStatusSchema enum
     }
   }
 

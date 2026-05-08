@@ -11,6 +11,10 @@ export type CalculateDlcDto = z.infer<typeof CalculateDlcDtoSchema>;
 export const PrintLabelDtoSchema = z.object({
   productId:   z.string().min(1),
   productName: z.string().min(1).max(200),
+  // ARCH-DECISION: lotNumber is an optional HACCP traceability field (batch ID).
+  // Required by food-safety regulations for full label traceability, but nullable
+  // so that automated / API-only callers that don't track lots can still print labels.
+  lotNumber:   z.string().max(100).optional(),
   dlcDays:     z.coerce.number().int().positive(),
   producedAt:  z.coerce.date().default(() => new Date()),
   expiresAt:   z.coerce.date().optional(), // If omitted, computed from producedAt + dlcDays

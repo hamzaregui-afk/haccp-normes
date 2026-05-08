@@ -41,6 +41,7 @@ export class DlcService {
         tenantId,
         productId:   dto.productId,
         productName: dto.productName,
+        lotNumber:   dto.lotNumber,  // HACCP batch traceability field — nullable
         producedAt:  dto.producedAt,
         expiresAt,
         printedBy,

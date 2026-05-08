@@ -14,6 +14,7 @@ model DlcLabel {
   tenantId    String   @map("tenant_id")
   productId   String   @map("product_id")   // FK to asset-service (no join)
   productName String   @map("product_name") // Denormalised for label printing speed
+  lotNumber   String?  @map("lot_number")    // HACCP traceability: batch ID (optional but required for full regulatory compliance)
   producedAt  DateTime @map("produced_at")
   expiresAt   DateTime @map("expires_at")
   printedBy   String   @map("printed_by")   // userId
