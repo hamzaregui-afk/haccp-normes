@@ -12,7 +12,10 @@ export class SupplierService {
 
     const where = {
       tenantId,
-      ...(active !== undefined ? { isActive: active === 'true' } : {}),
+      // ARCH-DECISION: Default to isActive: true so soft-deleted suppliers are
+      // never shown unless the caller explicitly passes active=false.
+      // Equipment service applies the same default — keep both in sync.
+      ...(active !== undefined ? { isActive: active === 'true' } : { isActive: true }),
       ...(search ? {
         OR: [
           { name: { contains: search, mode: 'insensitive' as const } },

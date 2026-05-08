@@ -72,7 +72,8 @@ interface TaskCardProps {
 }
 
 function TaskCard({ task, onStart, starting }: TaskCardProps) {
-  const badge = STATUS_STYLES[task.status] ?? STATUS_STYLES.PENDING;
+  // STATUS_STYLES covers every TaskStatus value — no runtime fallback needed.
+  const badge = STATUS_STYLES[task.status];
   const canStart = task.status === 'PLANNED' || task.status === 'IN_PROGRESS';
 
   return (
