@@ -75,7 +75,7 @@ function useExpiringToday() {
   return useQuery({
     queryKey: ['dlc', 'today'],
     queryFn: async () => {
-      const { data } = await api.get<ApiResponse<DLCLabel[]>>('/api/v1/dlc/expiring-today');
+      const { data } = await api.get<ApiResponse<DLCLabel[]>>('/api/v1/dlc/labels/expiring-today');
       return data.data;
     },
     refetchInterval: REFETCH_MS,
@@ -86,7 +86,7 @@ function useExpiringSoon() {
   return useQuery({
     queryKey: ['dlc', 'soon'],
     queryFn: async () => {
-      const { data } = await api.get<ApiResponse<DLCLabel[]>>('/api/v1/dlc/expiring-soon?days=7');
+      const { data } = await api.get<ApiResponse<DLCLabel[]>>('/api/v1/dlc/labels/expiring-soon?days=7');
       return data.data;
     },
     refetchInterval: REFETCH_MS,

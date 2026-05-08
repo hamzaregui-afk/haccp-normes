@@ -24,6 +24,37 @@ export class TenantController {
     return this.tenantService.findAll(Number(page ?? 1), Number(limit ?? 20), search);
   }
 
+  /**
+   * ARCH-DECISION: /me endpoints allow any authenticated tenant member to read
+   * (and ADMIN/SUPER_ADMIN to update) their own tenant without exposing the raw
+   * tenant UUID in the URL. The tenantId always comes from the validated JWT —
+   * never from the request body — so cross-tenant data access is impossible.
+   * These routes MUST be declared before /:id to prevent "me" being treated as
+   * an ID parameter.
+   */
+  @Get('me')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'VIEWER')
+  findMe(@CurrentUser() user: JwtPayload) {
+    return this.tenantService.findOne(user.tenantId);
+  }
+
+  @Patch('me')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async updateMe(@Body() body: unknown, @CurrentUser() actor: JwtPayload) {
+    const dto    = UpdateTenantDtoSchema.parse(body);
+    const result = await this.tenantService.update(actor.tenantId, dto);
+
+    void emitAuditEvent({
+      userId:     actor.sub,
+      action:     'UPDATE',
+      resource:   'tenants',
+      resourceId: actor.tenantId,
+      tenantId:   actor.tenantId,
+    });
+
+    return result;
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.tenantService.findOne(id);
