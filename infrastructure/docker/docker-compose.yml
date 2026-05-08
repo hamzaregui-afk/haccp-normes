@@ -380,6 +380,8 @@ services:
       NODE_ENV: production
       PORT: 3019
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/haccp_audit
+      # JWT_SECRET required: audit.controller.ts uses JwtAuthGuard on GET /audit endpoints
+      JWT_SECRET: ${JWT_SECRET}
       RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-haccp-internal-dev-secret-change-in-prod}
     depends_on:
