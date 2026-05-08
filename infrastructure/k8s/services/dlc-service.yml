@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dlc-service
+  namespace: haccp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dlc-service
+  template:
+    metadata:
+      labels:
+        app: dlc-service
+    spec:
+      initContainers:
+        - name: migrate
+          image: haccp/dlc-service:latest
+          imagePullPolicy: IfNotPresent
+          command: ["npx", "prisma", "migrate", "deploy"]
+          envFrom:
+            - configMapRef:
+                name: haccp-config
+            - secretRef:
+                name: haccp-secrets
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres-service:5432/haccp_dlc"
+      containers:
+        - name: dlc-service
+          image: haccp/dlc-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3017
+          envFrom:
+            - configMapRef:
+                name: haccp-config
+            - secretRef:
+                name: haccp-secrets
+          env:
+            - name: PORT
+              value: "3017"
+            - name: DATABASE_URL
+              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres-service:5432/haccp_dlc"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3017
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3017
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dlc-service
+  namespace: haccp
+spec:
+  selector:
+    app: dlc-service
+  ports:
+    - port: 3017
+      targetPort: 3017

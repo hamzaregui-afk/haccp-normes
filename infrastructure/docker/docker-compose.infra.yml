@@ -1,0 +1,81 @@
+version: '3.9'
+# ─── Infra-only compose for local development ──────────────────────────────────
+# Run with: docker compose -f infrastructure/docker/docker-compose.infra.yml up -d
+# This starts only the infrastructure services (Postgres, Redis, MinIO, RabbitMQ).
+# All NestJS services and the web app run locally via pnpm, not in containers.
+
+networks:
+  haccp-dev:
+    driver: bridge
+
+volumes:
+  dev-postgres-data:
+  dev-redis-data:
+  dev-minio-data:
+  dev-rabbitmq-data:
+
+services:
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: haccp-dev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: haccp_dev_password
+    volumes:
+      - dev-postgres-data:/var/lib/postgresql/data
+      - ../postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - haccp-dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: haccp-dev-redis
+    restart: unless-stopped
+    command: redis-server --requirepass haccp_redis_dev --appendonly yes
+    ports:
+      - "6379:6379"
+    networks:
+      - haccp-dev
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "haccp_redis_dev", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: haccp-dev-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: haccp
+      RABBITMQ_DEFAULT_PASS: haccp_rabbit_dev
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - haccp-dev
+
+  minio:
+    image: minio/minio:latest
+    container_name: haccp-dev-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: haccp_minio_dev
+    volumes:
+      - dev-minio-data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - haccp-dev

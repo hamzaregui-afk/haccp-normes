@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: asset-service
+  namespace: haccp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: asset-service
+  template:
+    metadata:
+      labels:
+        app: asset-service
+    spec:
+      initContainers:
+        - name: migrate
+          image: haccp/asset-service:latest
+          imagePullPolicy: IfNotPresent
+          command: ["npx", "prisma", "migrate", "deploy"]
+          envFrom:
+            - configMapRef:
+                name: haccp-config
+            - secretRef:
+                name: haccp-secrets
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres-service:5432/haccp_assets"
+      containers:
+        - name: asset-service
+          image: haccp/asset-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3014
+          envFrom:
+            - configMapRef:
+                name: haccp-config
+            - secretRef:
+                name: haccp-secrets
+          env:
+            - name: PORT
+              value: "3014"
+            - name: DATABASE_URL
+              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres-service:5432/haccp_assets"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3014
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3014
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: asset-service
+  namespace: haccp
+spec:
+  selector:
+    app: asset-service
+  ports:
+    - port: 3014
+      targetPort: 3014

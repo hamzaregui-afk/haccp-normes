@@ -1,0 +1,67 @@
+// user-service owns: User profile (non-auth fields), Group, GroupMember
+// userId/tenantId come from JWT — this service does NOT store passwords
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  QUALITY_OFFICER
+  VIEWER
+  OPERATOR
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  INVITED
+}
+
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  name      String
+  role      UserRole   @default(OPERATOR)
+  status    UserStatus @default(ACTIVE)
+  tenantId  String     @map("tenant_id")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  groups GroupMember[]
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+model Group {
+  id        String      @id @default(cuid())
+  name      String
+  tenantId  String      @map("tenant_id")
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  members GroupMember[]
+
+  @@unique([name, tenantId])
+  @@index([tenantId])
+  @@map("groups")
+}
+
+model GroupMember {
+  userId   String   @map("user_id")
+  groupId  String   @map("group_id")
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  user  User  @relation(fields: [userId], references: [id])
+  group Group @relation(fields: [groupId], references: [id])
+
+  @@id([userId, groupId])
+  @@map("group_members")
+}

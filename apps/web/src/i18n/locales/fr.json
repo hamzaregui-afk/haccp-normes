@@ -1,0 +1,321 @@
+{
+  "nav": {
+    "dashboard": "Vue d'ensemble",
+    "controls": "Contrôles",
+    "nonconformities": "Non-conformités",
+    "products": "Produits",
+    "equipments": "Équipements",
+    "suppliers": "Fournisseurs",
+    "groups": "Groupes",
+    "users": "Utilisateurs",
+    "clients": "Clients",
+    "reports": "Rapports",
+    "audit": "Journal d'audit",
+    "settings": "Paramètres",
+    "dlc": "DLC"
+  },
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "create": "Créer",
+    "search": "Rechercher",
+    "loading": "Chargement…",
+    "noData": "Aucune donnée",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "page": "Page",
+    "of": "sur",
+    "actions": "Actions",
+    "status": "Statut",
+    "date": "Date",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "yes": "Oui",
+    "no": "Non",
+    "confirm": "Confirmer",
+    "close": "Fermer",
+    "add": "Ajouter",
+    "remove": "Retirer",
+    "download": "Télécharger",
+    "submit": "Soumettre",
+    "validate": "Valider",
+    "required": "Obligatoire",
+    "error": "Une erreur est survenue",
+    "retry": "Réessayer",
+    "entries": "entrée(s)"
+  },
+  "auth": {
+    "login": "Connexion",
+    "logout": "Déconnexion",
+    "email": "Adresse e-mail",
+    "password": "Mot de passe",
+    "forgotPassword": "Mot de passe oublié ?",
+    "loginButton": "Se connecter",
+    "loginError": "Identifiants incorrects"
+  },
+  "dashboard": {
+    "title": "Vue d'ensemble",
+    "subtitle": "Tableau de bord HACCP",
+    "todayControls": "Contrôles du jour",
+    "openNc": "Non-conformités ouvertes",
+    "overdueTask": "Tâches en retard",
+    "complianceRate": "Taux de conformité",
+    "recentNc": "Non-conformités ouvertes récentes",
+    "controlsSummary": "Résumé des contrôles",
+    "noOpenNc": "Aucune non-conformité ouverte ✅",
+    "dataUnavailable": "Données indisponibles",
+    "planned": "Planifiés aujourd'hui",
+    "completed": "Complétés",
+    "overdue": "En retard",
+    "ncByMonth": "Non-conformités par mois",
+    "complianceByMonth": "Taux de conformité (%)",
+    "target": "Objectif 80%"
+  },
+  "controls": {
+    "title": "Contrôles",
+    "subtitle": "Planification et suivi des points critiques",
+    "tasks": "Tâches",
+    "templates": "Modèles",
+    "newTask": "Planifier",
+    "newTemplate": "Nouveau modèle",
+    "planTask": "Planifier une tâche",
+    "createTemplate": "Nouveau modèle de contrôle",
+    "status": {
+      "PLANNED": "Planifiée",
+      "IN_PROGRESS": "En cours",
+      "COMPLETED": "Complétée",
+      "OVERDUE": "En retard",
+      "CANCELLED": "Annulée"
+    },
+    "type": {
+      "RECEPTION": "Réception",
+      "TEMPERATURE_STOCK": "Temp. stock",
+      "TEMPERATURE_DISPLAY": "Temp. vitrine",
+      "TEMPERATURE_OIL": "Temp. huile",
+      "EQUIPMENT": "Équipement",
+      "SANITARY": "Sanitaire",
+      "DAILY_PRODUCTION": "Production"
+    },
+    "frequency": {
+      "DAILY": "Quotidienne",
+      "WEEKLY": "Hebdomadaire",
+      "MONTHLY": "Mensuelle",
+      "ON_RECEPTION": "À réception",
+      "ON_DEMAND": "À la demande"
+    }
+  },
+  "nonconformities": {
+    "title": "Non-conformités",
+    "subtitle": "Gestion des écarts et actions correctives",
+    "report": "Signaler une NC",
+    "close": "Clôturer",
+    "severity": {
+      "LOW": "Faible",
+      "MEDIUM": "Moyen",
+      "HIGH": "Élevé",
+      "CRITICAL": "Critique"
+    },
+    "status": {
+      "OPEN": "Ouverte",
+      "IN_PROGRESS": "En cours",
+      "CLOSED": "Clôturée",
+      "REJECTED": "Rejetée"
+    },
+    "category": {
+      "TEMPERATURE": "Température",
+      "HYGIENE": "Hygiène",
+      "LABELING": "Étiquetage",
+      "TRACEABILITY": "Traçabilité",
+      "EQUIPMENT": "Équipement",
+      "SUPPLIER": "Fournisseur",
+      "PROCESS": "Process",
+      "OTHER": "Autre"
+    }
+  },
+  "reports": {
+    "title": "Rapports",
+    "subtitle": "Génération et validation des rapports HACCP",
+    "generate": "Générer un rapport",
+    "status": {
+      "PENDING": "En attente",
+      "UNDER_REVIEW": "En révision",
+      "VALIDATED": "Validé",
+      "SENT": "Envoyé"
+    },
+    "type": {
+      "MONTHLY_HYGIENE": "Hygiène mensuelle",
+      "ANNUAL_HACCP": "HACCP annuel",
+      "TEMPERATURE_LOG": "Relevé températures"
+    }
+  },
+  "dlc": {
+    "title": "DLC",
+    "subtitle": "Gestion des dates limites de consommation",
+    "newLabel": "Nouveau label DLC",
+    "tabs": {
+      "today": "Expire aujourd'hui",
+      "soon": "Expire bientôt (7j)",
+      "all": "Tous les labels"
+    },
+    "columns": {
+      "product": "Produit",
+      "lot": "Lot",
+      "fabrication": "Fabrication",
+      "expiration": "Expiration",
+      "daysLeft": "Jours restants",
+      "status": "Statut"
+    },
+    "status": {
+      "OK": "OK",
+      "SOON": "Bientôt",
+      "CRITICAL": "Critique",
+      "EXPIRED": "Expiré"
+    },
+    "modal": {
+      "title": "Nouveau label DLC",
+      "productName": "Nom du produit",
+      "lotNumber": "Numéro de lot",
+      "fabricationDate": "Date de fabrication",
+      "shelfLifeDays": "Durée de vie (jours)",
+      "submit": "Créer le label",
+      "cancel": "Annuler"
+    },
+    "empty": "Aucun label DLC pour cette période",
+    "loading": "Chargement des labels DLC…",
+    "error": "Erreur lors du chargement des labels DLC",
+    "pagination": {
+      "info": "Page {{page}} sur {{lastPage}} — {{total}} label(s)"
+    }
+  },
+  "audit": {
+    "title": "Journal d'audit",
+    "subtitle": "Registre immuable — lecture seule",
+    "banner": "⚠️ Ce journal est en lecture seule conformément aux exigences HACCP. Aucune modification n'est possible.",
+    "filter": {
+      "search": "Recherche",
+      "searchPlaceholder": "Filtrer par action ou email…",
+      "from": "Du",
+      "to": "Au"
+    },
+    "columns": {
+      "dateTime": "Date / Heure",
+      "action": "Action",
+      "resource": "Ressource",
+      "resourceId": "ID Ressource",
+      "userId": "Utilisateur (ID)",
+      "ip": "IP"
+    },
+    "empty": {
+      "title": "Aucune entrée",
+      "description": "Aucun événement ne correspond aux filtres actuels."
+    },
+    "loading": "Chargement…",
+    "error": "Erreur lors du chargement du journal d'audit.",
+    "pagination": {
+      "info": "Page {{page}} sur {{lastPage}} — {{total}} entrée(s)"
+    }
+  },
+  "settings": {
+    "title": "Paramètres",
+    "subtitle": "Configuration de l'établissement",
+    "sections": {
+      "info": "Informations de l'établissement",
+      "security": "Sécurité",
+      "notifications": "Notifications"
+    },
+    "fields": {
+      "name": "Nom de l'établissement",
+      "namePlaceholder": "Boulangerie Dupont",
+      "siret": "Numéro SIRET",
+      "siretPlaceholder": "123 456 789 00012",
+      "address": "Adresse",
+      "addressPlaceholder": "12 rue des Boulangers, 75001 Paris",
+      "sector": "Secteur d'activité",
+      "sectorPlaceholder": "-- Sélectionner --"
+    },
+    "sectors": {
+      "RESTAURATION": "Restauration",
+      "INDUSTRIE_ALIMENTAIRE": "Industrie alimentaire",
+      "GRANDE_DISTRIBUTION": "Grande distribution",
+      "TRAITEUR": "Traiteur",
+      "AUTRE": "Autre"
+    },
+    "security": {
+      "jwtInfo": "Les tokens expirent après 24h. Les utilisateurs sont automatiquement déconnectés à l'expiration.",
+      "passwordLabel": "Mot de passe",
+      "passwordSub": "Modifier le mot de passe du compte administrateur",
+      "changePassword": "Changer le mot de passe"
+    },
+    "notifications": {
+      "newNc": "Nouvelles non-conformités par email",
+      "validatedReports": "Rapports validés par email",
+      "criticalDlc": "Alertes DLC critiques"
+    },
+    "save": "Enregistrer",
+    "saveSuccess": "Paramètres enregistrés avec succès.",
+    "saveError": "Une erreur est survenue lors de l'enregistrement. Veuillez réessayer.",
+    "loading": "Chargement…",
+    "validation": {
+      "required": "Champ obligatoire"
+    }
+  },
+  "clients": {
+    "title": "Clients",
+    "subtitle": "Gestion des tenants — SUPER_ADMIN uniquement",
+    "new": "Nouveau client",
+    "searchPlaceholder": "Rechercher un client…",
+    "columns": {
+      "name": "Nom",
+      "siret": "SIRET",
+      "sector": "Secteur",
+      "plan": "Plan",
+      "status": "Statut",
+      "created": "Créé le",
+      "actions": "Actions"
+    },
+    "status": {
+      "ACTIVE": "Actif",
+      "ARCHIVED": "Archivé",
+      "SUSPENDED": "Suspendu"
+    },
+    "empty": "Aucun client trouvé",
+    "loading": "Chargement…",
+    "error": "Erreur lors du chargement des clients"
+  },
+  "products": {
+    "title": "Produits",
+    "subtitle": "Catalogue des produits et matières premières",
+    "new": "Nouveau produit"
+  },
+  "equipments": {
+    "title": "Équipements",
+    "subtitle": "Parc matériel et plages de température critiques",
+    "new": "Nouvel équipement"
+  },
+  "suppliers": {
+    "title": "Fournisseurs",
+    "subtitle": "Référentiel des fournisseurs et partenaires",
+    "new": "Nouveau fournisseur"
+  },
+  "groups": {
+    "title": "Groupes",
+    "subtitle": "Organisation des équipes et des droits d'accès",
+    "new": "Nouveau groupe",
+    "addMember": "Ajouter un membre"
+  },
+  "users": {
+    "title": "Utilisateurs",
+    "subtitle": "Gestion des comptes et des accès",
+    "new": "Inviter un utilisateur",
+    "roles": {
+      "SUPER_ADMIN": "Super Admin",
+      "ADMIN": "Admin",
+      "MANAGER": "Manager",
+      "QUALITY_OFFICER": "Qualité",
+      "OPERATOR": "Opérateur",
+      "VIEWER": "Lecteur"
+    }
+  }
+}

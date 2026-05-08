@@ -1,0 +1,90 @@
+{
+  "nav": {
+    "dashboard":        "Vue d'ensemble",
+    "controls":         "Contrôle",
+    "nonConformities":  "Non-conformité",
+    "products":         "Produits",
+    "equipments":       "Équipements",
+    "suppliers":        "Fournisseurs",
+    "users":            "Utilisateurs",
+    "groups":           "Groupes",
+    "reports":          "Rapports",
+    "settings":         "Paramètres",
+    "clients":          "Clients",
+    "logout":           "Déconnexion"
+  },
+  "sections": {
+    "operations":       "OPÉRATIONS",
+    "assets":           "GESTION ACTIFS",
+    "team":             "ÉQUIPE",
+    "admin":            "ADMINISTRATION"
+  },
+  "roles": {
+    "SUPER_ADMIN":      "Super Admin",
+    "ADMIN":            "Admin",
+    "MANAGER":          "Manager",
+    "QUALITY_OFFICER":  "Responsable Qualité",
+    "VIEWER":           "Lecteur",
+    "OPERATOR":         "Opérateur"
+  },
+  "status": {
+    "nc": {
+      "OPEN":           "Ouvert",
+      "IN_PROGRESS":    "En cours",
+      "CLOSED":         "Clôturé",
+      "REJECTED":       "Rejeté"
+    },
+    "task": {
+      "PLANNED":        "Planifié",
+      "IN_PROGRESS":    "En cours",
+      "COMPLETED":      "Complété",
+      "OVERDUE":        "En retard",
+      "CANCELLED":      "Annulé"
+    },
+    "report": {
+      "PENDING":        "En attente",
+      "UNDER_REVIEW":   "En révision",
+      "VALIDATED":      "Validé",
+      "SENT":           "Envoyé"
+    },
+    "tenant": {
+      "ACTIVE":         "Actif",
+      "ARCHIVED":       "Archivé",
+      "SUSPENDED":      "Suspendu"
+    },
+    "user": {
+      "ACTIVE":         "Actif",
+      "INACTIVE":       "Inactif",
+      "INVITED":        "Invité"
+    }
+  },
+  "actions": {
+    "save":             "Enregistrer",
+    "cancel":           "Annuler",
+    "delete":           "Supprimer",
+    "edit":             "Modifier",
+    "create":           "Créer",
+    "search":           "Rechercher",
+    "filter":           "Filtrer",
+    "export":           "Exporter",
+    "validate":         "Valider",
+    "close":            "Clôturer",
+    "print":            "Imprimer"
+  },
+  "common": {
+    "loading":          "Chargement…",
+    "noData":           "Aucune donnée",
+    "error":            "Une erreur est survenue",
+    "confirmDelete":    "Êtes-vous sûr de vouloir supprimer ?",
+    "required":         "Champ obligatoire",
+    "page":             "Page",
+    "of":               "sur"
+  },
+  "auth": {
+    "login":            "Connexion",
+    "email":            "Adresse e-mail",
+    "password":         "Mot de passe",
+    "forgotPassword":   "Mot de passe oublié ?",
+    "invalidCredentials": "Identifiants incorrects"
+  }
+}

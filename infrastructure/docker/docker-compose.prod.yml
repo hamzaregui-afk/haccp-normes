@@ -1,0 +1,42 @@
+# Production overrides
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+version: '3.9'
+
+services:
+  postgres:
+    ports: []   # Not exposed externally in prod
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  redis:
+    ports: []
+
+  rabbitmq:
+    ports:
+      - "15672:15672"  # Management only (restrict with firewall)
+
+  api-gateway:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro  # TLS certs
+
+  web:
+    restart: always
+
+  auth-service:
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+
+  notification-service:
+    # ARCH-DECISION: notification-service runs 2 replicas.
+    # Socket.io uses Redis adapter so all replicas share the same pub/sub channel.
+    deploy:
+      replicas: 2

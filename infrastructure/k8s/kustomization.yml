@@ -1,0 +1,40 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: haccp
+
+resources:
+  # Namespace must be first
+  - namespace.yml
+
+  # Config & Secrets
+  - configmap.yml
+  # secrets.yml is intentionally excluded — apply manually:
+  # kubectl apply -f infrastructure/k8s/secrets.yml
+
+  # Infrastructure ConfigMaps (must come before StatefulSets that reference them)
+  - infra/postgres-init-configmap.yml
+
+  # Infrastructure (StatefulSets)
+  - infra/postgres.yml
+  - infra/redis.yml
+  - infra/rabbitmq.yml
+  - infra/minio.yml
+
+  # Application services (Deployments)
+  - services/auth-service.yml
+  - services/user-service.yml
+  - services/control-service.yml
+  - services/nonconformity-service.yml
+  - services/asset-service.yml
+  - services/notification-service.yml
+  - services/report-service.yml
+  - services/dlc-service.yml
+  - services/tenant-service.yml
+  - services/audit-service.yml
+
+  # Web frontend
+  - services/web-app.yml
+
+  # Ingress
+  - ingress.yml

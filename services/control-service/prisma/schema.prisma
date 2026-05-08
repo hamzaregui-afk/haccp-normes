@@ -1,0 +1,67 @@
+// control-service owns: ControlTemplate, ControlTask
+// zoneId/assigneeId are plain Strings — resolved via internal HTTP calls when needed
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ControlType {
+  RECEPTION
+  TEMPERATURE_STOCK
+  TEMPERATURE_DISPLAY
+  TEMPERATURE_OIL
+  EQUIPMENT
+  SANITARY
+  DAILY_PRODUCTION
+}
+
+enum TaskStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+  CANCELLED
+}
+
+model ControlTemplate {
+  id            String      @id @default(cuid())
+  name          String
+  type          ControlType
+  checklistJson Json        @map("checklist_json") // ChecklistItem[]
+  frequency     String?                            // DAILY | WEEKLY | ON_RECEIPT | …
+  tenantId      String?     @map("tenant_id")      // null = system-level template
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  tasks ControlTask[]
+
+  @@index([tenantId])
+  @@map("control_templates")
+}
+
+model ControlTask {
+  id          String     @id @default(cuid())
+  templateId  String     @map("template_id")
+  zoneId      String     @map("zone_id")         // FK to tenant-service.Zone (no join)
+  assigneeId  String     @map("assignee_id")      // FK to user-service.User (no join)
+  tenantId    String     @map("tenant_id")
+  status      TaskStatus @default(PLANNED)
+  scheduledAt DateTime   @map("scheduled_at")
+  startedAt   DateTime?  @map("started_at")
+  completedAt DateTime?  @map("completed_at")
+  resultJson  Json?      @map("result_json")      // Filled checklist answers
+  notes       String?
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  template ControlTemplate @relation(fields: [templateId], references: [id])
+
+  @@index([tenantId])
+  @@index([assigneeId])
+  @@index([scheduledAt])
+  @@index([status])
+  @@map("control_tasks")
+}

@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"C:\\\\Users\\\\pc\\\\Desktop\\\\Haccp\\\\infrastructure\\\\k8s\")",
+      "Bash(xargs cat *)",
+      "Bash(xargs grep *)",
+      "Bash(node -e \"const j = require\\('jest-config'\\); const k = Object.keys\\(j.Defaults || {}\\); console.log\\(k.filter\\(x => x.toLowerCase\\(\\).includes\\('setup'\\)\\)\\)\")",
+      "Bash(npm show *)",
+      "Bash(node -e \"console.log\\(Object.keys\\(require\\('jest-circus'\\)\\)\\)\")",
+      "Bash(xargs ls *)",
+      "Bash([ -f \"C:/Users/pc/Desktop/Haccp/services/$svc/.env.example\" ])",
+      "Bash([ -d \"C:/Users/pc/Desktop/Haccp/services/$svc/src/health\" ])",
+      "Bash([ -f \"C:/Users/pc/Desktop/Haccp/services/$svc/src/app.module.ts\" ])",
+      "Bash([ -f \"C:/Users/pc/Desktop/Haccp/services/$svc/tsconfig.json\" ])",
+      "Bash(git add *)",
+      "Bash(git init *)"
+    ]
+  }
+}

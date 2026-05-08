@@ -1,0 +1,32 @@
+# Development overrides — infra only; services run locally via pnpm dev
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up postgres redis rabbitmq minio
+
+version: '3.9'
+
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres_dev
+
+  redis:
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes  # No password in dev
+
+  rabbitmq:
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  minio:
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  # Disable monitoring in dev
+  prometheus:
+    profiles: ["monitoring"]
+  grafana:
+    profiles: ["monitoring"]
