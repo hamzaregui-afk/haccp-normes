@@ -7,6 +7,8 @@ const envSchema = z.object({
   JWT_SECRET:      z.string().min(32),
   RABBITMQ_URL:    z.string().url().optional(),
   ALLOWED_ORIGINS: z.string().optional(),
+  AUTH_SERVICE_URL:        z.string().url().optional().default('http://localhost:3010'),
+  INTERNAL_SERVICE_SECRET: z.string().min(8).default('haccp-internal-dev-secret-change-in-prod'),
 });
 
 export type Env = z.infer<typeof envSchema>;

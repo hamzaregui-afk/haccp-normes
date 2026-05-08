@@ -5,6 +5,7 @@ import { PassportModule } from '@nestjs/passport';
 import { env } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthController } from './auth.controller';
+import { AuthInternalController } from './auth-internal.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
@@ -19,7 +20,7 @@ import { LocalStrategy } from './strategies/local.strategy';
       signOptions: { expiresIn: env.JWT_EXPIRES_IN },
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, AuthInternalController],
   providers: [PrismaService, AuthService, JwtStrategy, LocalStrategy, JwtAuthGuard, RolesGuard],
   exports: [AuthService, JwtAuthGuard, RolesGuard],
 })

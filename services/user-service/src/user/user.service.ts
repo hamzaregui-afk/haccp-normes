@@ -1,10 +1,11 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
 import type { JwtPayload } from '@haccp/shared-types';
 import { toApiResponse, toPaginationMeta } from '@haccp/shared-types';
 import { PaginationQuerySchema } from '@haccp/shared-validators';
 
+import { env } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateUserDto } from './dto/create-user.dto';
 import type { UpdateUserDto } from './dto/update-user.dto';
@@ -64,28 +65,61 @@ export class UserService {
     const exists = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (exists) throw new ConflictException(`Email ${dto.email} already in use`);
 
-    const passwordHash = dto.password
-      ? await bcrypt.hash(dto.password, 12)
-      : await bcrypt.hash(crypto.randomUUID(), 12); // placeholder — invite flow sets real password
-
+    // Hash the password here; the hash is passed to auth-service (never stored in user-service DB).
+    // If no password is given, generate a random placeholder — the user must reset via invitation link.
+    const passwordHash = await bcrypt.hash(
+      dto.password ?? crypto.randomUUID(),
+      12,
+    );
     const status = dto.password ? 'ACTIVE' : 'INVITED';
 
+    // ── Step 1: create profile in user-service DB (no passwordHash column here) ──
     const user = await this.prisma.user.create({
       data: {
-        email: dto.email,
-        name: dto.name,
-        role: dto.role,
-        status,
+        email:    dto.email,
+        name:     dto.name,
+        role:     dto.role,
+        status:   status as 'ACTIVE' | 'INVITED',
         tenantId: actor.tenantId,
-        passwordHash, // stored only in auth-service — sync via RabbitMQ event
-      } as Parameters<typeof this.prisma.user.create>[0]['data'],
+      },
       select: {
         id: true, email: true, name: true,
         role: true, status: true, tenantId: true, createdAt: true, updatedAt: true,
       },
     });
 
-    // TODO: publish user.user.created event to RabbitMQ → auth-service syncs credentials
+    // ── Step 2: sync credential to auth-service via internal HTTP call ────────
+    // ARCH-DECISION: We call auth-service synchronously (not via RabbitMQ) because
+    // user creation must be atomic — a user without credentials can never log in,
+    // so the profile creation should roll back if auth-service is unreachable.
+    try {
+      const authUrl = `${env.AUTH_SERVICE_URL}/internal/users`;
+      const response = await fetch(authUrl, {
+        method:  'POST',
+        headers: {
+          'Content-Type':      'application/json',
+          'X-Internal-Secret': env.INTERNAL_SERVICE_SECRET,
+        },
+        body:   JSON.stringify({ ...user, passwordHash }),
+        signal: AbortSignal.timeout(5_000),
+      });
+
+      if (!response.ok) {
+        // Rollback: auth-service rejected the request — remove the profile we just created
+        await this.prisma.user.delete({ where: { id: user.id } });
+        throw new InternalServerErrorException(
+          'Failed to create user credentials in auth-service',
+        );
+      }
+    } catch (err: unknown) {
+      if (err instanceof InternalServerErrorException) throw err;
+      // Network error / timeout — rollback profile
+      await this.prisma.user.delete({ where: { id: user.id } }).catch(() => undefined);
+      throw new InternalServerErrorException(
+        'auth-service unreachable — user creation rolled back',
+      );
+    }
+
     return toApiResponse(user, undefined, status === 'INVITED' ? 'Invitation sent' : 'User created');
   }
 

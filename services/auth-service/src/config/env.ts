@@ -10,6 +10,7 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRES_IN:z.string().default('30d'),
   REDIS_URL:             z.string().url().optional(),
   ALLOWED_ORIGINS:       z.string().optional(),
+  INTERNAL_SERVICE_SECRET: z.string().min(8).default('haccp-internal-dev-secret-change-in-prod'),
 });
 
 export type Env = z.infer<typeof envSchema>;
