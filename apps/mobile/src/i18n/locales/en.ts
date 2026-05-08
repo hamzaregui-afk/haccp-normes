@@ -22,6 +22,7 @@ export const en: Translations = {
   auth: {
     title:       'NORMES HACCP',
     subtitle:    'Operator sign-in',
+    login:       'Sign in',
     email:       'Email address',
     password:    'Password',
     loginButton: 'Sign in',

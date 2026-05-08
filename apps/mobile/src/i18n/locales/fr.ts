@@ -21,6 +21,7 @@ export const fr = {
   auth: {
     title:       'NORMES HACCP',
     subtitle:    'Connexion opérateur',
+    login:       'Connexion',
     email:       'Adresse e-mail',
     password:    'Mot de passe',
     loginButton: 'Se connecter',

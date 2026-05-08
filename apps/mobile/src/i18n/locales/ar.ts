@@ -24,6 +24,7 @@ export const ar: Translations = {
   auth: {
     title:       'NORMES HACCP',
     subtitle:    'تسجيل دخول المشغّل',
+    login:       'تسجيل الدخول',
     email:       'البريد الإلكتروني',
     password:    'كلمة المرور',
     loginButton: 'دخول',
