@@ -21,6 +21,15 @@ model Tenant {
   slug      String       @unique
   status    TenantStatus @default(ACTIVE)
   plan      String       @default("standard")
+
+  // Business / settings fields — populated via SettingsPage PATCH /tenants/me
+  siret                   String?  @map("siret")
+  address                 String?  @map("address")
+  sector                  String?  @map("sector")
+  notifyNewNc             Boolean  @default(false) @map("notify_new_nc")
+  notifyValidatedReports  Boolean  @default(false) @map("notify_validated_reports")
+  notifyCriticalDlc       Boolean  @default(false) @map("notify_critical_dlc")
+
   createdAt DateTime     @default(now()) @map("created_at")
   updatedAt DateTime     @updatedAt @map("updated_at")
 
