@@ -10,9 +10,9 @@ export const NotificationTypeSchema = z.enum([
 export type NotificationType = z.infer<typeof NotificationTypeSchema>;
 
 export const NotificationSchema = z.object({
-  id:        z.string().uuid(),
-  userId:    z.string().uuid(),
-  tenantId:  z.string().uuid(),
+  id:        z.string().cuid(),
+  userId:    z.string().cuid(),
+  tenantId:  z.string().cuid(),
   type:      NotificationTypeSchema,
   title:     z.string(),
   body:      z.string(),

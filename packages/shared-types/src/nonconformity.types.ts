@@ -9,12 +9,14 @@ export const NonconformitySeveritySchema = z.enum([
   'CRITICAL', // Immediate food safety risk — stop production / withdraw product
 ]);
 
+// ARCH-DECISION: Must match the NCStatus Prisma enum in nonconformity-service exactly.
+// Prior version had RESOLVED and CANCELLED which do not exist in the DB —
+// removed RESOLVED (never in schema), renamed CANCELLED → REJECTED.
 export const NonconformityStatusSchema = z.enum([
   'OPEN',
   'IN_PROGRESS',
-  'RESOLVED',
   'CLOSED',
-  'CANCELLED',
+  'REJECTED',
 ]);
 
 export const NonconformityCategorySchema = z.enum([
@@ -29,11 +31,11 @@ export const NonconformityCategorySchema = z.enum([
 ]);
 
 export const NonconformitySchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  controlId: z.string().uuid().optional(), // Linked control that triggered this NC
-  reportedById: z.string().uuid(),
-  assignedToId: z.string().uuid().optional(),
+  id: z.string().cuid(),
+  tenantId: z.string().cuid(),
+  controlId: z.string().cuid().optional(), // Linked control that triggered this NC
+  reportedById: z.string().cuid(),
+  assignedToId: z.string().cuid().optional(),
   title: z.string().min(1).max(200),
   description: z.string().max(5000),
   category: NonconformityCategorySchema,

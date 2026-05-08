@@ -12,13 +12,13 @@ export const AuditActionSchema = z.enum([
 export type AuditAction = z.infer<typeof AuditActionSchema>;
 
 export const AuditLogSchema = z.object({
-  id:          z.string().uuid(),
+  id:          z.string().cuid(),
   action:      z.string(),  // use string (not enum) so future actions don't break validation
   entityType:  z.string(),
   entityId:    z.string(),
   userId:      z.string(),
   userEmail:   z.string().email(),
-  tenantId:    z.string().uuid(),
+  tenantId:    z.string().cuid(),
   ipAddress:   z.string().ip().optional().nullable(),
   metadata:    z.record(z.unknown()).optional(),
   createdAt:   z.string().datetime(),

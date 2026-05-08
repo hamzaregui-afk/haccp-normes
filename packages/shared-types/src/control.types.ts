@@ -19,10 +19,10 @@ export const ControlTypeSchema = z.enum([
 ]);
 
 export const ControlSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  ccpId: z.string().uuid(),            // References the CCP definition
-  operatorId: z.string().uuid(),       // User who performed the check
+  id: z.string().cuid(),
+  tenantId: z.string().cuid(),
+  ccpId: z.string().cuid(),            // References the CCP definition
+  operatorId: z.string().cuid(),       // User who performed the check
   type: ControlTypeSchema,
   status: ControlStatusSchema,
   measuredValue: z.number().optional(), // null for visual / qualitative checks
@@ -48,8 +48,8 @@ export type CreateControl = z.infer<typeof CreateControlSchema>;
 // ─── CCP Definition ───────────────────────────────────────────────────────────
 
 export const CcpSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: z.string().cuid(),
+  tenantId: z.string().cuid(),
   name: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
   type: ControlTypeSchema,

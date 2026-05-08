@@ -7,10 +7,10 @@ export const ReportStatusSchema = z.enum(['PENDING', 'UNDER_REVIEW', 'VALIDATED'
 export type ReportStatus = z.infer<typeof ReportStatusSchema>;
 
 export const ReportSchema = z.object({
-  id:          z.string().uuid(),
+  id:          z.string().cuid(),
   type:        ReportTypeSchema,
   status:      ReportStatusSchema,
-  tenantId:    z.string().uuid(),
+  tenantId:    z.string().cuid(),
   fileUrl:     z.string().url().optional().nullable(),
   validatedBy: z.string().optional().nullable(),
   generatedAt: z.string().datetime(),
