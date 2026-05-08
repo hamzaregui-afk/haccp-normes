@@ -52,17 +52,27 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async refresh(refreshToken: string): Promise<TokenPair> {
+  async refresh(refreshToken: string): Promise<TokenPair & { user: JwtPayload }> {
     try {
       const payload = await this.jwt.verifyAsync<JwtPayload>(refreshToken, {
         secret: env.JWT_REFRESH_SECRET,
       });
 
       // Re-verify user is still active
-      const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
-      if (user?.status !== 'ACTIVE') throw new UnauthorizedException();
+      const dbUser = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+      if (dbUser?.status !== 'ACTIVE') throw new UnauthorizedException();
 
-      return this.login({ sub: payload.sub, email: payload.email, tenantId: payload.tenantId, role: payload.role });
+      const user: JwtPayload = {
+        sub:      payload.sub,
+        email:    payload.email,
+        tenantId: payload.tenantId,
+        role:     payload.role,
+      };
+
+      // ARCH-DECISION: Return user alongside tokens so the web auth.store
+      // can update the stored JwtPayload on refresh (role/tenantId may change).
+      const tokens = await this.login(user);
+      return { ...tokens, user };
     } catch {
       throw new UnauthorizedError('AUTH_002');
     }

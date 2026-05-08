@@ -17,11 +17,13 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import type { JwtPayload } from '../store/authStore';
 import { useAuthStore } from '../store/authStore';
 
+// ARCH-DECISION: auth-service returns { accessToken, refreshToken, user } flat
+// (no toApiResponse wrapper) because it predates the standard ApiResponse pattern.
+// The mobile client reads res.data directly (not res.data.data).
 interface LoginResponse {
-  data: {
-    accessToken: string;
-    user: JwtPayload;
-  };
+  accessToken: string;
+  refreshToken: string;
+  user: JwtPayload;
 }
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
@@ -44,7 +46,7 @@ export function LoginScreen(_props: Props) {
     setErrorMsg(null);
     try {
       const res = await authClient.post<LoginResponse>('/api/v1/auth/login', { email, password });
-      const { accessToken, user } = res.data.data;
+      const { accessToken, user } = res.data;  // flat response — no .data wrapper
       setAuth(accessToken, user);
     } catch (err: unknown) {
       const message =

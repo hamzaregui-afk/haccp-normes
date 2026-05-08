@@ -37,7 +37,11 @@ export class AuthController {
       payload:    { email: req.user.email },
     });
 
-    return tokens;
+    // ARCH-DECISION: Include `user` (JwtPayload) in the login response so clients
+    // can store the decoded user object without a second /me call or local JWT
+    // decode. Both web LoginPage (reads data.user) and mobile LoginScreen
+    // (reads res.data.user) depend on this field being present.
+    return { ...tokens, user: req.user };
   }
 
   @Post('refresh')
