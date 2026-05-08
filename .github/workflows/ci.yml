@@ -127,6 +127,12 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Install Playwright browsers
         run: pnpm --filter @haccp/web exec playwright install --with-deps chromium
+      - name: Build shared packages
+        run: |
+          pnpm --filter @haccp/shared-types build
+          pnpm --filter @haccp/shared-validators build
+          pnpm --filter @haccp/shared-errors build
+          pnpm --filter @haccp/shared-utils build
       - name: Build web app
         run: pnpm --filter @haccp/web build
         env:
