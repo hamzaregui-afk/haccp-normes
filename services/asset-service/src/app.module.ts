@@ -6,9 +6,10 @@ import { SupplierModule }        from './supplier/supplier.module';
 import { DocumentModule }        from './document/document.module';
 import { DocumentRequestModule } from './document-request/document-request.module';
 import { HealthController }      from './health.controller';
+import { MetricsModule }         from './metrics/metrics.module';
 
 @Module({
-  imports: [AuthModule, ProductModule, EquipmentModule, SupplierModule, DocumentModule, DocumentRequestModule],
+  imports: [AuthModule, ProductModule, EquipmentModule, SupplierModule, DocumentModule, DocumentRequestModule, MetricsModule],
   controllers: [HealthController],
 })
 export class AppModule {}
