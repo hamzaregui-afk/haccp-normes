@@ -7,6 +7,7 @@ import { PageWrapper } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
+import { showToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
 import { exportCSV, importCSV } from '@/lib/csv';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -148,9 +149,9 @@ export default function ProductsPage() {
         }
       }
       void queryClient.invalidateQueries({ queryKey: ['products'] });
-      alert(`Import terminé : ${ok} ligne(s) importée(s)${fail ? `, ${fail} erreur(s)` : ''}.`);
+      showToast({ title: `Import terminé : ${ok} ligne(s)${fail ? `, ${fail} erreur(s)` : ''}`, variant: fail ? 'warning' : 'success' });
     } catch {
-      alert("Erreur lors de la lecture du fichier CSV.");
+      showToast({ title: 'Erreur lors de la lecture du fichier CSV.', variant: 'error' });
     } finally {
       setImporting(false);
       if (importRef.current) importRef.current.value = '';
