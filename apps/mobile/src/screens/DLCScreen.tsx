@@ -2,6 +2,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   ActivityIndicator,
   Alert,
@@ -128,6 +129,66 @@ function buildLabelHtml(label: LabelData): string {
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
+// ── Expiring today alert ──────────────────────────────────────────────────────
+
+interface DlcLabel {
+  id: string;
+  productName: string;
+  expiresAt: string;
+  lotNumber?: string | null;
+}
+
+function ExpiringTodayBanner() {
+  const { data } = useQuery<DlcLabel[]>({
+    queryKey: ['dlc', 'expiring-today'],
+    queryFn: async () => {
+      const res = await dlcClient.get<{ data: DlcLabel[] }>('/api/v1/dlc/labels/expiring-today');
+      return res.data.data ?? [];
+    },
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  if (!data || data.length === 0) return null;
+
+  return (
+    <View style={alertStyles.banner}>
+      <Text style={alertStyles.bannerTitle}>
+        ⚠️  {data.length} DLC expirent aujourd'hui
+      </Text>
+      {data.map((label) => (
+        <Text key={label.id} style={alertStyles.bannerItem}>
+          • {label.productName}
+          {label.lotNumber ? `  |  Lot ${label.lotNumber}` : ''}
+        </Text>
+      ))}
+    </View>
+  );
+}
+
+const alertStyles = StyleSheet.create({
+  banner: {
+    backgroundColor: '#FEE2E2',
+    borderLeftWidth: 4,
+    borderLeftColor: '#DC2626',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  bannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#991B1B',
+    marginBottom: 6,
+  },
+  bannerItem: {
+    fontSize: 13,
+    color: '#7F1D1D',
+    marginTop: 2,
+  },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 type Props = BottomTabScreenProps<MainTabParamList, 'DLC'>;
 
 export function DLCScreen(_props: Props) {
@@ -213,6 +274,7 @@ export function DLCScreen(_props: Props) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ExpiringTodayBanner />
       <Text style={styles.pageTitle}>Calcul & Impression DLC</Text>
 
       {/* Product name */}

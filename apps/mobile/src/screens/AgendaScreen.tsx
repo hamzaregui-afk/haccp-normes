@@ -55,12 +55,18 @@ function formatDateFR(iso: string): string {
   return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
 
-function todayISO(): string {
-  return new Date().toISOString().split('T')[0] as string;
+function dateISO(d: Date): string {
+  return d.toISOString().split('T')[0] as string;
 }
 
-function todayFR(): string {
-  return new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+function dateFR(d: Date): string {
+  return d.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' });
+}
+
+function addDays(d: Date, n: number): Date {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
 }
 
 // ── TaskCard ──────────────────────────────────────────────────────────────────
@@ -115,6 +121,13 @@ type Props = CompositeScreenProps<
 export function AgendaScreen({ navigation }: Props) {
   const qc = useQueryClient();
   const [startingId, setStartingId] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+
+  const goToPrev = () => setSelectedDate((d) => addDays(d, -1));
+  const goToNext = () => setSelectedDate((d) => addDays(d, +1));
+  const goToToday = () => setSelectedDate(new Date());
+
+  const isToday = dateISO(selectedDate) === dateISO(new Date());
 
   const {
     data,
@@ -122,17 +135,17 @@ export function AgendaScreen({ navigation }: Props) {
     isError,
     refetch,
   } = useQuery<ControlTask[]>({
-    queryKey: ['tasks', 'today'],
+    queryKey: ['tasks', dateISO(selectedDate)],
     queryFn: async () => {
       // ARCH-DECISION: The backend `status` param is a single string — it does
       // not support multi-value filtering in one request. We fire two parallel
       // requests (PLANNED + IN_PROGRESS) so operators see tasks they can start
       // AND tasks they were interrupted mid-way through. Results are merged and
       // sorted by scheduledAt ascending.
-      const today = todayISO();
+      const day = dateISO(selectedDate);
       const baseParams = {
-        from:  `${today}T00:00:00.000Z`,
-        to:    `${today}T23:59:59.999Z`,
+        from:  `${day}T00:00:00.000Z`,
+        to:    `${day}T23:59:59.999Z`,
         limit: 100,
       };
       const [plannedRes, inProgressRes] = await Promise.all([
@@ -184,10 +197,29 @@ export function AgendaScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Date navigation header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Agenda du jour</Text>
-        <Text style={styles.headerDate}>{todayFR()}</Text>
+        <View style={styles.dateNav}>
+          <TouchableOpacity onPress={goToPrev} style={styles.navArrow}>
+            <Text style={styles.navArrowText}>‹</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={goToToday} style={styles.datePill}>
+            <Text style={styles.headerTitle}>
+              {isToday ? "Agenda du jour" : dateFR(selectedDate)}
+            </Text>
+            {isToday && (
+              <Text style={styles.headerDate}>{dateFR(selectedDate)}</Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={goToNext} style={styles.navArrow}>
+            <Text style={styles.navArrowText}>›</Text>
+          </TouchableOpacity>
+        </View>
+        {!isToday && (
+          <TouchableOpacity onPress={goToToday} style={styles.todayChip}>
+            <Text style={styles.todayChipText}>Aujourd'hui</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Content */}
@@ -244,18 +276,56 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#1A3D2B',
     paddingTop: 16,
-    paddingBottom: 16,
+    paddingBottom: 12,
     paddingHorizontal: 20,
   },
+  dateNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  navArrow: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  navArrowText: {
+    fontSize: 24,
+    color: '#fff',
+    lineHeight: 28,
+  },
+  datePill: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  todayChip: {
+    alignSelf: 'center',
+    marginTop: 8,
+    backgroundColor: '#B5833A',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+  },
+  todayChipText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: '#fff',
+    textAlign: 'center',
   },
   headerDate: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#B5833A',
     marginTop: 2,
+    textAlign: 'center',
   },
   listContent: {
     padding: 16,
