@@ -5,9 +5,66 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { PageWrapper } from '@/components/layout/AppLayout';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
 import { ServicesHealth } from '@/components/shared/ServicesHealth';
 import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/lib/api';
+
+// ─── Change password modal ────────────────────────────────────────────────────
+
+interface PwdForm { password: string; confirm: string; }
+
+function ChangePasswordModal({ userId, onClose }: { userId: string; onClose: () => void }) {
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<PwdForm>();
+  const pwd = watch('password', '');
+
+  const mutation = useMutation({
+    mutationFn: (body: { password: string }) =>
+      api.patch(`/api/v1/users/${userId}/password`, body),
+    onSuccess: onClose,
+  });
+
+  return (
+    <Modal title="Changer le mot de passe" onClose={onClose}>
+      <form
+        onSubmit={handleSubmit((v) => mutation.mutate({ password: v.password }))}
+        className="flex flex-col gap-4"
+      >
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-gray-700">Nouveau mot de passe</label>
+          <input
+            {...register('password', {
+              required: 'Obligatoire',
+              minLength: { value: 8, message: '8 caractères minimum' },
+            })}
+            type="password"
+            className="h-9 w-full rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
+          />
+          {errors.password && <p className="text-xs text-red-600">{errors.password.message}</p>}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-gray-700">Confirmer le mot de passe</label>
+          <input
+            {...register('confirm', {
+              required: 'Obligatoire',
+              validate: (v) => v === pwd || 'Les mots de passe ne correspondent pas',
+            })}
+            type="password"
+            className="h-9 w-full rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
+          />
+          {errors.confirm && <p className="text-xs text-red-600">{errors.confirm.message}</p>}
+        </div>
+        {mutation.isError && (
+          <p className="text-sm text-red-600">Une erreur est survenue. Veuillez réessayer.</p>
+        )}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>Annuler</Button>
+          <Button type="submit" loading={mutation.isPending}>Enregistrer</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
@@ -95,6 +152,7 @@ function SectionCard({ title, children }: SectionCardProps) {
 export default function SettingsPage() {
   const currentUser = useAuthStore((s) => s.user);
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
+  const [showPwdModal, setShowPwdModal] = useState(false);
 
   const [toast, setToast]           = useState<string | null>(null);
   const [notifyNc, setNotifyNc]     = useState(false);
@@ -223,7 +281,7 @@ export default function SettingsPage() {
                     type="button"
                     variant="secondary"
                     size="sm"
-                    onClick={() => alert('Fonctionnalité disponible prochainement')}
+                    onClick={() => setShowPwdModal(true)}
                   >
                     Changer le mot de passe
                   </Button>
@@ -271,6 +329,18 @@ export default function SettingsPage() {
           </form>
         )}
       </PageWrapper>
+
+      {/* Change password modal */}
+      {showPwdModal && currentUser && (
+        <ChangePasswordModal
+          userId={currentUser.sub}
+          onClose={() => {
+            setShowPwdModal(false);
+            setToast('Mot de passe modifié avec succès.');
+            setTimeout(() => setToast(null), 3500);
+          }}
+        />
+      )}
 
       {/* Services health widget — ADMIN/SUPER_ADMIN only */}
       {isSuperAdmin && (
