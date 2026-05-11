@@ -28,7 +28,11 @@ async function bootstrap() {
 
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  app.setGlobalPrefix('api/v1');
+  // ARCH-DECISION: exclude /internal/** from the versioned prefix so that
+  // service-to-service calls (user-service → auth-service) use a stable,
+  // version-independent path. /internal routes are blocked at the nginx
+  // api-gateway layer so they are never reachable from outside the cluster.
+  app.setGlobalPrefix('api/v1', { exclude: ['internal/(.*)'] });
 
   app.enableCors({
     origin: process.env.ALLOWED_ORIGINS?.split(',') ?? ['http://localhost:3000'],

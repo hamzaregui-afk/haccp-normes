@@ -6,6 +6,12 @@ const envSchema = z.object({
   DATABASE_URL:    z.string().url(),
   JWT_SECRET:      z.string().min(32),
   ALLOWED_ORIGINS: z.string().optional(),
+  MINIO_ENDPOINT:  z.string().default('minio'),
+  MINIO_PORT:      z.coerce.number().default(9000),
+  MINIO_ACCESS_KEY: z.string().default('minioadmin'),
+  MINIO_SECRET_KEY: z.string().default('minioadmin'),
+  MINIO_BUCKET:    z.string().default('haccp-documents'),
+  MINIO_USE_SSL:   z.coerce.boolean().default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;

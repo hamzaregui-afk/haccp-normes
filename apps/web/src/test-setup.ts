@@ -18,7 +18,9 @@ Object.defineProperty(window, 'matchMedia', {
 });
 
 // Stub ResizeObserver — used by recharts ResponsiveContainer
-global.ResizeObserver = class ResizeObserver {
+// ARCH-DECISION: Use window instead of global — this file runs in jsdom (browser-like env),
+// not Node.js. The web tsconfig has only DOM libs, so `global` is not typed.
+(window as unknown as Record<string, unknown>)['ResizeObserver'] = class ResizeObserver {
   observe()   { /* no-op */ }
   unobserve() { /* no-op */ }
   disconnect(){ /* no-op */ }

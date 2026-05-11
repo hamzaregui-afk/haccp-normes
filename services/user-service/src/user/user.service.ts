@@ -7,6 +7,7 @@ import { PaginationQuerySchema } from '@haccp/shared-validators';
 
 import { env } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
+import type { ChangePasswordDto } from './dto/change-password.dto';
 import type { CreateUserDto } from './dto/create-user.dto';
 import type { UpdateUserDto } from './dto/update-user.dto';
 
@@ -45,7 +46,7 @@ export class UserService {
       this.prisma.user.count({ where }),
     ]);
 
-    return toApiResponse(users, toPaginationMeta(total, page, limit));
+    return toApiResponse(users, toPaginationMeta(total, { page, limit }));
   }
 
   async findOne(id: string, tenantId: string) {
@@ -135,6 +136,47 @@ export class UserService {
       },
     });
     return toApiResponse(user);
+  }
+
+  async changePassword(id: string, dto: ChangePasswordDto, tenantId: string) {
+    // Find user scoped to tenant — throws 404 if not found
+    const existing = await this.prisma.user.findFirst({
+      where: { id, tenantId },
+      select: {
+        id: true, email: true, name: true,
+        role: true, status: true, tenantId: true, createdAt: true, updatedAt: true,
+      },
+    });
+    if (!existing) throw new NotFoundException(`User ${id} not found`);
+
+    const passwordHash = await bcrypt.hash(dto.password, 12);
+
+    // Sync new credential to auth-service (same pattern as create())
+    try {
+      const authUrl = `${env.AUTH_SERVICE_URL}/internal/users`;
+      const response = await fetch(authUrl, {
+        method:  'POST',
+        headers: {
+          'Content-Type':      'application/json',
+          'X-Internal-Secret': env.INTERNAL_SERVICE_SECRET,
+        },
+        body:   JSON.stringify({ ...existing, passwordHash }),
+        signal: AbortSignal.timeout(5_000),
+      });
+
+      if (!response.ok) {
+        throw new InternalServerErrorException(
+          'Failed to update password in auth-service',
+        );
+      }
+    } catch (err: unknown) {
+      if (err instanceof InternalServerErrorException) throw err;
+      throw new InternalServerErrorException(
+        'auth-service unreachable — password change failed',
+      );
+    }
+
+    return toApiResponse(null, undefined, 'Mot de passe mis à jour');
   }
 
   async remove(id: string, tenantId: string, actor: JwtPayload) {

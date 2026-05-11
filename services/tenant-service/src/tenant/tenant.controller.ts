@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import type { JwtPayload } from '@haccp/shared-types';
-import { emitAuditEvent } from '@haccp/shared-utils';
+import { emitAuditEvent, extractResourceId } from '@haccp/shared-utils';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -69,7 +69,7 @@ export class TenantController {
       userId:     actor.sub,
       action:     'CREATE',
       resource:   'tenants',
-      resourceId: (result as { data?: { id?: string } }).data?.id,
+      ...(extractResourceId(result) !== undefined && { resourceId: extractResourceId(result) }),
       tenantId:   actor.tenantId,
       payload:    { name: dto.name },
     });

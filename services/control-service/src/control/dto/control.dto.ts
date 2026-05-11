@@ -40,13 +40,19 @@ export type UpdateTemplateDto = z.infer<typeof UpdateTemplateDtoSchema>;
 export const CreateTaskDtoSchema = z.object({
   templateId:  z.string().cuid(),
   zoneId:      z.string().min(1),
-  assigneeId:  z.string().min(1),
+  assigneeId:  z.string().min(1).optional(),
+  groupId:     z.string().min(1).optional(),
   scheduledAt: z.coerce.date(),
+}).refine((d) => d.assigneeId ?? d.groupId, {
+  message: 'assigneeId ou groupId est requis',
+  path: ['assigneeId'],
 });
 export type CreateTaskDto = z.infer<typeof CreateTaskDtoSchema>;
 
 export const UpdateTaskDtoSchema = z.object({
   status:      TaskStatusSchema.optional(),
+  assigneeId:  z.string().min(1).optional(),
+  groupId:     z.string().min(1).optional(),
   notes:       z.string().max(2000).optional(),
   resultJson:  z.unknown().optional(),
   startedAt:   z.coerce.date().optional(),
@@ -70,6 +76,8 @@ export const TaskQuerySchema = z.object({
   limit:      z.coerce.number().int().min(1).max(500).default(20),
   status:     z.string().optional(),
   assigneeId: z.string().optional(),
+  zoneId:     z.string().optional(),
+  templateId: z.string().optional(),
   from:       z.coerce.date().optional(),
   to:         z.coerce.date().optional(),
 });

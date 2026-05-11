@@ -13,7 +13,7 @@ import {
 import type { Response } from 'express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { JwtPayload } from '@haccp/shared-types';
-import { emitAuditEvent, publishDomainEvent } from '@haccp/shared-utils';
+import { emitAuditEvent, extractResourceId, publishDomainEvent } from '@haccp/shared-utils';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -99,7 +99,7 @@ export class ReportController {
       userId:     user.sub,
       action:     'CREATE',
       resource:   'reports',
-      resourceId: (result as { data?: { id?: string } }).data?.id,
+      ...(extractResourceId(result) !== undefined && { resourceId: extractResourceId(result) }),
       tenantId:   user.tenantId,
       payload:    { type: dto.type },
     });

@@ -1,5 +1,5 @@
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { AlertTriangle, CheckCircle2, Clock, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Calendar, CheckCircle2, Clock, ShieldCheck, TrendingUp } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -16,7 +16,8 @@ import {
 import { Header } from '@/components/layout/Header';
 import { PageWrapper } from '@/components/layout/AppLayout';
 import { api } from '@/lib/api';
-import type { ApiResponse } from '@haccp/shared-types';
+import { useAuthStore } from '@/store/auth.store';
+import type { ApiResponse, UserRole } from '@haccp/shared-types';
 
 // ─── API shapes ───────────────────────────────────────────────────────────────
 
@@ -172,6 +173,94 @@ function KpiCard({
   );
 }
 
+// ─── Role-aware banner ────────────────────────────────────────────────────────
+
+const ROLE_CONFIG: Record<UserRole, { label: string; desc: string; color: string; iconColor: string }> = {
+  SUPER_ADMIN:     { label: 'Super Administrateur', desc: 'Accès complet à toutes les organisations.',            color: 'bg-purple-50 border-purple-200', iconColor: 'text-purple-600' },
+  ADMIN:           { label: 'Administrateur',        desc: 'Gestion complète de votre organisation.',              color: 'bg-brand-lighter border-brand-lighter', iconColor: 'text-brand-dark' },
+  MANAGER:         { label: 'Manager',               desc: 'Supervision des opérations et des équipes.',           color: 'bg-blue-50 border-blue-200',   iconColor: 'text-blue-600' },
+  QUALITY_OFFICER: { label: 'Responsable Qualité',   desc: 'Suivi de la conformité et des non-conformités.',       color: 'bg-amber-50 border-amber-200', iconColor: 'text-amber-600' },
+  OPERATOR:        { label: 'Opérateur',             desc: 'Vos tâches de contrôle planifiées pour aujourd\'hui.', color: 'bg-green-50 border-green-200', iconColor: 'text-green-600' },
+  VIEWER:          { label: 'Lecteur',               desc: 'Accès en lecture seule aux données HACCP.',            color: 'bg-gray-50 border-gray-200',   iconColor: 'text-gray-500' },
+};
+
+function RoleBanner({ role, email }: { role: UserRole; email: string }) {
+  const cfg = ROLE_CONFIG[role] ?? ROLE_CONFIG.VIEWER;
+  return (
+    <div className={`mb-6 flex items-center gap-4 rounded-xl border px-5 py-4 ${cfg.color}`}>
+      <ShieldCheck className={`h-8 w-8 shrink-0 ${cfg.iconColor}`} />
+      <div>
+        <p className="text-sm font-semibold text-gray-800">{cfg.label} — <span className="font-normal text-gray-600">{email}</span></p>
+        <p className="mt-0.5 text-xs text-gray-500">{cfg.desc}</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Operator today's tasks widget ───────────────────────────────────────────
+
+interface MyTask {
+  id: string;
+  templateId: string;
+  status: string;
+  scheduledAt: string;
+  template?: { name: string; type: string };
+}
+
+const MY_TASK_STATUS: Record<string, { label: string; color: string }> = {
+  PLANNED:     { label: 'Planifiée',  color: 'bg-gray-100 text-gray-700' },
+  IN_PROGRESS: { label: 'En cours',  color: 'bg-blue-50 text-blue-700' },
+  COMPLETED:   { label: 'Terminée',  color: 'bg-green-50 text-green-700' },
+  OVERDUE:     { label: 'En retard', color: 'bg-red-50 text-red-700' },
+  CANCELLED:   { label: 'Annulée',   color: 'bg-gray-100 text-gray-400' },
+};
+
+function OperatorTasksWidget({ assigneeId }: { assigneeId: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['my.tasks.today', assigneeId],
+    queryFn: async () => {
+      const today = new Date();
+      const from  = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+      const to    = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59).toISOString();
+      const p     = new URLSearchParams({ assigneeId, from, to, limit: '50' });
+      const { data } = await api.get<ApiResponse<MyTask[]>>(`/api/v1/controls/tasks?${p}`);
+      return data.data ?? [];
+    },
+    refetchInterval: 60_000,
+  });
+
+  return (
+    <div className="rounded-xl border border-surface-muted bg-white p-6 shadow-sm">
+      <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-700">
+        <Calendar className="h-4 w-4 text-brand-medium" />
+        Mes tâches du jour
+      </h3>
+      {isLoading ? (
+        <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-8 animate-pulse rounded bg-surface-page" />)}</div>
+      ) : (data ?? []).length === 0 ? (
+        <div className="flex h-24 items-center justify-center text-sm text-gray-400">Aucune tâche planifiée aujourd'hui ✅</div>
+      ) : (
+        <ul className="divide-y divide-surface-muted">
+          {(data ?? []).map((task) => {
+            const s = MY_TASK_STATUS[task.status] ?? { label: task.status, color: 'bg-gray-100 text-gray-600' };
+            return (
+              <li key={task.id} className="flex items-center justify-between py-2.5">
+                <div>
+                  <p className="text-sm font-medium text-gray-800">{task.template?.name ?? 'Contrôle'}</p>
+                  <p className="text-xs text-gray-400">
+                    {new Date(task.scheduledAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${s.color}`}>{s.label}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // ─── Recent NCs table ─────────────────────────────────────────────────────────
 
 interface RecentNc {
@@ -198,6 +287,7 @@ const NC_STATUS_LABEL: Record<string, string> = {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const currentUser = useAuthStore((s) => s.user);
   const [controlsQuery, ncStatsQuery, recentNcQuery] = useQueries({
     queries: [
       {
@@ -234,7 +324,7 @@ export default function DashboardPage() {
     queryKey: ['nc.chart.monthly'],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<NcItem[]>>(
-        '/api/v1/nonconformities?limit=200',
+        '/api/v1/nonconformities?limit=100',
       );
       return data.data;
     },
@@ -245,7 +335,7 @@ export default function DashboardPage() {
     queryKey: ['controls.chart.monthly'],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<ControlTask[]>>(
-        '/api/v1/controls/tasks?limit=200',
+        '/api/v1/controls/tasks?limit=100',
       );
       return data.data;
     },
@@ -272,10 +362,23 @@ export default function DashboardPage() {
   const ns = ncStatsQuery.data;
   const loading = controlsQuery.isLoading || ncStatsQuery.isLoading;
 
+  const isOperator = currentUser?.role === 'OPERATOR';
+
   return (
     <>
       <Header title="Vue d'ensemble" subtitle="Tableau de bord HACCP" />
       <PageWrapper>
+        {/* ── Role banner ── */}
+        {currentUser && <RoleBanner role={currentUser.role} email={currentUser.email} />}
+
+        {/* ── Operator view: show their tasks widget instead of the full dashboard ── */}
+        {isOperator && currentUser && (
+          <OperatorTasksWidget assigneeId={currentUser.sub} />
+        )}
+
+        {/* ── Full dashboard — shown for all non-operator roles ── */}
+        {!isOperator && (
+          <>
         {/* ── KPI cards ── */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard
@@ -491,6 +594,8 @@ export default function DashboardPage() {
           </div>
 
         </div>
+          </>
+        )}
       </PageWrapper>
     </>
   );

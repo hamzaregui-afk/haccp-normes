@@ -4,7 +4,7 @@
  * Strategy:
  *  - Mock PrismaService so no DB is needed.
  *  - Mock JwtService so no real crypto is exercised (signing is slow + env-dependent).
- *  - Mock bcrypt to control compare() return values.
+ *  - Mock bcrypt to control compare() / hash() return values.
  *  - Mock env module to supply deterministic secrets.
  */
 
@@ -21,25 +21,32 @@ jest.mock('../config/env', () => ({
 // ── bcrypt mock ───────────────────────────────────────────────────────────────
 jest.mock('bcrypt', () => ({
   compare: jest.fn(),
+  hash:    jest.fn(),
 }));
 
 // ── Imports ───────────────────────────────────────────────────────────────────
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
-import { UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UnauthorizedError } from '@haccp/shared-errors';
 
-// ── Typed bcrypt mock ─────────────────────────────────────────────────────────
+// ── Typed bcrypt mocks ────────────────────────────────────────────────────────
 const mockBcryptCompare = bcrypt.compare as jest.MockedFunction<typeof bcrypt.compare>;
+const mockBcryptHash    = bcrypt.hash    as jest.MockedFunction<typeof bcrypt.hash>;
 
 // ── Prisma mock ───────────────────────────────────────────────────────────────
 const mockPrisma = {
   user: {
     findUnique: jest.fn(),
+  },
+  refreshToken: {
+    create:      jest.fn(),
+    findMany:    jest.fn(),
+    delete:      jest.fn(),
+    deleteMany:  jest.fn(),
   },
 };
 
@@ -47,13 +54,14 @@ const mockPrisma = {
 const mockJwt = {
   signAsync:   jest.fn(),
   verifyAsync: jest.fn(),
+  // decode() is used in login() to read the refresh token's exp claim
+  decode:      jest.fn().mockReturnValue({ exp: Math.floor(Date.now() / 1000) + 7 * 24 * 3600 }),
 };
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
-// Use CUID-compatible strings (start with 'c', no hyphens/spaces, ≥9 chars)
-// so they pass Zod's z.string().cuid() validator used in JwtPayloadSchema.
 const USER_ID   = 'cuser0001testidabc12345';
 const TENANT_ID = 'ctenant001testidabc1234';
+const TOKEN_ID  = 'ctoken001testidabc12345';
 
 function makeDbUser(overrides: Partial<{
   id: string;
@@ -85,6 +93,16 @@ function makeJwtPayload() {
   };
 }
 
+function makeStoredToken(tokenHash = '$2b$06$stored_token_hash') {
+  return {
+    id:        TOKEN_ID,
+    userId:    USER_ID,
+    token:     tokenHash,
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    createdAt: new Date(),
+  };
+}
+
 // ── Suite ─────────────────────────────────────────────────────────────────────
 
 describe('AuthService', () => {
@@ -101,6 +119,15 @@ describe('AuthService', () => {
 
     service = module.get<AuthService>(AuthService);
     jest.clearAllMocks();
+
+    // Reset decode mock (cleared by clearAllMocks above)
+    mockJwt.decode.mockReturnValue({ exp: Math.floor(Date.now() / 1000) + 7 * 24 * 3600 });
+
+    // Default hash mock — login() always hashes the refresh token
+    mockBcryptHash.mockResolvedValue('$2b$06$hashed_refresh_token' as never);
+
+    // Default refreshToken.create mock — no-op
+    mockPrisma.refreshToken.create.mockResolvedValue(makeStoredToken());
   });
 
   // ── validateUser ────────────────────────────────────────────────────────────
@@ -145,7 +172,6 @@ describe('AuthService', () => {
       await expect(
         service.validateUser('inactive@haccp.com', 'any'),
       ).rejects.toThrow(UnauthorizedError);
-      // bcrypt.compare must NOT be called — short-circuit before password check
       expect(mockBcryptCompare).not.toHaveBeenCalled();
     });
 
@@ -230,28 +256,40 @@ describe('AuthService', () => {
       expect(mockJwt.signAsync).toHaveBeenCalledTimes(2);
     });
 
-    it('signs both tokens in parallel (Promise.all — both calls happen regardless of order)', async () => {
-      // Both tokens are signed even if the first one resolves slowly
-      let callCount = 0;
-      mockJwt.signAsync.mockImplementation(async () => {
-        callCount++;
-        return `token-${callCount}`;
-      });
+    it('stores a hashed copy of the refresh token in the DB', async () => {
+      mockJwt.signAsync
+        .mockResolvedValueOnce('access-token')
+        .mockResolvedValueOnce('refresh-token');
+      mockBcryptHash.mockResolvedValue('$2b$06$hashed' as never);
 
-      const result = await service.login(makeJwtPayload());
+      await service.login(makeJwtPayload());
 
-      expect(result.accessToken).toBe('token-1');
-      expect(result.refreshToken).toBe('token-2');
+      expect(mockBcryptHash).toHaveBeenCalledWith('refresh-token', 6);
+      expect(mockPrisma.refreshToken.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: USER_ID,
+            token:  '$2b$06$hashed',
+          }),
+        }),
+      );
     });
   });
 
   // ── refresh ─────────────────────────────────────────────────────────────────
 
   describe('refresh', () => {
-    it('returns a new TokenPair for a valid refresh token', async () => {
+    function setupValidRefresh() {
       mockJwt.verifyAsync.mockResolvedValue(makeJwtPayload());
       mockPrisma.user.findUnique.mockResolvedValue(makeDbUser());
+      mockPrisma.refreshToken.findMany.mockResolvedValue([makeStoredToken()]);
+      mockBcryptCompare.mockResolvedValue(true as never);
+      mockPrisma.refreshToken.delete.mockResolvedValue(makeStoredToken());
       mockJwt.signAsync.mockResolvedValue('new-token');
+    }
+
+    it('returns a new TokenPair for a valid refresh token', async () => {
+      setupValidRefresh();
 
       const result = await service.refresh('valid-refresh-token');
 
@@ -260,9 +298,7 @@ describe('AuthService', () => {
     });
 
     it('verifies the token using JWT_REFRESH_SECRET', async () => {
-      mockJwt.verifyAsync.mockResolvedValue(makeJwtPayload());
-      mockPrisma.user.findUnique.mockResolvedValue(makeDbUser());
-      mockJwt.signAsync.mockResolvedValue('new-token');
+      setupValidRefresh();
 
       await service.refresh('some-refresh-token');
 
@@ -280,7 +316,6 @@ describe('AuthService', () => {
 
     it('throws UnauthorizedError when the user is no longer ACTIVE', async () => {
       mockJwt.verifyAsync.mockResolvedValue(makeJwtPayload());
-      // User was deactivated after the token was issued
       mockPrisma.user.findUnique.mockResolvedValue(makeDbUser({ status: 'INACTIVE' }));
 
       await expect(service.refresh('valid-token-but-user-inactive')).rejects.toThrow(
@@ -297,15 +332,45 @@ describe('AuthService', () => {
       );
     });
 
-    it('re-issues tokens containing the same payload sub/tenantId/role', async () => {
-      const payload = makeJwtPayload();
-      mockJwt.verifyAsync.mockResolvedValue(payload);
+    it('throws UnauthorizedError when no matching stored token found (revoked)', async () => {
+      mockJwt.verifyAsync.mockResolvedValue(makeJwtPayload());
       mockPrisma.user.findUnique.mockResolvedValue(makeDbUser());
-      mockJwt.signAsync.mockResolvedValue('new-token');
+      mockPrisma.refreshToken.findMany.mockResolvedValue([makeStoredToken()]);
+      // bcrypt.compare returns false → token was revoked / not matching
+      mockBcryptCompare.mockResolvedValue(false as never);
+
+      await expect(service.refresh('revoked-token')).rejects.toThrow(UnauthorizedError);
+    });
+
+    it('deletes all user tokens when a revoked token is presented (replay attack)', async () => {
+      mockJwt.verifyAsync.mockResolvedValue(makeJwtPayload());
+      mockPrisma.user.findUnique.mockResolvedValue(makeDbUser());
+      mockPrisma.refreshToken.findMany.mockResolvedValue([makeStoredToken()]);
+      mockBcryptCompare.mockResolvedValue(false as never);
+
+      await expect(service.refresh('stolen-token')).rejects.toThrow();
+
+      expect(mockPrisma.refreshToken.deleteMany).toHaveBeenCalledWith({
+        where: { userId: USER_ID },
+      });
+    });
+
+    it('deletes the used refresh token after a successful refresh (rotation)', async () => {
+      setupValidRefresh();
 
       await service.refresh('valid-refresh-token');
 
-      // signAsync should be called with the re-extracted payload fields
+      expect(mockPrisma.refreshToken.delete).toHaveBeenCalledWith({
+        where: { id: TOKEN_ID },
+      });
+    });
+
+    it('re-issues tokens containing the same payload sub/tenantId/role', async () => {
+      setupValidRefresh();
+      const payload = makeJwtPayload();
+
+      await service.refresh('valid-refresh-token');
+
       expect(mockJwt.signAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           sub:      payload.sub,
@@ -314,6 +379,26 @@ describe('AuthService', () => {
         }),
         expect.any(Object),
       );
+    });
+  });
+
+  // ── logout ──────────────────────────────────────────────────────────────────
+
+  describe('logout', () => {
+    it('deletes all refresh tokens for the user', async () => {
+      mockPrisma.refreshToken.deleteMany.mockResolvedValue({ count: 2 });
+
+      await service.logout(USER_ID);
+
+      expect(mockPrisma.refreshToken.deleteMany).toHaveBeenCalledWith({
+        where: { userId: USER_ID },
+      });
+    });
+
+    it('does not throw if the user has no stored tokens', async () => {
+      mockPrisma.refreshToken.deleteMany.mockResolvedValue({ count: 0 });
+
+      await expect(service.logout(USER_ID)).resolves.toBeUndefined();
     });
   });
 });

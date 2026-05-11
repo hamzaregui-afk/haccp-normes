@@ -124,19 +124,37 @@ export function AgendaScreen({ navigation }: Props) {
   } = useQuery<ControlTask[]>({
     queryKey: ['tasks', 'today'],
     queryFn: async () => {
-      // TaskQuerySchema accepts `from`/`to` date range (z.coerce.date) and
-      // `status` as a plain string. The original used non-existent `date` param
-      // (silently ignored) and status 'PENDING' (no such value → empty results).
+      // ARCH-DECISION: The backend `status` param is a single string — it does
+      // not support multi-value filtering in one request. We fire two parallel
+      // requests (PLANNED + IN_PROGRESS) so operators see tasks they can start
+      // AND tasks they were interrupted mid-way through. Results are merged and
+      // sorted by scheduledAt ascending.
       const today = todayISO();
-      const res = await controlClient.get<TasksResponse>('/api/v1/controls/tasks', {
-        params: {
-          from:   `${today}T00:00:00.000Z`,
-          to:     `${today}T23:59:59.999Z`,
-          status: 'PLANNED',
-          limit:  100,
-        },
+      const baseParams = {
+        from:  `${today}T00:00:00.000Z`,
+        to:    `${today}T23:59:59.999Z`,
+        limit: 100,
+      };
+      const [plannedRes, inProgressRes] = await Promise.all([
+        controlClient.get<TasksResponse>('/api/v1/controls/tasks', {
+          params: { ...baseParams, status: 'PLANNED' },
+        }),
+        controlClient.get<TasksResponse>('/api/v1/controls/tasks', {
+          params: { ...baseParams, status: 'IN_PROGRESS' },
+        }),
+      ]);
+
+      const merged = [
+        ...inProgressRes.data.data,  // IN_PROGRESS first (higher priority)
+        ...plannedRes.data.data,
+      ];
+      // Deduplicate by id (shouldn't happen, but defensive)
+      const seen = new Set<string>();
+      return merged.filter((t) => {
+        if (seen.has(t.id)) return false;
+        seen.add(t.id);
+        return true;
       });
-      return res.data.data;
     },
     refetchInterval: 60_000,
   });

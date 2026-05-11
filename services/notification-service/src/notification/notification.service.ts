@@ -53,7 +53,7 @@ export class NotificationService {
       }),
       this.prisma.notification.count({ where }),
     ]);
-    return toApiResponse(items, toPaginationMeta(total, page, limit));
+    return toApiResponse(items, toPaginationMeta(total, { page, limit }));
   }
 
   async markRead(dto: MarkReadDto, tenantId: string) {

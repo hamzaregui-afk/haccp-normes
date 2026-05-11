@@ -54,9 +54,9 @@ export class NonconformityService {
         include: { photos: true },
       }),
       this.prisma.nonConformity.count({ where }),
-    ]);
+    ]) as [NcWithPhotos[], number];
 
-    return toApiResponse(items as NcWithPhotos[], toPaginationMeta(total, page, limit));
+    return toApiResponse(items, toPaginationMeta(total, { page, limit }));
   }
 
   // ── Single ────────────────────────────────────────────────────────────────

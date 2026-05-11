@@ -1,4 +1,4 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
 
 export const ReportTypeSchema = z.enum([
   'MONTHLY_HYGIENE',
@@ -31,7 +31,7 @@ export type UpdateReportStatusDto = z.infer<typeof UpdateReportStatusSchema>;
 
 export const ReportQuerySchema = z.object({
   page:   z.coerce.number().int().min(1).default(1),
-  limit:  z.coerce.number().int().min(1).max(100).default(20),
+  limit:  z.coerce.number().int().min(1).max(500).default(20),
   status: ReportStatusSchema.optional(),
   type:   ReportTypeSchema.optional(),
 });

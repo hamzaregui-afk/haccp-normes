@@ -3,6 +3,11 @@ import { create } from 'zustand';
 
 const SECURE_TOKEN_KEY = 'haccp_jwt_token';
 
+// ARCH-DECISION: The mobile app only stores the access token (not the refresh
+// token). The access token is short-lived (15 min) and is kept in secure
+// storage. When it expires, the user is redirected to the login screen.
+// This keeps the mobile auth model simple and avoids silent token refresh
+// complexity on a device that can be offline for extended periods.
 export interface JwtPayload {
   sub: string;
   email: string;
@@ -14,7 +19,7 @@ interface AuthState {
   token: string | null;
   user: JwtPayload | null;
   setAuth: (token: string, user: JwtPayload) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   hydrateFromStorage: () => Promise<void>;
 }
 
@@ -44,9 +49,9 @@ function decodeJwtPayload(token: string): JwtPayload | null {
     ) {
       const p = parsed as Record<string, unknown>;
       return {
-        sub: String(p['sub']),
-        email: String(p['email']),
-        role: String(p['role']),
+        sub:      String(p['sub']),
+        email:    String(p['email']),
+        role:     String(p['role']),
         tenantId: String(p['tenantId']),
       };
     }
@@ -56,7 +61,7 @@ function decodeJwtPayload(token: string): JwtPayload | null {
   }
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
   user: null,
 
@@ -68,8 +73,24 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ token, user });
   },
 
-  logout: () => {
-    SecureStore.deleteItemAsync(SECURE_TOKEN_KEY).catch(() => {});
+  logout: async () => {
+    // ARCH-DECISION: Call the server-side logout endpoint so the refresh
+    // token is deleted from the DB (replay attack protection). The access
+    // token used here is still valid for the duration of this single call.
+    // Fire-and-forget: if the network is unreachable, we still clear local
+    // state — the server-side token will expire naturally.
+    const { token } = get();
+    if (token) {
+      try {
+        // Import lazily to avoid circular dependency with client.ts
+        const { authClient } = await import('../api/client');
+        await authClient.post('/auth/logout');
+      } catch {
+        // Intentionally swallow — user must always be able to log out locally
+      }
+    }
+
+    await SecureStore.deleteItemAsync(SECURE_TOKEN_KEY).catch(() => {});
     set({ token: null, user: null });
   },
 

@@ -7,6 +7,12 @@ const envSchema = z.object({
   JWT_SECRET:      z.string().min(32),
   ALLOWED_ORIGINS: z.string().optional(),
   RABBITMQ_URL:    z.string().optional().default('amqp://guest:guest@localhost:5672'),
+  MINIO_ENDPOINT:  z.string().default('minio'),
+  MINIO_PORT:      z.coerce.number().default(9000),
+  MINIO_ACCESS_KEY: z.string().default('minioadmin'),
+  MINIO_SECRET_KEY: z.string().default('minioadmin'),
+  MINIO_BUCKET:    z.string().default('haccp-control-photos'),
+  MINIO_USE_SSL:   z.coerce.boolean().default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
 
 // ARCH-DECISION: Enums are re-declared as z.enum string literals (not z.nativeEnum)
 // so this shared package has no dependency on any service's Prisma client.
@@ -45,7 +45,7 @@ export type UpdateNcDto = z.infer<typeof UpdateNcSchema>;
 
 export const NcQuerySchema = z.object({
   page:     z.coerce.number().int().min(1).default(1),
-  limit:    z.coerce.number().int().min(1).max(100).default(20),
+  limit:    z.coerce.number().int().min(1).max(500).default(20),
   status:   NCStatusSchema.optional(),
   severity: NCSeveritySchema.optional(),
   search:   z.string().max(200).optional(),

@@ -28,7 +28,7 @@ export class AppError extends Error {
       success: false,
       code: this.code,
       message: this.message,
-      details: this.details,
+      ...(this.details !== undefined && { details: this.details }),
       timestamp: new Date().toISOString(),
     };
   }

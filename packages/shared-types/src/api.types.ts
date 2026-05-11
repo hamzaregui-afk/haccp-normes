@@ -39,8 +39,7 @@ export const toApiResponse = <T>(
 
 export const toPaginationMeta = (
   total: number,
-  page: number,
-  limit: number,
+  { page, limit }: { page: number; limit: number },
 ): PaginationMeta => ({
   total,
   page,

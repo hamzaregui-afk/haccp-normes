@@ -44,6 +44,7 @@ function makeAuthServiceMock() {
   return {
     login:   jest.fn().mockResolvedValue(TOKEN_PAIR),
     refresh: jest.fn().mockResolvedValue(TOKEN_PAIR),
+    logout:  jest.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -128,6 +129,33 @@ describe('AuthController', () => {
       await Promise.resolve();
 
       expect(emitAuditEvent).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ── logout ─────────────────────────────────────────────────────────────────
+
+  describe('logout', () => {
+    it('calls AuthService.logout with the user sub', async () => {
+      await controller.logout({ user: JWT_PAYLOAD });
+      expect(authService.logout).toHaveBeenCalledWith('user-001');
+    });
+
+    it('emits a LOGOUT audit event', async () => {
+      await controller.logout({ user: JWT_PAYLOAD });
+      await Promise.resolve();
+
+      expect(emitAuditEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId:  'user-001',
+          action:  'LOGOUT',
+          tenantId: 'tenant-abc',
+        }),
+      );
+    });
+
+    it('returns undefined (HTTP 204 No Content)', async () => {
+      const result = await controller.logout({ user: JWT_PAYLOAD });
+      expect(result).toBeUndefined();
     });
   });
 

@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { toApiResponse, toPaginationMeta } from '@haccp/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
+import { MinioService } from '../minio/minio.service';
 import type {
   CreateTemplateDto,
   UpdateTemplateDto,
@@ -12,7 +14,10 @@ import type {
 
 @Injectable()
 export class ControlService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly minio: MinioService,
+  ) {}
 
   // ─── Templates ─────────────────────────────────────────────────────────────
 
@@ -38,7 +43,7 @@ export class ControlService {
       this.prisma.controlTemplate.count({ where }),
     ]);
 
-    return toApiResponse(templates, toPaginationMeta(total, page, limit));
+    return toApiResponse(templates, toPaginationMeta(total, { page, limit }));
   }
 
   async findOneTemplate(id: string, tenantId: string) {
@@ -54,7 +59,7 @@ export class ControlService {
       data: {
         name:          dto.name,
         type:          dto.type,
-        checklistJson: dto.checklistJson,
+        checklistJson: dto.checklistJson as Prisma.InputJsonValue,
         frequency:     dto.frequency,
         tenantId,
       },
@@ -73,7 +78,7 @@ export class ControlService {
       data: {
         ...(dto.name          !== undefined ? { name: dto.name }                   : {}),
         ...(dto.type          !== undefined ? { type: dto.type }                   : {}),
-        ...(dto.checklistJson !== undefined ? { checklistJson: dto.checklistJson } : {}),
+        ...(dto.checklistJson !== undefined ? { checklistJson: dto.checklistJson as Prisma.InputJsonValue } : {}),
         ...(dto.frequency     !== undefined ? { frequency: dto.frequency }         : {}),
       },
     });
@@ -93,12 +98,14 @@ export class ControlService {
   // ─── Tasks ─────────────────────────────────────────────────────────────────
 
   async findAllTasks(tenantId: string, query: TaskQuery) {
-    const { page, limit, status, assigneeId, from, to } = query;
+    const { page, limit, status, assigneeId, zoneId, templateId, from, to } = query;
 
     const where = {
       tenantId,
       ...(status     ? { status: status as never }   : {}),
       ...(assigneeId ? { assigneeId }                : {}),
+      ...(zoneId     ? { zoneId }                    : {}),
+      ...(templateId ? { templateId }                : {}),
       ...(from || to
         ? {
             scheduledAt: {
@@ -122,7 +129,7 @@ export class ControlService {
       this.prisma.controlTask.count({ where }),
     ]);
 
-    return toApiResponse(tasks, toPaginationMeta(total, page, limit));
+    return toApiResponse(tasks, toPaginationMeta(total, { page, limit }));
   }
 
   async findOneTask(id: string, tenantId: string) {
@@ -149,7 +156,8 @@ export class ControlService {
       data: {
         templateId:  dto.templateId,
         zoneId:      dto.zoneId,
-        assigneeId:  dto.assigneeId,
+        assigneeId:  dto.assigneeId ?? null,
+        groupId:     dto.groupId    ?? null,
         tenantId,
         scheduledAt: dto.scheduledAt,
         status:      'PLANNED',
@@ -170,11 +178,13 @@ export class ControlService {
     const task = await this.prisma.controlTask.update({
       where: { id },
       data: {
-        ...(dto.status      !== undefined ? { status: dto.status }           : {}),
-        ...(dto.notes       !== undefined ? { notes: dto.notes }             : {}),
-        ...(dto.resultJson  !== undefined ? { resultJson: dto.resultJson as never } : {}),
-        ...(dto.startedAt   !== undefined ? { startedAt: dto.startedAt }     : {}),
-        ...(dto.completedAt !== undefined ? { completedAt: dto.completedAt } : {}),
+        ...(dto.status      !== undefined ? { status: dto.status }                     : {}),
+        ...(dto.assigneeId  !== undefined ? { assigneeId: dto.assigneeId, groupId: null } : {}),
+        ...(dto.groupId     !== undefined ? { groupId: dto.groupId, assigneeId: null }    : {}),
+        ...(dto.notes       !== undefined ? { notes: dto.notes }                       : {}),
+        ...(dto.resultJson  !== undefined ? { resultJson: dto.resultJson as never }    : {}),
+        ...(dto.startedAt   !== undefined ? { startedAt: dto.startedAt }               : {}),
+        ...(dto.completedAt !== undefined ? { completedAt: dto.completedAt }           : {}),
       },
       include: {
         template: { select: { id: true, name: true, type: true } },
@@ -206,5 +216,38 @@ export class ControlService {
       : Math.round((todayCompleted / todayTotal) * 100);
 
     return toApiResponse({ todayTotal, todayCompleted, openOverdue, complianceRate });
+  }
+
+  // ─── Photos ────────────────────────────────────────────────────────────────
+
+  async addPhoto(taskId: string, tenantId: string, file: Express.Multer.File) {
+    const existing = await this.prisma.controlTask.findFirst({ where: { id: taskId, tenantId } });
+    if (!existing) throw new NotFoundException(`Tâche de contrôle ${taskId} introuvable`);
+
+    const objectKey = await this.minio.upload(file.buffer, file.originalname, file.mimetype, tenantId, taskId);
+    const url       = await this.minio.presignedGetUrl(objectKey);
+
+    const photo = await this.prisma.controlPhoto.create({
+      data: { taskId, tenantId, objectKey, url },
+    });
+
+    return toApiResponse({ ...photo, url }, undefined, 'Photo ajoutée');
+  }
+
+  async getPhotos(taskId: string, tenantId: string) {
+    const existing = await this.prisma.controlTask.findFirst({ where: { id: taskId, tenantId } });
+    if (!existing) throw new NotFoundException(`Tâche de contrôle ${taskId} introuvable`);
+
+    const photos = await this.prisma.controlPhoto.findMany({
+      where: { taskId, tenantId },
+      orderBy: { uploadedAt: 'asc' },
+    });
+
+    // Refresh presigned URLs (they expire after 1h)
+    const withUrls = await Promise.all(
+      photos.map(async (p) => ({ ...p, url: await this.minio.presignedGetUrl(p.objectKey) })),
+    );
+
+    return toApiResponse(withUrls);
   }
 }

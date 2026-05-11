@@ -3,7 +3,6 @@ import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 
 import type { JwtPayload } from '@haccp/shared-types';
-import { LoginSchema } from '@haccp/shared-validators';
 import { emitAuditEvent } from '@haccp/shared-utils';
 
 import { AuthService } from './auth.service';
@@ -55,6 +54,25 @@ export class AuthController {
       .parse(body);
 
     return this.authService.refresh(refreshToken);
+  }
+
+  /** POST /api/auth/logout — Invalidates the server-side refresh token.
+   *  The client is responsible for clearing its own token storage. */
+  @SkipThrottle()
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  @HttpCode(204)
+  async logout(@Request() req: { user: JwtPayload }) {
+    await this.authService.logout(req.user.sub);
+
+    void emitAuditEvent({
+      userId:     req.user.sub,
+      action:     'LOGOUT',
+      resource:   'users',
+      resourceId: req.user.sub,
+      tenantId:   req.user.tenantId,
+      payload:    {},
+    });
   }
 
   @SkipThrottle() // JWT-protected endpoints don't need throttling — JWT is the protection

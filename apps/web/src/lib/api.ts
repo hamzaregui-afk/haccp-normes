@@ -8,7 +8,10 @@ import { useAuthStore } from '@/store/auth.store';
  * 401 responses trigger a token refresh; if refresh fails, logout.
  */
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8080',
+  // ARCH-DECISION: Empty baseURL means all requests use the current origin
+  // (localhost:3000 in dev, served via nginx proxy). VITE_API_URL can override
+  // for standalone API deployments.
+  baseURL: import.meta.env.VITE_API_URL ?? '',
   headers: { 'Content-Type': 'application/json' },
   timeout: 15_000,
 });
@@ -41,7 +44,9 @@ api.interceptors.response.use(
         }
         return api(originalRequest);
       } catch {
-        useAuthStore.getState().logout();
+        // Fire-and-forget: logout() is async but we can't await inside the
+        // Axios interceptor callback without changing its return type.
+        void useAuthStore.getState().logout();
       }
     }
 

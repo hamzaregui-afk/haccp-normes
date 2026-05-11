@@ -40,3 +40,9 @@ Thumbs.db
 
 # Docker
 docker-compose.override.yml
+
+# Claude Code runtime
+.claude/scheduled_tasks.lock
+
+# Temporary fix scripts (debugging artifacts)
+fix_dockerfiles*.py

@@ -1,19 +1,24 @@
-# ─── Stage 1: builder ─────────────────────────────────────────────────────────
+﻿# â”€â”€â”€ Stage 1: builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm \
+ && npm config set fetch-retry-mintimeout 20000 \
+ && npm config set fetch-retry-maxtimeout 120000 \
+ && npm config set fetch-retries 5 \
+ && pnpm config set network-timeout 300000 \
+ && pnpm config set fetch-retries 5
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
 COPY packages/ ./packages/
 COPY apps/web/package.json ./apps/web/
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 COPY apps/web/ ./apps/web/
 COPY tsconfig.base.json ./
 
-# Build shared packages first — Vite resolves @haccp/* via package.json#main (dist/index.js)
+# Build shared packages first â€” Vite resolves @haccp/* via package.json#main (dist/index.js)
 # so the dist/ must exist before the web bundle is compiled
 RUN pnpm --filter @haccp/shared-types build \
  && pnpm --filter @haccp/shared-validators build \
@@ -22,7 +27,7 @@ RUN pnpm --filter @haccp/shared-types build \
 
 RUN pnpm --filter @haccp/web build
 
-# ─── Stage 2: runner (nginx) ──────────────────────────────────────────────────
+# â”€â”€â”€ Stage 2: runner (nginx) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 FROM nginx:1.25-alpine AS runner
 
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
@@ -31,6 +36,6 @@ COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://localhost:80 || exit 1
+  CMD wget -qO- http://127.0.0.1:80/ || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

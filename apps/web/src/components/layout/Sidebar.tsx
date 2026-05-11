@@ -1,6 +1,7 @@
+import type { LucideIcon } from 'lucide-react';
 import {
-  BarChart3, Building2, ChevronRight, ClipboardList, Cog, FileText,
-  LayoutDashboard, LogOut, Package, ScrollText, ShieldAlert, Tag, Truck, Users, UsersRound,
+  BarChart3, BookOpen, Building2, ChevronRight, ClipboardList, Cog, FileText,
+  FolderOpen, LayoutDashboard, LogOut, MapPin, Package, ScrollText, ShieldAlert, Tag, Truck, Users, UsersRound, X,
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -13,14 +14,14 @@ import type { UserRole } from '@haccp/shared-types';
 // ─── Nav item definition ──────────────────────────────────────────────────────
 
 interface NavItem {
-  labelKey: string;  // i18n key under nav.*
+  labelKey: string;
   to:    string;
-  icon:  React.ComponentType<{ className?: string }>;
+  icon:  LucideIcon;
   roles: UserRole[];
 }
 
 interface NavSection {
-  titleKey: string;  // i18n key under nav.*
+  titleKey: string;
   items:    NavItem[];
 }
 
@@ -40,6 +41,8 @@ const NAV_SECTIONS: NavSection[] = [
       { labelKey: 'nav.products',    to: '/products',   icon: Package,    roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
       { labelKey: 'nav.equipments',  to: '/equipments', icon: Cog,        roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
       { labelKey: 'nav.suppliers',   to: '/suppliers',  icon: Truck,      roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
+      { labelKey: 'nav.zones',       to: '/zones',      icon: MapPin,     roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { labelKey: 'nav.documents',   to: '/documents',  icon: BookOpen,   roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN'] },
     ],
   },
   {
@@ -60,27 +63,40 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-// ─── Sidebar component ────────────────────────────────────────────────────────
+// ─── Sidebar inner content (shared between mobile overlay and desktop fixed) ──
 
-export function Sidebar() {
-  const { t }   = useTranslation();
-  const user    = useAuthStore((s) => s.user);
-  const logout  = useAuthStore((s) => s.logout);
+interface SidebarContentProps {
+  onClose?: () => void;
+}
+
+function SidebarContent({ onClose }: SidebarContentProps) {
+  const { t }    = useTranslation();
+  const user     = useAuthStore((s) => s.user);
+  const logout   = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    logout();
+    void logout();
     navigate('/login');
   };
 
   if (!user) return null;
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 flex w-[280px] flex-col bg-brand-dark">
+    <div className="flex h-full flex-col">
       {/* Logo */}
       <div className="flex h-16 shrink-0 items-center gap-2 border-b border-brand-medium px-5">
         <FileText className="h-6 w-6 text-gold" />
         <span className="text-lg font-bold tracking-wide text-white">NORMES HACCP</span>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="ml-auto rounded p-1 text-green-300 hover:text-white lg:hidden"
+            aria-label="Fermer le menu"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
       {/* Nav */}
@@ -101,6 +117,7 @@ export function Sidebar() {
                   <li key={item.to}>
                     <NavLink
                       to={item.to}
+                      onClick={onClose}
                       className={({ isActive }) =>
                         cn(
                           'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
@@ -130,10 +147,13 @@ export function Sidebar() {
       <div className="shrink-0 border-t border-brand-medium px-4 py-3">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-medium text-sm font-semibold text-white">
-            {user.email.charAt(0).toUpperCase()}
+            {(user.name ?? user.email).charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-white">{user.email}</p>
+            {user.name && (
+              <p className="truncate text-sm font-semibold text-white">{user.name}</p>
+            )}
+            <p className="truncate text-xs text-green-300">{user.email}</p>
             <RoleBadge role={user.role} size="sm" />
           </div>
           <button
@@ -145,6 +165,36 @@ export function Sidebar() {
           </button>
         </div>
       </div>
-    </aside>
+    </div>
+  );
+}
+
+// ─── Sidebar component ────────────────────────────────────────────────────────
+
+interface SidebarProps {
+  mobileOpen: boolean;
+  onClose:    () => void;
+}
+
+export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
+  return (
+    <>
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden" aria-hidden>
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+          {/* Drawer */}
+          <aside className="absolute inset-y-0 left-0 flex w-[280px] flex-col bg-brand-dark">
+            <SidebarContent onClose={onClose} />
+          </aside>
+        </div>
+      )}
+
+      {/* Desktop fixed sidebar */}
+      <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:w-[280px] lg:flex-col bg-brand-dark">
+        <SidebarContent />
+      </aside>
+    </>
   );
 }

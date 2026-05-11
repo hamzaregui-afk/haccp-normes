@@ -3,12 +3,13 @@ import {
 } from '@nestjs/common';
 
 import type { JwtPayload } from '@haccp/shared-types';
-import { emitAuditEvent } from '@haccp/shared-utils';
+import { emitAuditEvent, extractResourceId } from '@haccp/shared-utils';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { ChangePasswordDtoSchema } from './dto/change-password.dto';
 import { CreateUserDtoSchema } from './dto/create-user.dto';
 import { UpdateUserDtoSchema } from './dto/update-user.dto';
 import { UserService } from './user.service';
@@ -40,7 +41,7 @@ export class UserController {
       userId:     actor.sub,
       action:     'CREATE',
       resource:   'users',
-      resourceId: (result as { data?: { id?: string } }).data?.id,
+      ...(extractResourceId(result) !== undefined && { resourceId: extractResourceId(result) }),
       tenantId:   actor.tenantId,
       payload:    { email: dto.email, role: dto.role },
     });
@@ -67,6 +68,17 @@ export class UserController {
     });
 
     return result;
+  }
+
+  @Patch(':id/password')
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  async changePassword(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    const dto = ChangePasswordDtoSchema.parse(body);
+    return this.userService.changePassword(id, dto, user.tenantId);
   }
 
   @Delete(':id')

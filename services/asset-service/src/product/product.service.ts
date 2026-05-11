@@ -37,7 +37,7 @@ export class ProductService {
       this.prisma.product.count({ where }),
     ]);
 
-    return toApiResponse(products, toPaginationMeta(total, page, limit));
+    return toApiResponse(products, toPaginationMeta(total, { page, limit }));
   }
 
   async findCategories(tenantId: string): Promise<string[]> {

@@ -64,6 +64,7 @@ export type UpdateUser = z.infer<typeof UpdateUserSchema>;
 export const JwtPayloadSchema = z.object({
   sub: z.string().cuid(),        // userId
   email: z.string().email(),
+  name: z.string().optional(),   // display name — included in JWT for UI convenience
   tenantId: z.string().cuid(),   // CRITICAL — every service query is scoped to this
   role: UserRoleSchema,
   iat: z.number().optional(),

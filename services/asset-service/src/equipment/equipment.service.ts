@@ -35,7 +35,7 @@ export class EquipmentService {
       this.prisma.equipment.count({ where }),
     ]);
 
-    return toApiResponse(equipments, toPaginationMeta(total, page, limit));
+    return toApiResponse(equipments, toPaginationMeta(total, { page, limit }));
   }
 
   async findOne(id: string, tenantId: string) {

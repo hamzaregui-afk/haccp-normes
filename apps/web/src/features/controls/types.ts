@@ -2,7 +2,8 @@ export interface ControlTask {
   id: string;
   templateId: string;
   zoneId: string;
-  assigneeId: string;
+  assigneeId: string | null;
+  groupId: string | null;
   tenantId: string;
   status: 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'OVERDUE' | 'CANCELLED';
   scheduledAt: string;
@@ -12,6 +13,16 @@ export interface ControlTask {
   notes?: string;
   createdAt: string;
   template?: { id: string; name: string; type: string };
+}
+
+export interface ChecklistItem {
+  id: string;
+  label: string;
+  type: 'BOOLEAN' | 'NUMBER' | 'TEXT' | 'TEMPERATURE';
+  unit?: string;
+  min?: number;
+  max?: number;
+  required: boolean;
 }
 
 export type ControlType =

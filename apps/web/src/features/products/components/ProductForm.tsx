@@ -18,7 +18,7 @@ interface ProductFormValues {
 }
 
 interface ProductFormProps {
-  onSubmit: (data: ProductFormValues) => Promise<void>;
+  onSubmit: (data: ProductFormValues) => Promise<unknown>;
   loading?: boolean;
   defaultValues?: Partial<ProductFormValues>;
 }

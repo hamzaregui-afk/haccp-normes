@@ -1,6 +1,6 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
 
-// ── Product ──────────────────────────────────────────────────────────────────
+// â”€â”€ Product â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const CreateProductSchema = z.object({
   name:        z.string().min(1).max(200),
@@ -14,7 +14,7 @@ export type CreateProductDto = z.infer<typeof CreateProductSchema>;
 export const UpdateProductSchema = CreateProductSchema.partial();
 export type UpdateProductDto = z.infer<typeof UpdateProductSchema>;
 
-// ── Equipment ────────────────────────────────────────────────────────────────
+// â”€â”€ Equipment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const CreateEquipmentSchema = z.object({
   name:            z.string().min(1).max(200),
@@ -28,7 +28,7 @@ export type CreateEquipmentDto = z.infer<typeof CreateEquipmentSchema>;
 export const UpdateEquipmentSchema = CreateEquipmentSchema.partial();
 export type UpdateEquipmentDto = z.infer<typeof UpdateEquipmentSchema>;
 
-// ── Supplier ─────────────────────────────────────────────────────────────────
+// â”€â”€ Supplier â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const CreateSupplierSchema = z.object({
   name:         z.string().min(1).max(200),
@@ -43,11 +43,11 @@ export type CreateSupplierDto = z.infer<typeof CreateSupplierSchema>;
 export const UpdateSupplierSchema = CreateSupplierSchema.partial();
 export type UpdateSupplierDto = z.infer<typeof UpdateSupplierSchema>;
 
-// ── Shared asset query ────────────────────────────────────────────────────────
+// â”€â”€ Shared asset query â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const AssetQuerySchema = z.object({
   page:   z.coerce.number().int().min(1).default(1),
-  limit:  z.coerce.number().int().min(1).max(100).default(20),
+  limit:  z.coerce.number().int().min(1).max(500).default(20),
   search: z.string().max(200).optional(),
 });
 export type AssetQuery = z.infer<typeof AssetQuerySchema>;

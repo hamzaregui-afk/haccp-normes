@@ -1,18 +1,25 @@
 {
   "nav": {
+    "overview": "Overview",
     "dashboard": "Overview",
     "controls": "Controls",
     "nonconformities": "Non-conformities",
     "products": "Products",
     "equipments": "Equipment",
     "suppliers": "Suppliers",
+    "zones": "Sites & Zones",
     "groups": "Groups",
     "users": "Users",
     "clients": "Clients",
     "reports": "Reports",
     "audit": "Audit log",
     "settings": "Settings",
-    "dlc": "Use-by dates"
+    "dlc": "Use-by dates",
+    "operations": "Operations",
+    "assets": "Asset management",
+    "team": "Team",
+    "administration": "Administration",
+    "documents": "Documents"
   },
   "common": {
     "save": "Save",

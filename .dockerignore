@@ -1,0 +1,38 @@
+# Dependencies — never send node_modules into build context
+node_modules
+**/node_modules
+
+# Build outputs
+**/dist
+**/.turbo
+**/.next
+**/build
+
+# Development files
+**/.env.local
+**/.env.*.local
+**/*.log
+**/coverage
+**/.nyc_output
+
+# OS / editor
+.DS_Store
+Thumbs.db
+**/.vscode
+**/.idea
+
+# Git
+.git
+.gitignore
+
+# Docker
+**/Dockerfile
+**/.dockerignore
+
+# Test artifacts
+**/*.spec.ts
+**/*.test.ts
+**/e2e
+
+# CI
+.github

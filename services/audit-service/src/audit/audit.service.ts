@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { toApiResponse, toPaginationMeta } from '@haccp/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateAuditLogDto, AuditQuery } from './dto/audit.dto';
@@ -19,7 +20,11 @@ export class AuditService {
    */
   async log(dto: CreateAuditLogDto, tenantId: string) {
     const entry = await this.prisma.auditLog.create({
-      data: { ...dto, tenantId },
+      data: {
+        ...dto,
+        tenantId,
+        payload: dto.payload as Prisma.InputJsonValue | undefined,
+      },
     });
     return toApiResponse(entry, undefined, 'Audit log created');
   }
@@ -52,7 +57,7 @@ export class AuditService {
       this.prisma.auditLog.count({ where }),
     ]);
 
-    return toApiResponse(logs, toPaginationMeta(total, page, limit));
+    return toApiResponse(logs, toPaginationMeta(total, { page, limit }));
   }
 
   async findOne(id: string, tenantId: string) {

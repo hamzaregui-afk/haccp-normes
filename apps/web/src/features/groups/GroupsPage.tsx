@@ -146,7 +146,7 @@ function AddMemberModal({ group, onClose, onAdded }: AddMemberModalProps) {
 
 interface CreateGroupFormValues { name: string }
 
-function CreateGroupForm({ onSubmit, loading }: { onSubmit: (d: CreateGroupFormValues) => Promise<void>; loading?: boolean }) {
+function CreateGroupForm({ onSubmit, loading }: { onSubmit: (d: CreateGroupFormValues) => Promise<unknown>; loading?: boolean }) {
   const { register, handleSubmit, formState: { errors } } = useForm<CreateGroupFormValues>();
   return (
     <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4">

@@ -7,10 +7,13 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import type { JwtPayload } from '@haccp/shared-types';
-import { emitAuditEvent, publishDomainEvent } from '@haccp/shared-utils';
+import { emitAuditEvent, extractResourceId, publishDomainEvent } from '@haccp/shared-utils';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -57,7 +60,7 @@ export class ControlController {
       userId:     user.sub,
       action:     'CREATE',
       resource:   'controls',
-      resourceId: (result as { data?: { id?: string } }).data?.id,
+      ...(extractResourceId(result) !== undefined && { resourceId: extractResourceId(result) }),
       tenantId:   user.tenantId,
       payload:    { name: dto.name, type: dto.type },
     });
@@ -129,7 +132,7 @@ export class ControlController {
       userId:     user.sub,
       action:     'CREATE',
       resource:   'controls',
-      resourceId: (result as { data?: { id?: string } }).data?.id,
+      ...(extractResourceId(result) !== undefined && { resourceId: extractResourceId(result) }),
       tenantId:   user.tenantId,
     });
 
@@ -181,5 +184,24 @@ export class ControlController {
   @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'VIEWER')
   getStats(@CurrentUser() user: JwtPayload) {
     return this.controlService.getStats(user.tenantId);
+  }
+
+  // ─── Photos ────────────────────────────────────────────────────────────────
+
+  @Post('tasks/:id/photos')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'OPERATOR')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  async addTaskPhoto(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.controlService.addPhoto(id, user.tenantId, file);
+  }
+
+  @Get('tasks/:id/photos')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'OPERATOR', 'QUALITY_OFFICER', 'VIEWER')
+  getTaskPhotos(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.controlService.getPhotos(id, user.tenantId);
   }
 }

@@ -1,8 +1,8 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
 
 // ARCH-DECISION: Field names mirror PrintLabelDtoSchema in dlc-service/src/dlc/dto/dlc.dto.ts.
 // Prior version used fabricationDate/shelfLifeDays which do not exist in the
-// backend DTO — any service importing these schemas would produce 400 errors.
+// backend DTO â€” any service importing these schemas would produce 400 errors.
 
 export const CalculateDLCSchema = z.object({
   productId:   z.string().min(1),

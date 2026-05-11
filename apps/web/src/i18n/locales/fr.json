@@ -1,18 +1,25 @@
 {
   "nav": {
+    "overview": "Vue d'ensemble",
     "dashboard": "Vue d'ensemble",
     "controls": "Contrôles",
     "nonconformities": "Non-conformités",
     "products": "Produits",
     "equipments": "Équipements",
     "suppliers": "Fournisseurs",
+    "zones": "Sites & Zones",
     "groups": "Groupes",
     "users": "Utilisateurs",
     "clients": "Clients",
     "reports": "Rapports",
     "audit": "Journal d'audit",
     "settings": "Paramètres",
-    "dlc": "DLC"
+    "dlc": "DLC",
+    "operations": "Opérations",
+    "assets": "Gestion actifs",
+    "team": "Équipe",
+    "administration": "Administration",
+    "documents": "Documents"
   },
   "common": {
     "save": "Enregistrer",

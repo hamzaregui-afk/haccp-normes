@@ -6,7 +6,7 @@
 // pdfmake ships its own type declarations via @types/pdfmake.
 // The Node.js build exposes a default-export class; we require() it at runtime
 // to avoid ES-module interop issues with pdfmake's CommonJS bundle.
-import type { TDocumentDefinitions, TFontDictionary } from 'pdfmake/interfaces';
+import type { Content, TDocumentDefinitions, TFontDictionary } from 'pdfmake/interfaces';
 
 // pdfmake for Node.js does not include font files in the bundle — we use the
 // four built-in PDF standard fonts (Helvetica family) which are always
@@ -88,7 +88,7 @@ export function generateReportPdf(report: ReportRecord): Promise<Buffer> {
       ],
     }),
 
-    content: [
+    content: ([
       // ── Title block ──────────────────────────────────────────────────────────
       {
         text:  `Rapport ${report.type.replace(/_/g, ' ')}`,
@@ -159,14 +159,8 @@ export function generateReportPdf(report: ReportRecord): Promise<Buffer> {
       // ── File URL section (if present) ────────────────────────────────────────
       ...(report.fileUrl
         ? [
-            {
-              text:   '\nFichier joint',
-              style:  'sectionTitle',
-            } as object,
-            {
-              text:  report.fileUrl,
-              style: 'body',
-            } as object,
+            { text: '\nFichier joint', style: 'sectionTitle' } as Content,
+            { text: report.fileUrl,    style: 'body'         } as Content,
           ]
         : []),
 
@@ -176,7 +170,7 @@ export function generateReportPdf(report: ReportRecord): Promise<Buffer> {
         style:  'disclaimer',
         margin: [0, 24, 0, 0] as [number, number, number, number],
       },
-    ],
+    ] as Content[]),
 
     styles: {
       header: {

@@ -12,16 +12,19 @@ const UsersPage           = lazy(() => import('@/features/users/UsersPage'));
 const ClientsPage         = lazy(() => import('@/features/clients/ClientsPage'));
 
 // Placeholders — implemented in later phases
-const ControlsPage        = lazy(() => import('@/features/controls/ControlsPage'));
+const ControlsPage           = lazy(() => import('@/features/controls/ControlsPage'));
+const ChecklistEditorPage    = lazy(() => import('@/features/controls/ChecklistEditorPage'));
 const NonconformitiesPage = lazy(() => import('@/features/nonconformities/NonconformitiesPage'));
 const ProductsPage        = lazy(() => import('@/features/products/ProductsPage'));
 const EquipmentsPage      = lazy(() => import('@/features/equipments/EquipmentsPage'));
 const SuppliersPage       = lazy(() => import('@/features/suppliers/SuppliersPage'));
 const GroupsPage          = lazy(() => import('@/features/groups/GroupsPage'));
+const ZonesPage           = lazy(() => import('@/features/zones/ZonesPage'));
 const ReportsPage         = lazy(() => import('@/features/reports/ReportsPage'));
 const SettingsPage        = lazy(() => import('@/features/settings/SettingsPage'));
 const DLCWebPage          = lazy(() => import('@/features/dlc/DLCWebPage'));
 const AuditPage           = lazy(() => import('@/features/audit/AuditPage'));
+const DocumentsPage       = lazy(() => import('@/features/documents/DocumentsPage'));
 
 // ─── Fallback spinner ────────────────────────────────────────────────────────
 const PageLoader = () => (
@@ -50,7 +53,10 @@ const S = (Component: React.LazyExoticComponent<() => JSX.Element>) => (
 );
 
 // ─── Router ───────────────────────────────────────────────────────────────────
-export const router = createBrowserRouter([
+// ARCH-DECISION: Explicit ReturnType annotation prevents TS2742 ("inferred type
+// cannot be named without a reference to @remix-run/router") which occurs in pnpm
+// workspaces where the transitive package path is not part of the public resolution.
+export const router: ReturnType<typeof createBrowserRouter> = createBrowserRouter([
   {
     path: '/login',
     element: <Suspense fallback={null}><LoginPage /></Suspense>,
@@ -66,11 +72,14 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard',       element: S(DashboardPage) },
       { path: 'controls',        element: S(ControlsPage) },
+      { path: 'controls/templates/:id', element: S(ChecklistEditorPage) },
       { path: 'nonconformities', element: S(NonconformitiesPage) },
       { path: 'products',        element: S(ProductsPage) },
       { path: 'equipments',      element: S(EquipmentsPage) },
       { path: 'suppliers',       element: S(SuppliersPage) },
       { path: 'groups',          element: S(GroupsPage) },
+      { path: 'zones',           element: S(ZonesPage) },
+      { path: 'documents',       element: S(DocumentsPage) },
       { path: 'reports',         element: S(ReportsPage) },
       { path: 'dlc',            element: S(DLCWebPage) },
       {

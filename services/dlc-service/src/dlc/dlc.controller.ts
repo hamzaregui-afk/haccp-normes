@@ -32,15 +32,16 @@ export class DlcController {
     const dto    = PrintLabelDtoSchema.parse(body);
     const result = await this.dlcService.printLabel(dto, user.tenantId, user.sub);
 
+    const labelId = (result as { data?: { label?: { id?: string } } }).data?.label?.id;
     void emitAuditEvent({
-      userId:     user.sub,
-      action:     'CREATE',
-      resource:   'dlc',
-      resourceId: (result as { data?: { label?: { id?: string } } }).data?.label?.id,
-      tenantId:   user.tenantId,
-      payload:    {
+      userId:   user.sub,
+      action:   'CREATE',
+      resource: 'dlc',
+      ...(labelId !== undefined && { resourceId: labelId }),
+      tenantId: user.tenantId,
+      payload:  {
         productName: dto.productName,
-        lotNumber:   dto.lotNumber,
+        ...(dto.lotNumber !== undefined && { lotNumber: dto.lotNumber }),
       },
     });
 

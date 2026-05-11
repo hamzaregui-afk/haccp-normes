@@ -18,7 +18,7 @@ export class GroupService {
       }),
       this.prisma.group.count({ where: { tenantId } }),
     ]);
-    return toApiResponse(groups, toPaginationMeta(total, page, limit));
+    return toApiResponse(groups, toPaginationMeta(total, { page, limit }));
   }
 
   async findOne(id: string, tenantId: string) {

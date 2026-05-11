@@ -1,15 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Calendar,
+  Camera,
   CheckCircle2,
   ClipboardList,
   Clock,
+  Edit2,
+  Eye,
+  ImageOff,
+  ListChecks,
   Plus,
   Search,
   TrendingUp,
+  Upload,
+  User,
+  Users,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 
 import { PageWrapper } from '@/components/layout/AppLayout';
 import { Header } from '@/components/layout/Header';
@@ -73,6 +82,108 @@ const FREQUENCY_OPTIONS = [
   { value: 'ON_DEMAND',    label: 'À la demande' },
 ];
 
+// ─── Lookup types ──────────────────────────────────────────────────────────────
+
+interface ZoneRaw    { id: string; name: string }
+interface SiteRaw    { id: string; name: string; zones: ZoneRaw[] }
+interface UserRaw    { id: string; name: string; email: string }
+interface GroupRaw   { id: string; name: string }
+
+// ─── Lookup hooks ──────────────────────────────────────────────────────────────
+
+function useZoneLookup() {
+  const { data } = useQuery({
+    queryKey: ['sites.all'],
+    queryFn: async () => {
+      const { data } = await api.get<{ data: SiteRaw[] }>('/api/v1/sites');
+      return data.data ?? [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const zoneMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const site of (data ?? [])) {
+      for (const zone of (site.zones ?? [])) {
+        map[zone.id] = zone.name;
+      }
+    }
+    return map;
+  }, [data]);
+
+  const zoneOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [];
+    for (const site of (data ?? [])) {
+      for (const zone of (site.zones ?? [])) {
+        opts.push({ value: zone.id, label: `${site.name} — ${zone.name}` });
+      }
+    }
+    return opts;
+  }, [data]);
+
+  return { zoneMap, zoneOptions };
+}
+
+function useUserLookup() {
+  // ARCH-DECISION: retry:false + throwOnError:false so a 403 (MANAGER role cannot
+  // list users) silently yields an empty array rather than crashing the form.
+  const { data } = useQuery({
+    queryKey: ['users.all'],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get<{ data: UserRaw[] }>('/api/v1/users?page=1&limit=100');
+        return data.data ?? [];
+      } catch {
+        return [] as UserRaw[];
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  const userMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const u of (data ?? [])) map[u.id] = u.name;
+    return map;
+  }, [data]);
+
+  const userOptions = useMemo(
+    () => (data ?? []).map((u) => ({ value: u.id, label: `${u.name} (${u.email})` })),
+    [data],
+  );
+
+  return { userMap, userOptions };
+}
+
+function useGroupLookup() {
+  const { data } = useQuery({
+    queryKey: ['groups.all'],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get<{ data: GroupRaw[] }>('/api/v1/groups?page=1&limit=100');
+        return data.data ?? [];
+      } catch {
+        return [] as GroupRaw[];
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  const groupMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const g of (data ?? [])) map[g.id] = g.name;
+    return map;
+  }, [data]);
+
+  const groupOptions = useMemo(
+    () => (data ?? []).map((g) => ({ value: g.id, label: g.name })),
+    [data],
+  );
+
+  return { groupMap, groupOptions };
+}
+
 // ─── KPI cards ─────────────────────────────────────────────────────────────────
 
 interface KpiCardProps {
@@ -103,22 +214,42 @@ function KpiCard({ label, value, icon: Icon, iconColor, iconBg, valueColor }: Kp
 // ─── Plan task form ────────────────────────────────────────────────────────────
 
 interface PlanTaskFormValues {
-  templateId: string;
-  zoneId: string;
-  assigneeId: string;
-  scheduledAt: string;
+  templateId:   string;
+  zoneId:       string;
+  assigneeType: 'user' | 'group';
+  assigneeId:   string;
+  groupId:      string;
+  scheduledAt:  string;
 }
 
 function PlanTaskForm({
   templates,
+  zoneOptions,
+  userOptions,
+  groupOptions,
   onSubmit,
   loading,
 }: {
-  templates: ControlTemplate[];
-  onSubmit: (v: PlanTaskFormValues) => Promise<void>;
-  loading?: boolean;
+  templates:    ControlTemplate[];
+  zoneOptions:  { value: string; label: string }[];
+  userOptions:  { value: string; label: string }[];
+  groupOptions: { value: string; label: string }[];
+  onSubmit:     (v: PlanTaskFormValues) => Promise<unknown>;
+  loading?:     boolean;
 }) {
-  const { register, handleSubmit } = useForm<PlanTaskFormValues>();
+  // Default to 'group' only when userOptions is definitively empty AND groupOptions
+  // has items — meaning the user lookup failed (e.g. MANAGER 403) while groups
+  // loaded fine. Otherwise prefer 'user' so admins get the expected default.
+  const defaultAssigneeType: 'user' | 'group' =
+    userOptions.length === 0 && groupOptions.length > 0 ? 'group' : 'user';
+
+  const { register, handleSubmit, watch } = useForm<PlanTaskFormValues>({
+    defaultValues: { assigneeType: defaultAssigneeType },
+  });
+  const assigneeType = watch('assigneeType');
+
+  const canAssignUser  = userOptions.length > 0;
+  const canAssignGroup = groupOptions.length > 0;
 
   const templateOptions = templates.map((t) => ({
     value: t.id,
@@ -134,18 +265,72 @@ function PlanTaskForm({
         required
         {...register('templateId')}
       />
-      <Input
+      <Select
         label="Zone / Emplacement"
-        placeholder="Zone A, Cuisine froide…"
+        placeholder="Sélectionner une zone"
+        options={zoneOptions}
         required
         {...register('zoneId')}
       />
-      <Input
-        label="Assigné à"
-        placeholder="ID utilisateur"
-        required
-        {...register('assigneeId')}
-      />
+
+      {/* Assignment — only shown when at least one list is available */}
+      {(canAssignUser || canAssignGroup) ? (
+        <div>
+          <p className="mb-1.5 text-sm font-medium text-gray-700">Assigner à</p>
+          <div className="flex gap-4">
+            {(['user', 'group'] as const).map((type) => {
+              const enabled = type === 'user' ? canAssignUser : canAssignGroup;
+              return (
+                <label
+                  key={type}
+                  className={`flex cursor-pointer items-center gap-2 ${!enabled ? 'cursor-not-allowed opacity-40' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    value={type}
+                    disabled={!enabled}
+                    {...register('assigneeType')}
+                    className="accent-brand-medium"
+                  />
+                  <span className="flex items-center gap-1 text-sm text-gray-700">
+                    {type === 'user' ? <User className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
+                    {type === 'user' ? 'Utilisateur' : 'Groupe'}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+
+          {!canAssignUser && assigneeType === 'group' && (
+            <p className="mt-1.5 text-[11px] text-gray-400">
+              L'assignation individuelle n'est disponible que pour les administrateurs.
+            </p>
+          )}
+
+          <div className="mt-3">
+            {assigneeType === 'user' ? (
+              <Select
+                label="Utilisateur"
+                placeholder="Sélectionner un utilisateur"
+                options={userOptions}
+                {...register('assigneeId')}
+              />
+            ) : (
+              <Select
+                label="Groupe"
+                placeholder="Sélectionner un groupe"
+                options={groupOptions}
+                {...register('groupId')}
+              />
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2.5 text-xs text-orange-700">
+          Aucun utilisateur ou groupe disponible. Contactez un administrateur pour en créer.
+        </div>
+      )}
+
       <Input
         label="Date planifiée"
         type="datetime-local"
@@ -159,11 +344,304 @@ function PlanTaskForm({
   );
 }
 
+// ─── Control photo type ────────────────────────────────────────────────────────
+
+interface ControlPhoto {
+  id:         string;
+  taskId:     string;
+  url:        string;
+  uploadedAt: string;
+}
+
+// ─── Task detail + reassign modal ──────────────────────────────────────────────
+
+interface ReassignFormValues {
+  assigneeType: 'user' | 'group';
+  assigneeId:   string;
+  groupId:      string;
+}
+
+function TaskDetailModal({
+  task,
+  open,
+  onClose,
+  zoneMap,
+  userMap,
+  groupMap,
+  userOptions,
+  groupOptions,
+}: {
+  task:         ControlTask | null;
+  open:         boolean;
+  onClose:      () => void;
+  zoneMap:      Record<string, string>;
+  userMap:      Record<string, string>;
+  groupMap:     Record<string, string>;
+  userOptions:  { value: string; label: string }[];
+  groupOptions: { value: string; label: string }[];
+}) {
+  const queryClient  = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  // Prefer the task's current assignment type, but fall back to 'group'
+  // when userOptions is empty (e.g. MANAGER has no permission to list users).
+  const defaultReassignType: 'user' | 'group' =
+    userOptions.length === 0 && groupOptions.length > 0
+      ? 'group'
+      : (task?.groupId ? 'group' : 'user');
+
+  const { register, handleSubmit, watch, reset } = useForm<ReassignFormValues>({
+    defaultValues: {
+      assigneeType: defaultReassignType,
+      assigneeId:   task?.assigneeId ?? '',
+      groupId:      task?.groupId ?? '',
+    },
+  });
+  const assigneeType = watch('assigneeType');
+
+  // Fetch photos for this task
+  const { data: photosData, refetch: refetchPhotos } = useQuery({
+    queryKey: ['controls.tasks.photos', task?.id],
+    queryFn: async () => {
+      const { data } = await api.get<{ data: ControlPhoto[] }>(
+        `/api/v1/controls/tasks/${task!.id}/photos`,
+      );
+      return data.data ?? [];
+    },
+    enabled: open && task !== null,
+  });
+
+  const uploadPhotoMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      await api.post(`/api/v1/controls/tasks/${task!.id}/photos`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    },
+    onSuccess: () => void refetchPhotos(),
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) void uploadPhotoMutation.mutate(file);
+    e.target.value = '';
+  };
+
+  const reassignMutation = useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      api.patch(`/api/v1/controls/tasks/${task?.id}`, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['controls.tasks'] });
+      onClose();
+    },
+  });
+
+  const handleReassign = (v: ReassignFormValues) => {
+    if (v.assigneeType === 'user' && v.assigneeId) {
+      void reassignMutation.mutateAsync({ assigneeId: v.assigneeId });
+    } else if (v.assigneeType === 'group' && v.groupId) {
+      void reassignMutation.mutateAsync({ groupId: v.groupId });
+    }
+  };
+
+  if (!task) return null;
+
+  const photos       = photosData ?? [];
+  const zoneName     = zoneMap[task.zoneId] ?? task.zoneId;
+  const assigneeName = task.assigneeId
+    ? (userMap[task.assigneeId] ?? task.assigneeId)
+    : task.groupId
+      ? (groupMap[task.groupId] ?? task.groupId)
+      : '—';
+  const assigneeKind = task.groupId ? 'Groupe' : 'Utilisateur';
+
+  return (
+    <>
+      <Modal open={open} onClose={() => { onClose(); reset(); }} title="Détail de la tâche" size="lg">
+        {/* Info grid */}
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <div>
+            <dt className="font-medium text-gray-500">Modèle</dt>
+            <dd className="mt-0.5 text-gray-900">{task.template?.name ?? task.templateId.slice(0, 8)}</dd>
+          </div>
+          <div>
+            <dt className="font-medium text-gray-500">Type</dt>
+            <dd className="mt-0.5 text-gray-900">
+              {task.template ? TYPE_LABELS[task.template.type as ControlType] ?? task.template.type : '—'}
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-gray-500">Zone</dt>
+            <dd className="mt-0.5 text-gray-900">{zoneName}</dd>
+          </div>
+          <div>
+            <dt className="font-medium text-gray-500">Statut</dt>
+            <dd className="mt-0.5">
+              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[task.status]}`}>
+                {STATUS_LABELS[task.status]}
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-gray-500">Date planifiée</dt>
+            <dd className="mt-0.5 text-gray-900">
+              {new Date(task.scheduledAt).toLocaleString('fr-FR', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit',
+              })}
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-gray-500">{assigneeKind} actuel</dt>
+            <dd className="mt-0.5 text-gray-900 flex items-center gap-1">
+              {task.groupId ? <Users className="h-3.5 w-3.5 text-gray-400" /> : <User className="h-3.5 w-3.5 text-gray-400" />}
+              {assigneeName}
+            </dd>
+          </div>
+        </dl>
+
+        {/* ── Photo section ──────────────────────────────────────────────────── */}
+        <div className="mt-5">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <Camera className="h-4 w-4 text-brand-medium" />
+              Photos du contrôle ({photos.length})
+            </h3>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadPhotoMutation.isPending}
+              className="flex items-center gap-1.5 rounded-lg border border-brand-medium bg-white px-3 py-1.5 text-xs font-medium text-brand-medium hover:bg-brand-light transition-colors disabled:opacity-50"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              {uploadPhotoMutation.isPending ? 'Upload…' : 'Ajouter une photo'}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+          </div>
+
+          {uploadPhotoMutation.isError && (
+            <p className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+              Erreur lors du téléversement. Veuillez réessayer.
+            </p>
+          )}
+
+          {photos.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-surface-muted py-8 text-center">
+              <ImageOff className="mb-2 h-7 w-7 text-gray-300" />
+              <p className="text-sm text-gray-400">Aucune photo pour ce contrôle</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {photos.map((photo) => (
+                <button
+                  key={photo.id}
+                  type="button"
+                  onClick={() => setLightboxUrl(photo.url)}
+                  className="group relative aspect-square overflow-hidden rounded-lg border border-surface-muted bg-gray-50 hover:border-brand-medium transition-colors"
+                >
+                  <img
+                    src={photo.url}
+                    alt="Photo contrôle"
+                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">
+                    <Eye className="h-5 w-5 text-white" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Reassign section */}
+        <div className="mt-5 rounded-lg border border-surface-muted bg-surface-page px-4 py-4">
+          <p className="mb-3 text-sm font-semibold text-gray-700">Réassigner la tâche</p>
+          {(userOptions.length > 0 || groupOptions.length > 0) ? (
+            <form onSubmit={(e) => void handleSubmit(handleReassign)(e)} className="space-y-3">
+              <div className="flex gap-4">
+                {(['user', 'group'] as const).map((type) => {
+                  const enabled = type === 'user' ? userOptions.length > 0 : groupOptions.length > 0;
+                  return (
+                    <label
+                      key={type}
+                      className={`flex cursor-pointer items-center gap-2 ${!enabled ? 'cursor-not-allowed opacity-40' : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        value={type}
+                        disabled={!enabled}
+                        {...register('assigneeType')}
+                        className="accent-brand-medium"
+                      />
+                      <span className="flex items-center gap-1 text-sm text-gray-700">
+                        {type === 'user' ? <User className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
+                        {type === 'user' ? 'Utilisateur' : 'Groupe'}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {assigneeType === 'user' ? (
+                <Select placeholder="Sélectionner un utilisateur" options={userOptions} {...register('assigneeId')} />
+              ) : (
+                <Select placeholder="Sélectionner un groupe" options={groupOptions} {...register('groupId')} />
+              )}
+
+              <div className="flex justify-end">
+                <Button type="submit" size="sm" loading={reassignMutation.isPending}>
+                  Réassigner
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <p className="text-xs text-gray-400">
+              Aucun utilisateur ou groupe disponible pour la réassignation.
+            </p>
+          )}
+        </div>
+      </Modal>
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            type="button"
+            className="absolute right-4 top-4 rounded-full bg-white/20 p-2 text-white hover:bg-white/30"
+            onClick={() => setLightboxUrl(null)}
+          >
+            ✕
+          </button>
+          <img
+            src={lightboxUrl}
+            alt="Photo contrôle agrandie"
+            className="max-h-full max-w-full rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
 // ─── Create template form ──────────────────────────────────────────────────────
 
 interface CreateTemplateFormValues {
-  name: string;
-  type: ControlType;
+  name:      string;
+  type:      ControlType;
   frequency: string;
 }
 
@@ -171,7 +649,7 @@ function CreateTemplateForm({
   onSubmit,
   loading,
 }: {
-  onSubmit: (v: CreateTemplateFormValues) => Promise<void>;
+  onSubmit: (v: CreateTemplateFormValues) => Promise<unknown>;
   loading?: boolean;
 }) {
   const { register, handleSubmit } = useForm<CreateTemplateFormValues>();
@@ -205,19 +683,33 @@ function CreateTemplateForm({
 
 // ─── Tasks tab ─────────────────────────────────────────────────────────────────
 
-function TasksTab({ templates }: { templates: ControlTemplate[] }) {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
+function TasksTab({
+  templates,
+  zoneMap,
+  zoneOptions,
+  userMap,
+  userOptions,
+  groupMap,
+  groupOptions,
+}: {
+  templates:    ControlTemplate[];
+  zoneMap:      Record<string, string>;
+  zoneOptions:  { value: string; label: string }[];
+  userMap:      Record<string, string>;
+  userOptions:  { value: string; label: string }[];
+  groupMap:     Record<string, string>;
+  groupOptions: { value: string; label: string }[];
+}) {
+  const [page, setPage]               = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<ControlTask | null>(null);
   const queryClient = useQueryClient();
-  const debouncedSearch = useDebounce(search, 400);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['controls.tasks', page, debouncedSearch, statusFilter],
+    queryKey: ['controls.tasks', page, statusFilter],
     queryFn: async () => {
       const p = new URLSearchParams({ page: String(page), limit: '20' });
-      if (debouncedSearch) p.set('search', debouncedSearch);
       if (statusFilter) p.set('status', statusFilter);
       const { data } = await api.get<ApiResponse<ControlTask[]>>(`/api/v1/controls/tasks?${p}`);
       return data;
@@ -235,30 +727,27 @@ function TasksTab({ templates }: { templates: ControlTemplate[] }) {
 
   const tasks = data?.data ?? [];
 
+  const handlePlanSubmit = (v: PlanTaskFormValues) =>
+    createTaskMutation.mutateAsync({
+      templateId:  v.templateId,
+      zoneId:      v.zoneId,
+      scheduledAt: v.scheduledAt,
+      ...(v.assigneeType === 'user'  ? { assigneeId: v.assigneeId } : { groupId: v.groupId }),
+    });
+
   return (
     <>
       {/* Toolbar */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              placeholder="Rechercher…"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="h-9 w-60 rounded-lg border border-surface-muted bg-white pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
-            />
-          </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-            className="h-9 rounded-lg border border-surface-muted bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
-          >
-            {STATUS_FILTER_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+          className="h-9 rounded-lg border border-surface-muted bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
+        >
+          {STATUS_FILTER_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
         <Button size="sm" onClick={() => setPlanModalOpen(true)}>
           <Plus className="h-4 w-4" /> Planifier
         </Button>
@@ -289,31 +778,57 @@ function TasksTab({ templates }: { templates: ControlTemplate[] }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-surface-muted">
-              {tasks.map((task) => (
-                <tr key={task.id} className="hover:bg-surface-page transition-colors">
-                  <td className="px-4 py-3 font-medium text-gray-900">
-                    {task.template?.name ?? <span className="text-gray-400 text-xs font-mono">{task.templateId.slice(0, 8)}…</span>}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600 text-xs font-mono">{task.zoneId}</td>
-                  <td className="px-4 py-3 text-gray-600 text-xs font-mono">{task.assigneeId}</td>
-                  <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                    {new Date(task.scheduledAt).toLocaleString('fr-FR', {
-                      day: '2-digit', month: '2-digit', year: 'numeric',
-                      hour: '2-digit', minute: '2-digit',
-                    })}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[task.status]}`}
-                    >
-                      {STATUS_LABELS[task.status]}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button className="text-xs text-brand-medium hover:underline">Voir</button>
-                  </td>
-                </tr>
-              ))}
+              {tasks.map((task) => {
+                const zoneName = zoneMap[task.zoneId] ?? <span className="font-mono text-xs text-gray-400">{task.zoneId.slice(0, 8)}…</span>;
+                const assigneeName = task.assigneeId
+                  ? (userMap[task.assigneeId] ?? <span className="font-mono text-xs text-gray-400">{task.assigneeId.slice(0, 8)}…</span>)
+                  : task.groupId
+                    ? (groupMap[task.groupId] ?? <span className="font-mono text-xs text-gray-400">{task.groupId.slice(0, 8)}…</span>)
+                    : <span className="text-gray-400">—</span>;
+
+                return (
+                  <tr
+                    key={task.id}
+                    className="cursor-pointer hover:bg-surface-page transition-colors"
+                    onClick={() => setSelectedTask(task)}
+                  >
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      {task.template?.name ?? <span className="text-gray-400 text-xs font-mono">{task.templateId.slice(0, 8)}…</span>}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">{zoneName}</td>
+                    <td className="px-4 py-3 text-gray-700">
+                      <span className="flex items-center gap-1">
+                        {task.groupId
+                          ? <Users className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                          : <User  className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                        }
+                        {assigneeName}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                      {new Date(task.scheduledAt).toLocaleString('fr-FR', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                      })}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[task.status]}`}
+                      >
+                        {STATUS_LABELS[task.status]}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        className="text-xs text-brand-medium hover:underline"
+                        onClick={(e) => { e.stopPropagation(); setSelectedTask(task); }}
+                      >
+                        Voir
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 
@@ -333,17 +848,26 @@ function TasksTab({ templates }: { templates: ControlTemplate[] }) {
       <Modal open={planModalOpen} onClose={() => setPlanModalOpen(false)} title="Planifier une tâche" size="md">
         <PlanTaskForm
           templates={templates}
+          zoneOptions={zoneOptions}
+          userOptions={userOptions}
+          groupOptions={groupOptions}
           loading={createTaskMutation.isPending}
-          onSubmit={(v) =>
-            createTaskMutation.mutateAsync({
-              templateId: v.templateId,
-              zoneId: v.zoneId,
-              assigneeId: v.assigneeId,
-              scheduledAt: v.scheduledAt,
-            })
-          }
+          onSubmit={handlePlanSubmit}
         />
       </Modal>
+
+      {/* Task detail / reassign modal — key resets form defaults when task changes */}
+      <TaskDetailModal
+        key={selectedTask?.id}
+        task={selectedTask}
+        open={selectedTask !== null}
+        onClose={() => setSelectedTask(null)}
+        zoneMap={zoneMap}
+        userMap={userMap}
+        groupMap={groupMap}
+        userOptions={userOptions}
+        groupOptions={groupOptions}
+      />
     </>
   );
 }
@@ -351,11 +875,12 @@ function TasksTab({ templates }: { templates: ControlTemplate[] }) {
 // ─── Templates tab ─────────────────────────────────────────────────────────────
 
 function TemplatesTab() {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
+  const [page, setPage]         = useState(1);
+  const [search, setSearch]     = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const queryClient = useQueryClient();
-  const debouncedSearch = useDebounce(search, 400);
+  const queryClient             = useQueryClient();
+  const navigate                = useNavigate();
+  const debouncedSearch         = useDebounce(search, 400);
 
   const { data, isLoading } = useQuery({
     queryKey: ['controls.templates', page, debouncedSearch],
@@ -375,7 +900,18 @@ function TemplatesTab() {
     },
   });
 
+  const deleteTemplateMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/controls/templates/${id}`),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['controls.templates'] }),
+  });
+
   const templates = data?.data ?? [];
+
+  const handleDelete = (id: string, name: string) => {
+    if (window.confirm(`Supprimer le modèle "${name}" ?`)) {
+      void deleteTemplateMutation.mutate(id);
+    }
+  };
 
   return (
     <>
@@ -409,41 +945,59 @@ function TemplatesTab() {
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {templates.map((tpl) => (
-              <div
-                key={tpl.id}
-                className="rounded-xl border border-surface-muted bg-white p-5 shadow-sm hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-lighter">
-                      <ClipboardList className="h-5 w-5 text-brand-dark" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-900">{tpl.name}</p>
-                      <span className="inline-block rounded-full bg-brand-light px-2 py-0.5 text-xs font-medium text-brand-dark border border-brand-lighter mt-0.5">
-                        {TYPE_LABELS[tpl.type]}
-                      </span>
+            {templates.map((tpl) => {
+              const itemCount = Array.isArray(tpl.checklistJson) ? (tpl.checklistJson as unknown[]).length : 0;
+              return (
+                <div
+                  key={tpl.id}
+                  className="rounded-xl border border-surface-muted bg-white p-5 shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-lighter">
+                        <ClipboardList className="h-5 w-5 text-brand-dark" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">{tpl.name}</p>
+                        <span className="inline-block rounded-full bg-brand-light px-2 py-0.5 text-xs font-medium text-brand-dark border border-brand-lighter mt-0.5">
+                          {TYPE_LABELS[tpl.type]}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {tpl.frequency && (
-                  <div className="mt-4">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-gold-light px-2.5 py-0.5 text-xs font-medium text-gold">
-                      <Clock className="h-3 w-3" />
-                      {FREQUENCY_OPTIONS.find((f) => f.value === tpl.frequency)?.label ?? tpl.frequency}
+                  <div className="mt-3 flex items-center gap-3 text-xs text-gray-500">
+                    {tpl.frequency && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gold-light px-2.5 py-0.5 font-medium text-gold">
+                        <Clock className="h-3 w-3" />
+                        {FREQUENCY_OPTIONS.find((f) => f.value === tpl.frequency)?.label ?? tpl.frequency}
+                      </span>
+                    )}
+                    <span className="inline-flex items-center gap-1">
+                      <ListChecks className="h-3.5 w-3.5" />
+                      {itemCount} point{itemCount !== 1 ? 's' : ''}
                     </span>
                   </div>
-                )}
 
-                <div className="mt-4 flex gap-2 border-t border-surface-muted pt-3">
-                  <button className="text-xs text-brand-medium hover:underline">Modifier</button>
-                  <span className="text-gray-300">·</span>
-                  <button className="text-xs text-red-500 hover:underline">Supprimer</button>
+                  <div className="mt-4 flex gap-2 border-t border-surface-muted pt-3">
+                    <button
+                      className="flex items-center gap-1 text-xs text-brand-medium hover:underline"
+                      onClick={() => navigate(`/controls/templates/${tpl.id}`)}
+                    >
+                      <Edit2 className="h-3 w-3" />
+                      Gérer la checklist
+                    </button>
+                    <span className="text-gray-300">·</span>
+                    <button
+                      className="text-xs text-red-500 hover:underline"
+                      onClick={() => handleDelete(tpl.id, tpl.name)}
+                    >
+                      Supprimer
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {data?.meta && data.meta.lastPage > 1 && (
@@ -461,9 +1015,9 @@ function TemplatesTab() {
           loading={createTemplateMutation.isPending}
           onSubmit={(v) =>
             createTemplateMutation.mutateAsync({
-              name: v.name,
-              type: v.type,
-              frequency: v.frequency || undefined,
+              name:         v.name,
+              type:         v.type,
+              frequency:    v.frequency || undefined,
               checklistJson: [],
             })
           }
@@ -480,7 +1034,12 @@ type Tab = 'tasks' | 'templates';
 export default function ControlsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('tasks');
 
-  // Fetch stats
+  // Lookup data fetched once for the whole page
+  const { zoneMap, zoneOptions } = useZoneLookup();
+  const { userMap, userOptions }  = useUserLookup();
+  const { groupMap, groupOptions } = useGroupLookup();
+
+  // Stats
   const { data: statsData } = useQuery({
     queryKey: ['controls.stats'],
     queryFn: async () => {
@@ -489,7 +1048,7 @@ export default function ControlsPage() {
     },
   });
 
-  // Fetch templates once so the PlanTaskForm can populate the select
+  // Templates list for the PlanTaskForm dropdown (fetched once)
   const { data: templatesData } = useQuery({
     queryKey: ['controls.templates', 1, ''],
     queryFn: async () => {
@@ -498,12 +1057,12 @@ export default function ControlsPage() {
     },
   });
 
-  const stats = statsData;
+  const stats       = statsData;
   const allTemplates = templatesData?.data ?? [];
 
-  const overdueColor = (stats?.openOverdue ?? 0) > 0 ? 'text-red-600' : 'text-gray-700';
-  const overdueIconColor = (stats?.openOverdue ?? 0) > 0 ? 'text-red-600' : 'text-gray-500';
-  const overdueIconBg  = (stats?.openOverdue ?? 0) > 0 ? 'bg-red-50' : 'bg-gray-100';
+  const overdueColor    = (stats?.openOverdue ?? 0) > 0 ? 'text-red-600'  : 'text-gray-700';
+  const overdueIconColor = (stats?.openOverdue ?? 0) > 0 ? 'text-red-600'  : 'text-gray-500';
+  const overdueIconBg   = (stats?.openOverdue ?? 0) > 0 ? 'bg-red-50'     : 'bg-gray-100';
 
   return (
     <>
@@ -549,8 +1108,8 @@ export default function ControlsPage() {
         {/* Tab bar */}
         <div className="mb-5 flex border-b border-surface-muted">
           {([
-            { key: 'tasks',     label: 'Tâches' },
-            { key: 'templates', label: 'Modèles' },
+            { key: 'tasks',     label: 'Tâches planifiées' },
+            { key: 'templates', label: 'Modèles de contrôle' },
           ] as { key: Tab; label: string }[]).map(({ key, label }) => (
             <button
               key={key}
@@ -569,7 +1128,15 @@ export default function ControlsPage() {
 
         {/* Tab content */}
         {activeTab === 'tasks' ? (
-          <TasksTab templates={allTemplates} />
+          <TasksTab
+            templates={allTemplates}
+            zoneMap={zoneMap}
+            zoneOptions={zoneOptions}
+            userMap={userMap}
+            userOptions={userOptions}
+            groupMap={groupMap}
+            groupOptions={groupOptions}
+          />
         ) : (
           <TemplatesTab />
         )}

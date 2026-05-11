@@ -23,7 +23,7 @@ export class TenantService {
       this.prisma.tenant.count({ where }),
     ]);
 
-    return toApiResponse(tenants, toPaginationMeta(total, page, limit));
+    return toApiResponse(tenants, toPaginationMeta(total, { page, limit }));
   }
 
   async findOne(id: string) {

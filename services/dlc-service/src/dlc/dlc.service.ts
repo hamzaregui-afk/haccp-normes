@@ -41,7 +41,8 @@ export class DlcService {
         tenantId,
         productId:   dto.productId,
         productName: dto.productName,
-        lotNumber:   dto.lotNumber,  // HACCP batch traceability field — nullable
+        // HACCP batch traceability field — nullable; use spread to satisfy exactOptionalPropertyTypes
+        ...(dto.lotNumber !== undefined && { lotNumber: dto.lotNumber }),
         producedAt:  dto.producedAt,
         expiresAt,
         printedBy,
@@ -69,7 +70,7 @@ export class DlcService {
       }),
       this.prisma.dlcLabel.count({ where }),
     ]);
-    return toApiResponse(labels, toPaginationMeta(total, page, limit));
+    return toApiResponse(labels, toPaginationMeta(total, { page, limit }));
   }
 
   async findOne(id: string, tenantId: string) {

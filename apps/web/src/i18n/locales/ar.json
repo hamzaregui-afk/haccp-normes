@@ -1,18 +1,25 @@
 {
   "nav": {
+    "overview": "نظرة عامة",
     "dashboard": "نظرة عامة",
     "controls": "المراقبة",
     "nonconformities": "عدم المطابقة",
     "products": "المنتجات",
     "equipments": "المعدات",
     "suppliers": "الموردون",
+    "zones": "المواقع والمناطق",
     "groups": "المجموعات",
     "users": "المستخدمون",
     "clients": "العملاء",
     "reports": "التقارير",
     "audit": "سجل التدقيق",
     "settings": "الإعدادات",
-    "dlc": "تواريخ الصلاحية"
+    "dlc": "تواريخ الصلاحية",
+    "operations": "العمليات",
+    "assets": "إدارة الأصول",
+    "team": "الفريق",
+    "administration": "الإدارة",
+    "documents": "الوثائق"
   },
   "common": {
     "save": "حفظ",

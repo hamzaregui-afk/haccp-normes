@@ -1,7 +1,8 @@
 // asset-service owns: Product, Equipment, Supplier
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -65,4 +66,50 @@ model Supplier {
   @@unique([code, tenantId])
   @@index([tenantId])
   @@map("suppliers")
+}
+
+enum DocumentCategory {
+  PROCEDURE
+  RECIPE
+  OTHER
+}
+
+model Document {
+  id         String           @id @default(cuid())
+  tenantId   String           @map("tenant_id")
+  name       String
+  category   DocumentCategory
+  mimeType   String           @map("mime_type")
+  sizeBytes  Int              @map("size_bytes")
+  objectKey  String           @map("object_key")
+  url        String
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@index([category])
+  @@map("documents")
+}
+
+enum DocRequestStatus {
+  PENDING
+  FULFILLED
+  REJECTED
+}
+
+model DocumentRequest {
+  id          String           @id @default(cuid())
+  tenantId    String           @map("tenant_id")
+  requesterId String           @map("requester_id")
+  title       String
+  description String?
+  category    DocumentCategory?
+  status      DocRequestStatus @default(PENDING)
+  fulfillerId String?          @map("fulfiller_id")
+  documentId  String?          @map("document_id")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("document_requests")
 }

@@ -10,7 +10,10 @@ let socket: Socket | null = null;
 
 export const getSocket = (): Socket => {
   if (!socket) {
-    socket = io(import.meta.env.VITE_WS_URL ?? 'http://localhost:8080', {
+    // ARCH-DECISION: Empty string = current origin, so socket.io connects to
+    // the same host/port as the web app. The nginx proxy forwards /socket.io/
+    // to the notification-service. VITE_WS_URL overrides for separate deployments.
+    socket = io(import.meta.env.VITE_WS_URL ?? '', {
       autoConnect: false,
       auth: (cb) => {
         cb({ token: useAuthStore.getState().accessToken });

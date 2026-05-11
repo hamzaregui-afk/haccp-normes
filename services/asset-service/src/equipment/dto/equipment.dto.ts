@@ -3,7 +3,8 @@ import { z } from 'zod';
 // HTML inputs submit "" when blank — treat as undefined so optional fields behave correctly
 const emptyToUndefined = (v: unknown) => (v === '' || v === null ? undefined : v);
 
-export const CreateEquipmentDtoSchema = z.object({
+// Base object without the refine — needed so .partial() can be called for update
+const EquipmentBaseSchema = z.object({
   code:         z.string().min(1).max(50),
   name:         z.string().min(1).max(200),
   type:         z.preprocess(emptyToUndefined, z.string().max(100).optional()),
@@ -14,7 +15,9 @@ export const CreateEquipmentDtoSchema = z.object({
   // Empty number inputs coerce "" → 0, triggering the tempMin < tempMax refine falsely
   tempMin:      z.preprocess(emptyToUndefined, z.coerce.number().optional()),
   tempMax:      z.preprocess(emptyToUndefined, z.coerce.number().optional()),
-}).refine(
+});
+
+export const CreateEquipmentDtoSchema = EquipmentBaseSchema.refine(
   (d) => {
     if (d.tempMin !== undefined && d.tempMax !== undefined) return d.tempMin < d.tempMax;
     return true;
@@ -23,7 +26,9 @@ export const CreateEquipmentDtoSchema = z.object({
 );
 export type CreateEquipmentDto = z.infer<typeof CreateEquipmentDtoSchema>;
 
-export const UpdateEquipmentDtoSchema = CreateEquipmentDtoSchema.partial().extend({
+// ARCH-DECISION: .partial() must be called on the base ZodObject (not on ZodEffects
+// produced by .refine()), because ZodEffects doesn't expose .partial().
+export const UpdateEquipmentDtoSchema = EquipmentBaseSchema.partial().extend({
   isActive: z.boolean().optional(),
 });
 export type UpdateEquipmentDto = z.infer<typeof UpdateEquipmentDtoSchema>;

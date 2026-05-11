@@ -36,7 +36,7 @@ export class SupplierService {
       this.prisma.supplier.count({ where }),
     ]);
 
-    return toApiResponse(suppliers, toPaginationMeta(total, page, limit));
+    return toApiResponse(suppliers, toPaginationMeta(total, { page, limit }));
   }
 
   async findOne(id: string, tenantId: string) {

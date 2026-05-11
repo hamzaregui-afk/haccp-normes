@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma, ReportStatus } from '@prisma/client';
 import { toApiResponse, toPaginationMeta } from '@haccp/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -21,10 +22,10 @@ export class ReportService {
     const { page, limit, status, type } = query;
     const skip = (page - 1) * limit;
 
-    const where = {
+    const where: Prisma.ReportWhereInput = {
       tenantId,
-      ...(status ? { status: status as string } : {}),
-      ...(type   ? { type }                    : {}),
+      ...(status ? { status: status as ReportStatus } : {}),
+      ...(type   ? { type }                           : {}),
     };
 
     const [reports, total] = await this.prisma.$transaction([
@@ -35,9 +36,9 @@ export class ReportService {
         take: limit,
       }),
       this.prisma.report.count({ where }),
-    ]);
+    ]) as [Awaited<ReturnType<typeof this.prisma.report.findMany>>, number];
 
-    return toApiResponse(reports, toPaginationMeta(total, page, limit));
+    return toApiResponse(reports, toPaginationMeta(total, { page, limit }));
   }
 
   // ─── findOne ─────────────────────────────────────────────────────────────────
