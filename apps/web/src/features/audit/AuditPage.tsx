@@ -7,27 +7,7 @@ import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { api } from '@/lib/api';
-
-// ─── Domain types ─────────────────────────────────────────────────────────────
-
-// Shape matches the audit-service Prisma schema (resource/resourceId)
-interface AuditLog {
-  id: string;
-  action: string;
-  resource: string;       // entityType in UI — e.g. "users", "products"
-  resourceId: string | null;
-  userId: string;
-  tenantId: string;
-  payload: unknown;
-  ipAddress: string | null;
-  createdAt: string;
-}
-
-interface ApiResponse<T> {
-  data: T;
-  meta?: { total: number; page: number; limit: number; lastPage: number };
-  message?: string;
-}
+import type { ApiResponse, AuditLog } from '@haccp/shared-types';
 
 // ─── Query hook ───────────────────────────────────────────────────────────────
 

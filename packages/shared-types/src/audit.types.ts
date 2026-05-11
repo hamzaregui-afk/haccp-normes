@@ -11,16 +11,19 @@ export const AuditActionSchema = z.enum([
 ]);
 export type AuditAction = z.infer<typeof AuditActionSchema>;
 
+// ARCH-DECISION: AuditLog fields mirror the audit-service Prisma schema exactly.
+// Previous version used entityType/entityId/userEmail/metadata which did NOT exist
+// in the DB — this caused AuditPage to maintain a local duplicate type.
+// These names are now consistent: resource (table name), resourceId (PK).
 export const AuditLogSchema = z.object({
-  id:          z.string().cuid(),
-  action:      z.string(),  // use string (not enum) so future actions don't break validation
-  entityType:  z.string(),
-  entityId:    z.string(),
-  userId:      z.string(),
-  userEmail:   z.string().email(),
-  tenantId:    z.string().cuid(),
-  ipAddress:   z.string().ip().optional().nullable(),
-  metadata:    z.record(z.unknown()).optional(),
-  createdAt:   z.string().datetime(),
+  id:         z.string().cuid(),
+  action:     z.string(),           // CREATE | UPDATE | DELETE | LOGIN | LOGOUT
+  resource:   z.string(),           // resource name: users | products | controls …
+  resourceId: z.string().nullable().optional(),
+  userId:     z.string(),
+  tenantId:   z.string(),
+  payload:    z.record(z.unknown()).nullable().optional(),
+  ipAddress:  z.string().nullable().optional(),
+  createdAt:  z.string().datetime(),
 });
 export type AuditLog = z.infer<typeof AuditLogSchema>;
