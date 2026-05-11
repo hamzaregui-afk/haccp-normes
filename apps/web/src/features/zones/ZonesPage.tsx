@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
+import { showToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
 import type { ApiResponse } from '@haccp/shared-types';
 
@@ -162,8 +163,8 @@ export default function ZonesPage() {
 
   const deleteSiteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/sites/${id}`),
-    onSuccess:  refresh,
-    onError:    (e) => alert(apiErrorMessage(e)),
+    onSuccess:  () => { refresh(); showToast({ title: 'Site supprimé', variant: 'success' }); },
+    onError:    (e) => showToast({ title: apiErrorMessage(e), variant: 'error' }),
   });
 
   // ── Zone mutations ──────────────────────────────────────────────────────────
@@ -185,8 +186,8 @@ export default function ZonesPage() {
   const deleteZoneMutation = useMutation({
     mutationFn: ({ siteId, zoneId }: { siteId: string; zoneId: string }) =>
       api.delete(`/api/v1/sites/${siteId}/zones/${zoneId}`),
-    onSuccess:  refresh,
-    onError:    (e) => alert(apiErrorMessage(e)),
+    onSuccess:  () => { refresh(); showToast({ title: 'Zone supprimée', variant: 'success' }); },
+    onError:    (e) => showToast({ title: apiErrorMessage(e), variant: 'error' }),
   });
 
   // ── Modal title ─────────────────────────────────────────────────────────────
