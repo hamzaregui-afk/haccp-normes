@@ -1,8 +1,15 @@
 #!/bin/bash
 # ─── NORMES HACCP — EC2 Bootstrap Script ────────────────────────────────────
 # Run once on a fresh Ubuntu 22.04 LTS instance as root (or with sudo).
-# Usage: curl -fsSL https://raw.githubusercontent.com/YOUR_USER/haccp-normes/main/deploy/ec2-setup.sh | sudo bash
+#
+# Usage:
+#   export GITHUB_REPO="your-github-user/haccp-normes"
+#   curl -fsSL https://raw.githubusercontent.com/$GITHUB_REPO/main/deploy/ec2-setup.sh | sudo -E bash
+#
+# GITHUB_REPO defaults to the value below if not set in the environment.
 set -euo pipefail
+
+GITHUB_REPO="${GITHUB_REPO:-your-github-user/haccp-normes}"
 
 echo "🚀  NORMES HACCP — EC2 Setup"
 
@@ -29,7 +36,7 @@ npm install -g pnpm
 # ── 5. Clone project ─────────────────────────────────────────────────────────
 APP_DIR="/opt/haccp"
 if [ ! -d "$APP_DIR" ]; then
-  git clone https://github.com/YOUR_GITHUB_USER/haccp-normes.git "$APP_DIR"
+  git clone "https://github.com/${GITHUB_REPO}.git" "$APP_DIR"
 else
   cd "$APP_DIR" && git pull
 fi
