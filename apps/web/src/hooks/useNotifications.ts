@@ -49,6 +49,13 @@ interface ReportValidatedPayload {
   status?:     string;
 }
 
+interface DlcExpiringTodayPayload {
+  eventId:   string;
+  timestamp: string;
+  count:     number;
+  labels?:   Array<{ productName: string; lotNumber?: string | null }>;
+}
+
 // ── Helpers — synthesise a Notification from a domain event ──────────────────
 
 type TFn = (key: string) => string;
@@ -154,16 +161,29 @@ export function useNotifications(): NotificationsState {
       showToast({ title: n.title, body: n.body, variant: 'success' });
     };
 
+    // Domain event: DLC labels expiring today (tenant-scoped broadcast, daily 07:00 UTC)
+    const onDlcExpiring = (payload: DlcExpiringTodayPayload) => {
+      const body = payload.labels?.slice(0, 3).map((l) => l.productName).join(', ')
+        ?? `${payload.count} produit(s)`;
+      showToast({
+        title: `⚠️ ${payload.count} DLC expirent aujourd'hui`,
+        body,
+        variant: 'warning',
+      });
+    };
+
     socket.on('notification:new',              onNew);
     socket.on('notification:nc-created',       onNcCreated);
     socket.on('notification:task-completed',   onTaskCompleted);
     socket.on('notification:report-validated', onReportValidated);
+    socket.on('notification:dlc-expiring-today', onDlcExpiring);
 
     return () => {
       socket.off('notification:new',              onNew);
       socket.off('notification:nc-created',       onNcCreated);
       socket.off('notification:task-completed',   onTaskCompleted);
       socket.off('notification:report-validated', onReportValidated);
+      socket.off('notification:dlc-expiring-today', onDlcExpiring);
     };
   }, [token]);
 

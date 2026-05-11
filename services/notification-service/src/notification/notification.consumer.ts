@@ -19,6 +19,7 @@
  *  - nonconformity.nc.created   → broadcast NC alert to tenant
  *  - control.task.completed     → broadcast task completion to tenant
  *  - report.report.validated    → broadcast report validation to tenant
+ *  - dlc.labels.expiring-today  → broadcast DLC expiry alert to tenant (fired daily at 07:00 UTC)
  */
 
 import { Controller, Logger } from '@nestjs/common';
@@ -75,6 +76,25 @@ export class NotificationConsumer {
     );
     this.gateway.emitToTenant(data.tenantId, 'notification:report-validated', {
       ...data.payload,
+      eventId:   data.eventId,
+      timestamp: data.timestamp,
+    });
+  }
+
+  // ─── dlc.labels.expiring-today ────────────────────────────────────────────
+
+  @EventPattern('dlc.labels.expiring-today')
+  handleDlcExpiringToday(@Payload() data: DomainEventEnvelope): void {
+    const count = Number(data.payload['count'] ?? 0);
+    this.logger.log(
+      `[dlc.expiring-today] tenant=${data.tenantId} count=${count}`,
+    );
+    // Broadcast to all connected users in this tenant's WebSocket room.
+    // The web DashboardPage and mobile DLCScreen already listen on this event
+    // via their polling queries, but the real-time push triggers immediate refresh.
+    this.gateway.emitToTenant(data.tenantId, 'notification:dlc-expiring-today', {
+      count,
+      labels:    data.payload['labels'],
       eventId:   data.eventId,
       timestamp: data.timestamp,
     });
