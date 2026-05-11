@@ -60,6 +60,18 @@ const REPORT_VALIDATED_DATA = {
   },
 };
 
+const DLC_EXPIRING_DATA = {
+  ...BASE_ENVELOPE,
+  tenantId: 'tenant-abc',
+  payload: {
+    count:  2,
+    labels: [
+      { id: 'lbl-001', productName: 'Poulet rôti',  lotNumber: 'LOT-001', expiresAt: '2026-05-11T00:00:00.000Z' },
+      { id: 'lbl-002', productName: 'Salade niçoise', lotNumber: null,     expiresAt: '2026-05-11T00:00:00.000Z' },
+    ],
+  },
+};
+
 // ─── Suite ────────────────────────────────────────────────────────────────────
 
 describe('NotificationConsumer', () => {
@@ -183,6 +195,35 @@ describe('NotificationConsumer', () => {
     });
   });
 
+  // ── dlc.labels.expiring-today ─────────────────────────────────────────────
+
+  describe('handleDlcExpiringToday', () => {
+    it('calls emitToTenant with notification:dlc-expiring-today', () => {
+      consumer.handleDlcExpiringToday(DLC_EXPIRING_DATA);
+
+      expect(gateway.emitToTenant).toHaveBeenCalledWith(
+        'tenant-abc',
+        'notification:dlc-expiring-today',
+        expect.any(Object),
+      );
+    });
+
+    it('forwards count and labels in payload', () => {
+      consumer.handleDlcExpiringToday(DLC_EXPIRING_DATA);
+
+      expect(gateway.emitToTenant).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.objectContaining({ count: 2, labels: expect.any(Array) }),
+      );
+    });
+
+    it('does NOT call emitToUser', () => {
+      consumer.handleDlcExpiringToday(DLC_EXPIRING_DATA);
+      expect(gateway.emitToUser).not.toHaveBeenCalled();
+    });
+  });
+
   // ── isolation ──────────────────────────────────────────────────────────────
 
   describe('isolation', () => {
@@ -196,6 +237,10 @@ describe('NotificationConsumer', () => {
       gateway.emitToTenant.mockClear();
 
       consumer.handleReportValidated(REPORT_VALIDATED_DATA);
+      expect(gateway.emitToTenant).toHaveBeenCalledTimes(1);
+      gateway.emitToTenant.mockClear();
+
+      consumer.handleDlcExpiringToday(DLC_EXPIRING_DATA);
       expect(gateway.emitToTenant).toHaveBeenCalledTimes(1);
     });
   });
