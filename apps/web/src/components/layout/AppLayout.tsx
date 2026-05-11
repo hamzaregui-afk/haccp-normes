@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { ToastContainer } from '@/components/ui/Toast';
+import { ErrorBoundary } from './ErrorBoundary';
 
 interface AppLayoutProps {
   children?: ReactNode;
@@ -40,7 +41,9 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
 
         <main className="flex-1 overflow-y-auto">
-          {children ?? <Outlet />}
+          <ErrorBoundary>
+            {children ?? <Outlet />}
+          </ErrorBoundary>
         </main>
       </div>
 
