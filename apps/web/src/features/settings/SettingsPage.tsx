@@ -5,6 +5,8 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { PageWrapper } from '@/components/layout/AppLayout';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
+import { ServicesHealth } from '@/components/shared/ServicesHealth';
+import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/lib/api';
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
@@ -91,6 +93,9 @@ function SectionCard({ title, children }: SectionCardProps) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
+  const currentUser = useAuthStore((s) => s.user);
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
+
   const [toast, setToast]           = useState<string | null>(null);
   const [notifyNc, setNotifyNc]     = useState(false);
   const [notifyReports, setNotifyReports] = useState(false);
@@ -266,6 +271,13 @@ export default function SettingsPage() {
           </form>
         )}
       </PageWrapper>
+
+      {/* Services health widget — ADMIN/SUPER_ADMIN only */}
+      {isSuperAdmin && (
+        <PageWrapper>
+          <ServicesHealth />
+        </PageWrapper>
+      )}
 
       {/* Toast notification */}
       {toast && (

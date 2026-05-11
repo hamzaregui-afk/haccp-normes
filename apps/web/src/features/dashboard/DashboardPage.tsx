@@ -1,5 +1,5 @@
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Calendar, CheckCircle2, Clock, ShieldCheck, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Calendar, CheckCircle2, Clock, ShieldCheck, Tag, TrendingUp } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -193,6 +193,54 @@ function RoleBanner({ role, email }: { role: UserRole; email: string }) {
         <p className="text-sm font-semibold text-gray-800">{cfg.label} — <span className="font-normal text-gray-600">{email}</span></p>
         <p className="mt-0.5 text-xs text-gray-500">{cfg.desc}</p>
       </div>
+    </div>
+  );
+}
+
+// ─── DLC expiry alert widget ──────────────────────────────────────────────────
+
+interface DlcLabel {
+  id:          string;
+  productName: string;
+  expiresAt:   string;
+  lotNumber?:  string | null;
+}
+
+function DlcAlertWidget() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['dlc.expiring-today'],
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<DlcLabel[]>>('/api/v1/dlc/labels/expiring-today');
+      return data.data ?? [];
+    },
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  const count = data?.length ?? 0;
+
+  if (isLoading || count === 0) return null;
+
+  return (
+    <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <Tag className="h-4 w-4 text-red-600" />
+        <span className="text-sm font-semibold text-red-700">
+          {count} étiquette{count > 1 ? 's' : ''} DLC expire{count > 1 ? 'nt' : ''} aujourd'hui
+        </span>
+      </div>
+      <ul className="flex flex-wrap gap-2">
+        {data?.map((label) => (
+          <li
+            key={label.id}
+            className="rounded-full border border-red-200 bg-white px-3 py-1 text-xs font-medium text-red-700"
+          >
+            {label.productName}
+            {label.lotNumber ? ` · Lot ${label.lotNumber}` : ''}
+            {' · '}
+            {new Date(label.expiresAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -482,6 +530,9 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* ── DLC expiry alert widget ── */}
+        <DlcAlertWidget />
 
         {/* ── Recharts row ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
