@@ -10,8 +10,6 @@ const LoginPage           = lazy(() => import('@/features/auth/LoginPage'));
 const DashboardPage       = lazy(() => import('@/features/dashboard/DashboardPage'));
 const UsersPage           = lazy(() => import('@/features/users/UsersPage'));
 const ClientsPage         = lazy(() => import('@/features/clients/ClientsPage'));
-
-// Placeholders — implemented in later phases
 const ControlsPage           = lazy(() => import('@/features/controls/ControlsPage'));
 const ChecklistEditorPage    = lazy(() => import('@/features/controls/ChecklistEditorPage'));
 const NonconformitiesPage = lazy(() => import('@/features/nonconformities/NonconformitiesPage'));
