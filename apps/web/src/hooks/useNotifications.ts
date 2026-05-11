@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/lib/api';
 import { getSocket, connectSocket } from '@/lib/socket';
+import { showToast } from '@/components/ui/Toast';
 
 export interface Notification {
   id: string;
@@ -126,6 +127,7 @@ export function useNotifications(): NotificationsState {
     const onNew = (notification: Notification) => {
       setNotifications((prev) => [notification, ...prev]);
       setUnreadCount((prev) => prev + 1);
+      showToast({ title: notification.title, body: notification.body, variant: 'info' });
     };
 
     // Domain event: non-conformity created (tenant-scoped broadcast)
@@ -133,6 +135,7 @@ export function useNotifications(): NotificationsState {
       const n = fromNcCreated(payload, t);
       setNotifications((prev) => [n, ...prev]);
       setUnreadCount((prev) => prev + 1);
+      showToast({ title: n.title, body: n.body, variant: 'warning' });
     };
 
     // Domain event: control task completed (tenant-scoped broadcast)
@@ -140,6 +143,7 @@ export function useNotifications(): NotificationsState {
       const n = fromTaskCompleted(payload, t);
       setNotifications((prev) => [n, ...prev]);
       setUnreadCount((prev) => prev + 1);
+      showToast({ title: n.title, body: n.body, variant: 'success' });
     };
 
     // Domain event: report validated (tenant-scoped broadcast)
@@ -147,6 +151,7 @@ export function useNotifications(): NotificationsState {
       const n = fromReportValidated(payload, t);
       setNotifications((prev) => [n, ...prev]);
       setUnreadCount((prev) => prev + 1);
+      showToast({ title: n.title, body: n.body, variant: 'success' });
     };
 
     socket.on('notification:new',              onNew);

@@ -324,5 +324,42 @@
       "OPERATOR": "Opérateur",
       "VIEWER": "Lecteur"
     }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "none": "Aucune notification",
+    "markAllRead": "Tout marquer comme lu",
+    "ncCreated": "Nouvelle non-conformité",
+    "taskCompleted": "Tâche complétée",
+    "reportValidated": "Rapport validé"
+  },
+  "documents": {
+    "title": "GED — Documents",
+    "subtitle": "Bibliothèque, demandes et hébergement de vos documents HACCP",
+    "library": "Bibliothèque",
+    "requests": "Demandes",
+    "ncPhotos": "Photos NC",
+    "upload": "Uploader un document",
+    "newRequest": "Nouvelle demande",
+    "noDocuments": "Aucun document",
+    "noRequests": "Aucune demande",
+    "categories": {
+      "PROCEDURE": "Procédures",
+      "RECIPE": "Recettes",
+      "OTHER": "Autres"
+    },
+    "status": {
+      "PENDING": "En attente",
+      "FULFILLED": "Traité",
+      "REJECTED": "Rejeté"
+    }
+  },
+  "zones": {
+    "title": "Sites & Zones",
+    "subtitle": "Gestion des sites de production et des zones de contrôle",
+    "newSite": "Nouveau site",
+    "newZone": "Nouvelle zone",
+    "noSites": "Aucun site",
+    "noZones": "Aucune zone"
   }
 }

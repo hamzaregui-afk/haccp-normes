@@ -131,7 +131,13 @@
       "Bash(where pnpm *)",
       "Bash(pnpm --version)",
       "Bash(node_modules/.bin/tsc --noEmit)",
-      "Bash(pnpm --filter apps/web typecheck)"
+      "Bash(pnpm --filter apps/web typecheck)",
+      "Bash(ls services/report-service/src/)",
+      "Bash(ls services/dlc-service/src/)",
+      "Bash(cat apps/web/src/features/settings/)",
+      "Bash(ls apps/web/src/features/settings/)",
+      "Bash(ls apps/mobile/src/)",
+      "Bash(ls apps/mobile/)"
     ]
   }
 }

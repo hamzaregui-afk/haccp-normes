@@ -1,23 +1,26 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
 
-import { AgendaScreen } from '../screens/AgendaScreen';
-import { DLCScreen } from '../screens/DLCScreen';
-import { NCFormScreen } from '../screens/NCFormScreen';
+import { AgendaScreen }  from '../screens/AgendaScreen';
+import { DLCScreen }     from '../screens/DLCScreen';
+import { NCFormScreen }  from '../screens/NCFormScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
 
 export type MainTabParamList = {
-  Agenda: undefined;
-  'Non-conformités': undefined;
-  DLC: undefined;
+  Agenda:             undefined;
+  'Non-conformités':  undefined;
+  DLC:                undefined;
+  Profil:             undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 // Simple emoji/unicode icon fallback — avoids adding a vector icon dependency
 const TAB_ICONS: Record<string, string> = {
-  Agenda: '📅',
+  Agenda:            '📅',
   'Non-conformités': '⚠️',
-  DLC: '🏷️',
+  DLC:               '🏷️',
+  Profil:            '👤',
 };
 
 interface TabIconProps {
@@ -51,7 +54,8 @@ export const MainNavigator = () => (
       component={NCFormScreen}
       options={{ title: 'Non-conformités' }}
     />
-    <Tab.Screen name="DLC" component={DLCScreen} options={{ title: 'DLC' }} />
+    <Tab.Screen name="DLC"    component={DLCScreen}    options={{ title: 'DLC' }} />
+    <Tab.Screen name="Profil" component={ProfileScreen} options={{ title: 'Mon profil' }} />
   </Tab.Navigator>
 );
 
