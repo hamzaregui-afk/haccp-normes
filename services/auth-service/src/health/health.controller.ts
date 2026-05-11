@@ -1,17 +1,13 @@
 import { Controller, Get } from '@nestjs/common';
-import { HealthCheck, HealthCheckService } from '@nestjs/terminus';
 
 @Controller()
 export class HealthController {
-  constructor(private readonly health: HealthCheckService) {}
-
-  // ARCH-DECISION: Exposed at /health (not /api/v1/health) so Docker/k8s probes
-  // don't need to know about the API prefix. main.ts raw adapter handles routing
-  // this outside the global prefix. This controller acts as a NestJS registration
-  // point for the TerminusModule so dependency injection works properly.
-  @Get('health-check')
-  @HealthCheck()
-  check() {
-    return this.health.check([]);
+  // ARCH-DECISION: Exposed at GET /health (no /api/v1 prefix) so nginx can
+  // proxy_pass directly and Docker/k8s probes stay simple. The duplicate
+  // auth health route inside AuthController (@Controller('auth') + @Get('health'))
+  // resolves to /auth/health which is different — only THIS one is used by nginx.
+  @Get('health')
+  health() {
+    return { status: 'ok', uptime: process.uptime(), version: '0.1.0' };
   }
 }
