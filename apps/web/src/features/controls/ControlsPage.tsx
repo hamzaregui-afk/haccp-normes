@@ -32,7 +32,8 @@ import { api } from '@/lib/api';
 import { showToast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/store/auth.store';
 import type { ApiResponse } from '@haccp/shared-types';
-import type { ControlStats, ControlTask, ControlTemplate, ControlType } from './types';
+import type { ControlStats, ControlTask, ControlTemplate, ControlType, TaskResult } from './types';
+import { ChecklistExecutionModal } from './ChecklistExecutionModal';
 
 // ─── Style maps ────────────────────────────────────────────────────────────────
 
@@ -507,6 +508,75 @@ function TaskDetailModal({
           </div>
         </dl>
 
+        {/* ── Completed results ──────────────────────────────────────────────── */}
+        {task.status === 'COMPLETED' && task.resultJson && (() => {
+          const result = task.resultJson as TaskResult;
+          return (
+            <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm font-semibold text-green-800">Résultats du contrôle</p>
+                <span
+                  className={[
+                    'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
+                    result.overallCompliant
+                      ? 'border-green-300 bg-green-100 text-green-700'
+                      : 'border-red-300 bg-red-100 text-red-700',
+                  ].join(' ')}
+                >
+                  {result.overallCompliant ? (
+                    <><CheckCircle2 className="h-3 w-3" />Conforme</>
+                  ) : (
+                    <><Clock className="h-3 w-3" />Non conforme</>
+                  )}
+                </span>
+              </div>
+              <div className="overflow-hidden rounded-lg border border-green-200 bg-white">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-green-100 bg-green-50 text-left text-[10px] font-semibold uppercase tracking-wider text-green-700">
+                      <th className="px-3 py-2">Point</th>
+                      <th className="px-3 py-2">Valeur</th>
+                      <th className="px-3 py-2">Conformité</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-green-50">
+                    {result.items.map((item) => {
+                      const displayValue =
+                        item.value === null || item.value === undefined
+                          ? '—'
+                          : item.type === 'BOOLEAN'
+                            ? (item.value ? 'Oui' : 'Non')
+                            : item.type === 'TEMPERATURE'
+                              ? `${String(item.value)} °C`
+                              : item.unit
+                                ? `${String(item.value)} ${item.unit}`
+                                : String(item.value);
+                      return (
+                        <tr key={item.id}>
+                          <td className="px-3 py-2 font-medium text-gray-900">{item.label}</td>
+                          <td className="px-3 py-2 text-gray-700">{displayValue}</td>
+                          <td className="px-3 py-2">
+                            {item.compliant ? (
+                              <span className="text-green-600">✓</span>
+                            ) : (
+                              <span className="text-red-600">✗</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {result.notes && (
+                <p className="mt-2 text-xs text-green-800">
+                  <span className="font-medium">Notes :</span> {result.notes}
+                </p>
+              )}
+            </div>
+          );
+        })()}
+
         {/* ── Photo section ──────────────────────────────────────────────────── */}
         <div className="mt-5">
           <div className="mb-2 flex items-center justify-between">
@@ -709,10 +779,11 @@ function TasksTab({
   isOperator:   boolean;
   operatorId:   string;
 }) {
-  const [page, setPage]               = useState(1);
-  const [statusFilter, setStatusFilter] = useState('');
-  const [planModalOpen, setPlanModalOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<ControlTask | null>(null);
+  const [page, setPage]                     = useState(1);
+  const [statusFilter, setStatusFilter]     = useState('');
+  const [planModalOpen, setPlanModalOpen]   = useState(false);
+  const [selectedTask, setSelectedTask]     = useState<ControlTask | null>(null);
+  const [selectedExecTaskId, setSelectedExecTaskId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -808,7 +879,13 @@ function TasksTab({
                   <tr
                     key={task.id}
                     className="cursor-pointer hover:bg-surface-page transition-colors"
-                    onClick={() => setSelectedTask(task)}
+                    onClick={() => {
+                      if (isOperator) {
+                        setSelectedExecTaskId(task.id);
+                      } else {
+                        setSelectedTask(task);
+                      }
+                    }}
                   >
                     <td className="px-4 py-3 font-medium text-gray-900">
                       {task.template?.name ?? <span className="text-gray-400 text-xs font-mono">{task.templateId.slice(0, 8)}…</span>}
@@ -839,9 +916,16 @@ function TasksTab({
                     <td className="px-4 py-3 text-right">
                       <button
                         className="text-xs text-brand-medium hover:underline"
-                        onClick={(e) => { e.stopPropagation(); setSelectedTask(task); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isOperator) {
+                            setSelectedExecTaskId(task.id);
+                          } else {
+                            setSelectedTask(task);
+                          }
+                        }}
                       >
-                        Voir
+                        {isOperator ? 'Exécuter' : 'Voir'}
                       </button>
                     </td>
                   </tr>
@@ -887,6 +971,20 @@ function TasksTab({
         groupOptions={groupOptions}
         isOperator={isOperator}
       />
+
+      {/* Checklist execution modal — OPERATOR only */}
+      {isOperator && (
+        <ChecklistExecutionModal
+          taskId={selectedExecTaskId}
+          zoneMap={zoneMap}
+          onClose={() => setSelectedExecTaskId(null)}
+          onCompleted={() => {
+            setSelectedExecTaskId(null);
+            void queryClient.invalidateQueries({ queryKey: ['controls.tasks'] });
+            void queryClient.invalidateQueries({ queryKey: ['controls.stats'] });
+          }}
+        />
+      )}
     </>
   );
 }

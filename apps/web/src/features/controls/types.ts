@@ -50,3 +50,37 @@ export interface ControlStats {
   openOverdue: number;
   complianceRate: number;
 }
+
+// Résultat d'un item de checklist stocké dans resultJson
+export interface TaskResultItem {
+  id:        string;
+  label:     string;
+  type:      ChecklistItem['type'];
+  value:     boolean | number | string | null;
+  unit?:     string;
+  min?:      number;
+  max?:      number;
+  compliant: boolean;
+  required:  boolean;
+}
+
+// Structure complète de resultJson stocké en base
+export interface TaskResult {
+  submittedAt:      string;  // ISO
+  submittedBy:      string;  // userId
+  overallCompliant: boolean;
+  notes?:           string;
+  items:            TaskResultItem[];
+}
+
+// Tâche complète retournée par GET /tasks/:id (inclut checklistJson)
+export interface ControlTaskDetail extends Omit<ControlTask, 'template' | 'resultJson'> {
+  template?: {
+    id:            string;
+    name:          string;
+    type:          string;
+    checklistJson: unknown;
+    frequency?:    string;
+  };
+  resultJson?: TaskResult | null;
+}
