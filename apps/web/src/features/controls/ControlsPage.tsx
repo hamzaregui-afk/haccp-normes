@@ -30,6 +30,7 @@ import { Select } from '@/components/ui/Select';
 import { useDebounce } from '@/hooks/useDebounce';
 import { api } from '@/lib/api';
 import { showToast } from '@/components/ui/Toast';
+import { useAuthStore } from '@/store/auth.store';
 import type { ApiResponse } from '@haccp/shared-types';
 import type { ControlStats, ControlTask, ControlTemplate, ControlType } from './types';
 
@@ -371,6 +372,7 @@ function TaskDetailModal({
   groupMap,
   userOptions,
   groupOptions,
+  isOperator,
 }: {
   task:         ControlTask | null;
   open:         boolean;
@@ -380,6 +382,7 @@ function TaskDetailModal({
   groupMap:     Record<string, string>;
   userOptions:  { value: string; label: string }[];
   groupOptions: { value: string; label: string }[];
+  isOperator:   boolean;
 }) {
   const queryClient  = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -565,8 +568,8 @@ function TaskDetailModal({
           )}
         </div>
 
-        {/* Reassign section */}
-        <div className="mt-5 rounded-lg border border-surface-muted bg-surface-page px-4 py-4">
+        {/* Reassign section — hidden for OPERATOR (only managers/admins can reassign) */}
+        {!isOperator && <div className="mt-5 rounded-lg border border-surface-muted bg-surface-page px-4 py-4">
           <p className="mb-3 text-sm font-semibold text-gray-700">Réassigner la tâche</p>
           {(userOptions.length > 0 || groupOptions.length > 0) ? (
             <form onSubmit={(e) => void handleSubmit(handleReassign)(e)} className="space-y-3">
@@ -611,7 +614,7 @@ function TaskDetailModal({
               Aucun utilisateur ou groupe disponible pour la réassignation.
             </p>
           )}
-        </div>
+        </div>}
       </Modal>
 
       {/* Lightbox */}
@@ -693,6 +696,8 @@ function TasksTab({
   userOptions,
   groupMap,
   groupOptions,
+  isOperator,
+  operatorId,
 }: {
   templates:    ControlTemplate[];
   zoneMap:      Record<string, string>;
@@ -701,6 +706,8 @@ function TasksTab({
   userOptions:  { value: string; label: string }[];
   groupMap:     Record<string, string>;
   groupOptions: { value: string; label: string }[];
+  isOperator:   boolean;
+  operatorId:   string;
 }) {
   const [page, setPage]               = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
@@ -709,10 +716,14 @@ function TasksTab({
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['controls.tasks', page, statusFilter],
+    // ARCH-DECISION: When the current user is an OPERATOR, inject their ID as
+    // assigneeId filter so they only see tasks assigned to them. Managers and
+    // admins see all tasks and can filter manually.
+    queryKey: ['controls.tasks', page, statusFilter, isOperator ? operatorId : null],
     queryFn: async () => {
       const p = new URLSearchParams({ page: String(page), limit: '20' });
       if (statusFilter) p.set('status', statusFilter);
+      if (isOperator)   p.set('assigneeId', operatorId);
       const { data } = await api.get<ApiResponse<ControlTask[]>>(`/api/v1/controls/tasks?${p}`);
       return data;
     },
@@ -752,9 +763,12 @@ function TasksTab({
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
-        <Button size="sm" onClick={() => setPlanModalOpen(true)}>
-          <Plus className="h-4 w-4" /> Planifier
-        </Button>
+        {/* OPERATOR cannot plan tasks — that's the manager/admin role */}
+        {!isOperator && (
+          <Button size="sm" onClick={() => setPlanModalOpen(true)}>
+            <Plus className="h-4 w-4" /> Planifier
+          </Button>
+        )}
       </div>
 
       {/* Content */}
@@ -871,6 +885,7 @@ function TasksTab({
         groupMap={groupMap}
         userOptions={userOptions}
         groupOptions={groupOptions}
+        isOperator={isOperator}
       />
     </>
   );
@@ -1040,6 +1055,10 @@ type Tab = 'tasks' | 'templates';
 export default function ControlsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('tasks');
 
+  const currentUser = useAuthStore((s) => s.user);
+  const isOperator  = currentUser?.role === 'OPERATOR';
+  const operatorId  = currentUser?.sub ?? '';
+
   // Lookup data fetched once for the whole page
   const { zoneMap, zoneOptions } = useZoneLookup();
   const { userMap, userOptions }  = useUserLookup();
@@ -1111,12 +1130,12 @@ export default function ControlsPage() {
           />
         </div>
 
-        {/* Tab bar */}
+        {/* Tab bar — OPERATOR only sees "Tâches" (no template management) */}
         <div className="mb-5 flex border-b border-surface-muted">
-          {([
+          {(([
             { key: 'tasks',     label: 'Tâches planifiées' },
-            { key: 'templates', label: 'Modèles de contrôle' },
-          ] as { key: Tab; label: string }[]).map(({ key, label }) => (
+            ...(!isOperator ? [{ key: 'templates', label: 'Modèles de contrôle' }] : []),
+          ]) as { key: Tab; label: string }[]).map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
@@ -1142,6 +1161,8 @@ export default function ControlsPage() {
             userOptions={userOptions}
             groupMap={groupMap}
             groupOptions={groupOptions}
+            isOperator={isOperator}
+            operatorId={operatorId}
           />
         ) : (
           <TemplatesTab />

@@ -25,40 +25,47 @@ interface NavSection {
   items:    NavItem[];
 }
 
+// ARCH-DECISION: Role arrays follow least-privilege — each entry lists every role
+// that may see the item. OPERATOR is explicitly listed only where it belongs:
+//   - controls (own tasks)   - nonconformities   - dlc (label printing)   - documents (GED)
+// MANAGER is ≈ ADMIN everywhere except user/client creation (enforced in UsersPage).
 const NAV_SECTIONS: NavSection[] = [
   {
     titleKey: 'nav.operations',
     items: [
-      { labelKey: 'nav.overview',        to: '/dashboard',        icon: LayoutDashboard, roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN'] },
-      { labelKey: 'nav.controls',        to: '/controls',         icon: ClipboardList,   roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN'] },
-      { labelKey: 'nav.nonconformities', to: '/nonconformities',  icon: ShieldAlert,     roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN'] },
-      { labelKey: 'nav.dlc',             to: '/dlc',              icon: Tag,             roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
+      // Dashboard: OPERATOR is redirected to /controls on arrival — no sidebar entry for them
+      { labelKey: 'nav.overview',        to: '/dashboard',       icon: LayoutDashboard, roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN'] },
+      { labelKey: 'nav.controls',        to: '/controls',        icon: ClipboardList,   roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'] },
+      { labelKey: 'nav.nonconformities', to: '/nonconformities', icon: ShieldAlert,     roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'] },
+      { labelKey: 'nav.dlc',             to: '/dlc',             icon: Tag,             roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'OPERATOR'] },
     ],
   },
   {
     titleKey: 'nav.assets',
     items: [
-      { labelKey: 'nav.products',    to: '/products',   icon: Package,    roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
-      { labelKey: 'nav.equipments',  to: '/equipments', icon: Cog,        roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
-      { labelKey: 'nav.suppliers',   to: '/suppliers',  icon: Truck,      roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
-      { labelKey: 'nav.zones',       to: '/zones',      icon: MapPin,     roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { labelKey: 'nav.documents',   to: '/documents',  icon: BookOpen,   roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN'] },
+      { labelKey: 'nav.products',   to: '/products',   icon: Package,  roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
+      { labelKey: 'nav.equipments', to: '/equipments', icon: Cog,      roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
+      { labelKey: 'nav.suppliers',  to: '/suppliers',  icon: Truck,    roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
+      { labelKey: 'nav.zones',      to: '/zones',      icon: MapPin,   roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
+      { labelKey: 'nav.documents',  to: '/documents',  icon: BookOpen, roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'] },
     ],
   },
   {
     titleKey: 'nav.team',
     items: [
-      { labelKey: 'nav.users',   to: '/users',  icon: Users,      roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { labelKey: 'nav.groups',  to: '/groups', icon: UsersRound, roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
+      // Users: MANAGER can view but cannot create/edit/delete (enforced in UsersPage)
+      { labelKey: 'nav.users',  to: '/users',  icon: Users,      roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
+      { labelKey: 'nav.groups', to: '/groups', icon: UsersRound, roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
     ],
   },
   {
     titleKey: 'nav.administration',
     items: [
       { labelKey: 'nav.reports',  to: '/reports',  icon: BarChart3,  roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN'] },
-      { labelKey: 'nav.audit',    to: '/audit',    icon: ScrollText, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { labelKey: 'nav.settings', to: '/settings', icon: Cog,        roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { labelKey: 'nav.clients',  to: '/clients',  icon: Building2,  roles: ['SUPER_ADMIN'] },
+      { labelKey: 'nav.audit',    to: '/audit',    icon: ScrollText, roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
+      { labelKey: 'nav.settings', to: '/settings', icon: Cog,        roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
+      // Clients: ADMIN + SUPER_ADMIN (ADMIN manages their own client base; SUPER_ADMIN manages all tenants)
+      { labelKey: 'nav.clients',  to: '/clients',  icon: Building2,  roles: ['ADMIN', 'SUPER_ADMIN'] },
     ],
   },
 ];

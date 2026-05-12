@@ -417,6 +417,10 @@ export default function UsersPage() {
 
   const { data, isLoading, isError } = useUsers(page, search, roleFilter, statusFilter);
 
+  // ARCH-DECISION: MANAGER can view the user list but cannot create, edit or delete users.
+  // Only ADMIN and SUPER_ADMIN have full user management privileges.
+  const canManageUsers = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
+
   const closeModal = () => setModal({ kind: 'none' });
   const refresh    = () => { void queryClient.invalidateQueries({ queryKey: ['users'] }); };
 
@@ -472,17 +476,19 @@ export default function UsersPage() {
             </select>
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setModal({ kind: 'invite' })}>
-              <UserPlus className="h-4 w-4" />
-              <span className="hidden sm:inline">Inviter</span>
-            </Button>
-            <Button size="sm" onClick={() => setModal({ kind: 'create' })}>
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Créer</span>
-            </Button>
-          </div>
+          {/* Actions — hidden for MANAGER (read-only access) */}
+          {canManageUsers && (
+            <div className="flex gap-2">
+              <Button size="sm" variant="secondary" onClick={() => setModal({ kind: 'invite' })}>
+                <UserPlus className="h-4 w-4" />
+                <span className="hidden sm:inline">Inviter</span>
+              </Button>
+              <Button size="sm" onClick={() => setModal({ kind: 'create' })}>
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Créer</span>
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Table — desktop / Card — mobile */}
@@ -530,23 +536,27 @@ export default function UsersPage() {
                             {new Date(user.createdAt).toLocaleDateString('fr-FR')}
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-1">
-                              <button title="Modifier" onClick={() => setModal({ kind: 'edit', user })}
-                                className="rounded-md p-1.5 text-gray-400 hover:bg-brand-lighter hover:text-brand-dark transition-colors">
-                                <Edit2 className="h-4 w-4" />
-                              </button>
-                              <button title="Mot de passe" onClick={() => setModal({ kind: 'changePassword', user })}
-                                className="rounded-md p-1.5 text-gray-400 hover:bg-brand-lighter hover:text-brand-dark transition-colors">
-                                <Key className="h-4 w-4" />
-                              </button>
-                              {!isSelf && (
-                                <button title="Supprimer" onClick={() => handleDelete(user)}
-                                  disabled={deleteMutation.isPending}
-                                  className="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50">
-                                  <Trash2 className="h-4 w-4" />
+                            {canManageUsers ? (
+                              <div className="flex items-center justify-end gap-1">
+                                <button title="Modifier" onClick={() => setModal({ kind: 'edit', user })}
+                                  className="rounded-md p-1.5 text-gray-400 hover:bg-brand-lighter hover:text-brand-dark transition-colors">
+                                  <Edit2 className="h-4 w-4" />
                                 </button>
-                              )}
-                            </div>
+                                <button title="Mot de passe" onClick={() => setModal({ kind: 'changePassword', user })}
+                                  className="rounded-md p-1.5 text-gray-400 hover:bg-brand-lighter hover:text-brand-dark transition-colors">
+                                  <Key className="h-4 w-4" />
+                                </button>
+                                {!isSelf && (
+                                  <button title="Supprimer" onClick={() => handleDelete(user)}
+                                    disabled={deleteMutation.isPending}
+                                    className="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50">
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="block text-right text-xs text-gray-400">Lecture seule</span>
+                            )}
                           </td>
                         </tr>
                       );
@@ -574,22 +584,24 @@ export default function UsersPage() {
                           <p className="font-medium text-gray-900 truncate">{user.name}</p>
                           <p className="text-xs text-gray-500 truncate">{user.email}</p>
                         </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button onClick={() => setModal({ kind: 'edit', user })}
-                            className="rounded p-1.5 text-gray-400 hover:text-brand-dark">
-                            <Edit2 className="h-4 w-4" />
-                          </button>
-                          <button onClick={() => setModal({ kind: 'changePassword', user })}
-                            className="rounded p-1.5 text-gray-400 hover:text-brand-dark">
-                            <Key className="h-4 w-4" />
-                          </button>
-                          {!isSelf && (
-                            <button onClick={() => handleDelete(user)} disabled={deleteMutation.isPending}
-                              className="rounded p-1.5 text-gray-400 hover:text-red-600 disabled:opacity-50">
-                              <Trash2 className="h-4 w-4" />
+                        {canManageUsers && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => setModal({ kind: 'edit', user })}
+                              className="rounded p-1.5 text-gray-400 hover:text-brand-dark">
+                              <Edit2 className="h-4 w-4" />
                             </button>
-                          )}
-                        </div>
+                            <button onClick={() => setModal({ kind: 'changePassword', user })}
+                              className="rounded p-1.5 text-gray-400 hover:text-brand-dark">
+                              <Key className="h-4 w-4" />
+                            </button>
+                            {!isSelf && (
+                              <button onClick={() => handleDelete(user)} disabled={deleteMutation.isPending}
+                                className="rounded p-1.5 text-gray-400 hover:text-red-600 disabled:opacity-50">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <RoleBadge role={user.role} />

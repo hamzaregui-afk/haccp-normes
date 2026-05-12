@@ -40,7 +40,17 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
 function RequireRole({ roles, children }: { roles: UserRole[]; children: React.ReactNode }) {
   const role = useAuthStore((s) => s.user?.role);
-  if (!role || !roles.includes(role)) return <Navigate to="/dashboard" replace />;
+  // OPERATOR is redirected to /controls (their home), not to /dashboard
+  const fallback = role === 'OPERATOR' ? '/controls' : '/dashboard';
+  if (!role || !roles.includes(role)) return <Navigate to={fallback} replace />;
+  return <>{children}</>;
+}
+
+// ARCH-DECISION: OPERATOR has no access to the general dashboard (charts, NC stats,
+// full KPI grid). Redirect them immediately to /controls which shows their own tasks.
+function OperatorDashboardGuard({ children }: { children: React.ReactNode }) {
+  const role = useAuthStore((s) => s.user?.role);
+  if (role === 'OPERATOR') return <Navigate to="/controls" replace />;
   return <>{children}</>;
 }
 
@@ -49,6 +59,14 @@ const S = (Component: React.LazyExoticComponent<() => JSX.Element>) => (
     <Component />
   </Suspense>
 );
+
+// ARCH-DECISION: Role-aware home redirect — OPERATOR's primary workspace is /controls
+// (their own task list), so sending them to /dashboard (charts + org KPIs) is useless.
+// All other roles land on /dashboard as before.
+function RoleHome() {
+  const role = useAuthStore((s) => s.user?.role);
+  return <Navigate to={role === 'OPERATOR' ? '/controls' : '/dashboard'} replace />;
+}
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 // ARCH-DECISION: Explicit ReturnType annotation prevents TS2742 ("inferred type
@@ -67,23 +85,90 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
       </RequireAuth>
     ),
     children: [
-      { index: true, element: <Navigate to="/dashboard" replace /> },
-      { path: 'dashboard',       element: S(DashboardPage) },
-      { path: 'controls',        element: S(ControlsPage) },
+      // Default redirect — OPERATOR lands on /controls (their workspace), others on /dashboard
+      { index: true, element: <RoleHome /> },
+
+      // Dashboard — OPERATOR is redirected to /controls by OperatorDashboardGuard
+      {
+        path: 'dashboard',
+        element: <OperatorDashboardGuard>{S(DashboardPage)}</OperatorDashboardGuard>,
+      },
+
+      // Controls & Nonconformities — open to all roles including OPERATOR
+      { path: 'controls',              element: S(ControlsPage) },
       { path: 'controls/templates/:id', element: S(ChecklistEditorPage) },
-      { path: 'nonconformities', element: S(NonconformitiesPage) },
-      { path: 'products',        element: S(ProductsPage) },
-      { path: 'equipments',      element: S(EquipmentsPage) },
-      { path: 'suppliers',       element: S(SuppliersPage) },
-      { path: 'groups',          element: S(GroupsPage) },
-      { path: 'zones',           element: S(ZonesPage) },
-      { path: 'documents',       element: S(DocumentsPage) },
-      { path: 'reports',         element: S(ReportsPage) },
-      { path: 'dlc',            element: S(DLCWebPage) },
+      { path: 'nonconformities',       element: S(NonconformitiesPage) },
+
+      // DLC — ADMIN, MANAGER, SUPER_ADMIN and OPERATOR (field printing)
+      {
+        path: 'dlc',
+        element: (
+          <RequireRole roles={['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'SUPER_ADMIN', 'OPERATOR']}>
+            {S(DLCWebPage)}
+          </RequireRole>
+        ),
+      },
+
+      // Asset referential — OPERATOR has no access
+      {
+        path: 'products',
+        element: (
+          <RequireRole roles={['ADMIN', 'MANAGER', 'SUPER_ADMIN']}>
+            {S(ProductsPage)}
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'equipments',
+        element: (
+          <RequireRole roles={['ADMIN', 'MANAGER', 'SUPER_ADMIN']}>
+            {S(EquipmentsPage)}
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'suppliers',
+        element: (
+          <RequireRole roles={['ADMIN', 'MANAGER', 'SUPER_ADMIN']}>
+            {S(SuppliersPage)}
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'groups',
+        element: (
+          <RequireRole roles={['ADMIN', 'MANAGER', 'SUPER_ADMIN']}>
+            {S(GroupsPage)}
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'zones',
+        element: (
+          <RequireRole roles={['ADMIN', 'MANAGER', 'SUPER_ADMIN']}>
+            {S(ZonesPage)}
+          </RequireRole>
+        ),
+      },
+
+      // GED — open to all roles including OPERATOR
+      { path: 'documents', element: S(DocumentsPage) },
+
+      // Reports — OPERATOR excluded
+      {
+        path: 'reports',
+        element: (
+          <RequireRole roles={['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN']}>
+            {S(ReportsPage)}
+          </RequireRole>
+        ),
+      },
+
+      // Administration — MANAGER has same access as ADMIN except user/client creation
       {
         path: 'settings',
         element: (
-          <RequireRole roles={['ADMIN', 'SUPER_ADMIN']}>
+          <RequireRole roles={['ADMIN', 'MANAGER', 'SUPER_ADMIN']}>
             {S(SettingsPage)}
           </RequireRole>
         ),
@@ -91,23 +176,27 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
       {
         path: 'audit',
         element: (
-          <RequireRole roles={['ADMIN', 'SUPER_ADMIN']}>
+          <RequireRole roles={['ADMIN', 'MANAGER', 'SUPER_ADMIN']}>
             {S(AuditPage)}
           </RequireRole>
         ),
       },
+
+      // Users — MANAGER can VIEW the list but cannot create/edit/delete (enforced in UsersPage)
       {
         path: 'users',
         element: (
-          <RequireRole roles={['ADMIN', 'SUPER_ADMIN']}>
+          <RequireRole roles={['ADMIN', 'MANAGER', 'SUPER_ADMIN']}>
             {S(UsersPage)}
           </RequireRole>
         ),
       },
+
+      // Clients — ADMIN can access (create clients for their org); SUPER_ADMIN manages all tenants
       {
         path: 'clients',
         element: (
-          <RequireRole roles={['SUPER_ADMIN']}>
+          <RequireRole roles={['ADMIN', 'SUPER_ADMIN']}>
             {S(ClientsPage)}
           </RequireRole>
         ),
