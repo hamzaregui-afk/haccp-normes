@@ -22,6 +22,14 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // ARCH-DECISION: When the body is FormData (file uploads), delete the global
+  // Content-Type: application/json so the browser/Axios can set the correct
+  // multipart/form-data header with the boundary string automatically.
+  // Without this, the server receives JSON content-type on a multipart body
+  // and throws a 400 parse error on ALL file upload endpoints.
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+  }
   return config;
 });
 
