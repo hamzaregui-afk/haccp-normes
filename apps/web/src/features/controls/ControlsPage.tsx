@@ -509,7 +509,7 @@ function TaskDetailModal({
         </dl>
 
         {/* ── Completed results ──────────────────────────────────────────────── */}
-        {task.status === 'COMPLETED' && task.resultJson && (() => {
+        {task.status === 'COMPLETED' && task.resultJson != null && (() => {
           const result = task.resultJson as TaskResult;
           return (
             <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4">
