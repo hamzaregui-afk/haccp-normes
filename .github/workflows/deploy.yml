@@ -1,0 +1,47 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false  # Never cancel an in-flight deploy
+
+jobs:
+  deploy:
+    name: Deploy to Hetzner
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: root
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          timeout: 20m
+          script: |
+            set -e
+
+            echo "=== Pulling latest code ==="
+            cd /opt/haccp
+            git pull origin main
+
+            echo "=== Rebuilding changed images ==="
+            docker compose build
+
+            echo "=== Restarting services ==="
+            docker compose up -d --remove-orphans
+
+            echo "=== Verifying health ==="
+            sleep 20
+            docker compose ps --format "table {{.Name}}\t{{.Status}}" | grep -v "unhealthy" | head -20
+
+            echo "=== Gateway smoke test ==="
+            curl -sf http://localhost/health | grep '"status":"ok"'
+            echo "✅ Deploy successful"

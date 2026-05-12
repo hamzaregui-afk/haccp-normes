@@ -43,6 +43,8 @@ docker-compose.override.yml
 
 # Claude Code runtime
 .claude/scheduled_tasks.lock
+.claude/worktrees/
+.claude/settings.local.json
 
 # Temporary fix scripts (debugging artifacts)
 fix_dockerfiles*.py
