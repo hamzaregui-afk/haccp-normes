@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -39,6 +40,7 @@ export class DocumentController {
     @Body('name') name: string,
     @Body('category') category: string,
   ) {
+    if (!file) throw new BadRequestException('Aucun fichier fourni');
     const cat = DocumentCategorySchema.catch('OTHER').parse(category);
     return this.documentService.upload(user.tenantId, file, name || file.originalname, cat);
   }

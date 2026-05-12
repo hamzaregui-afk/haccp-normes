@@ -230,6 +230,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: haccp-control-photos
       MINIO_USE_SSL: "false"
+      MINIO_PUBLIC_URL: "http://178.105.126.165:9000"
       AUDIT_SERVICE_URL: http://audit-service:3019/api/v1
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-haccp-internal-dev-secret-change-in-prod}
     depends_on:
@@ -262,6 +263,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: haccp-nc-photos
       MINIO_USE_SSL: "false"
+      MINIO_PUBLIC_URL: "http://178.105.126.165:9000"
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-haccp-internal-dev-secret-change-in-prod}
       AUDIT_SERVICE_URL: http://audit-service:3019/api/v1
     depends_on:
@@ -293,6 +295,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: haccp-documents
       MINIO_USE_SSL: "false"
+      MINIO_PUBLIC_URL: "http://178.105.126.165:9000"
       AUDIT_SERVICE_URL: http://audit-service:3019/api/v1
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-haccp-internal-dev-secret-change-in-prod}
     depends_on:

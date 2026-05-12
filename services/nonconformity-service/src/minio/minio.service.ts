@@ -71,6 +71,14 @@ export class MinioService implements OnModuleInit {
    * Generate a presigned GET URL valid for 1 hour (3600 seconds).
    */
   async presignedGetUrl(objectKey: string): Promise<string> {
-    return this.client.presignedGetObject(this.bucket, objectKey, 3600);
+    const url = await this.client.presignedGetObject(this.bucket, objectKey, 3600);
+    // ARCH-DECISION: Replace internal Docker hostname (minio:9000) with the
+    // public URL so browsers can access presigned URLs from outside the cluster.
+    if (env.MINIO_PUBLIC_URL) {
+      const protocol = env.MINIO_USE_SSL ? 'https' : 'http';
+      const internal = protocol + '://' + env.MINIO_ENDPOINT + ':' + env.MINIO_PORT;
+      return url.replace(internal, env.MINIO_PUBLIC_URL);
+    }
+    return url;
   }
 }

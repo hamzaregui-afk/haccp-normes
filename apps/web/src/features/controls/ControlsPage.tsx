@@ -336,7 +336,7 @@ function PlanTaskForm({
         label="Date planifiée"
         type="datetime-local"
         required
-        {...register('scheduledAt')}
+        {...register('scheduledAt', { required: 'Veuillez saisir une date planifiée' })}
       />
       <div className="flex justify-end gap-3 border-t border-surface-muted pt-4">
         <Button type="submit" loading={loading}>Planifier</Button>
@@ -668,7 +668,7 @@ function CreateTemplateForm({
         placeholder="Sélectionner un type"
         options={TYPE_OPTIONS}
         required
-        {...register('type')}
+        {...register('type', { required: 'Veuillez sélectionner un type' })}
       />
       <Select
         label="Fréquence"
@@ -735,7 +735,8 @@ function TasksTab({
       templateId:  v.templateId,
       zoneId:      v.zoneId,
       scheduledAt: v.scheduledAt,
-      ...(v.assigneeType === 'user'  ? { assigneeId: v.assigneeId } : { groupId: v.groupId }),
+      ...(v.assigneeType === 'user' && v.assigneeId  ? { assigneeId: v.assigneeId } : {}),
+      ...(v.assigneeType === 'group' && v.groupId ? { groupId: v.groupId } : {}),
     });
 
   return (
