@@ -10,7 +10,7 @@ import { ServicesHealth } from '@/components/shared/ServicesHealth';
 import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/lib/api';
 
-// ─── Change password modal ────────────────────────────────────────────────────
+// â”€â”€â”€ Change password modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface PwdForm { password: string; confirm: string; }
 
@@ -35,7 +35,7 @@ function ChangePasswordModal({ userId, onClose }: { userId: string; onClose: () 
           <input
             {...register('password', {
               required: 'Obligatoire',
-              minLength: { value: 8, message: '8 caractères minimum' },
+              minLength: { value: 8, message: '8 caractÃ¨res minimum' },
             })}
             type="password"
             className="h-9 w-full rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
@@ -55,7 +55,7 @@ function ChangePasswordModal({ userId, onClose }: { userId: string; onClose: () 
           {errors.confirm && <p className="text-xs text-red-600">{errors.confirm.message}</p>}
         </div>
         {mutation.isError && (
-          <p className="text-sm text-red-600">Une erreur est survenue. Veuillez réessayer.</p>
+          <p className="text-sm text-red-600">Une erreur est survenue. Veuillez rÃ©essayer.</p>
         )}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>Annuler</Button>
@@ -66,7 +66,7 @@ function ChangePasswordModal({ userId, onClose }: { userId: string; onClose: () 
   );
 }
 
-// ─── Domain types ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Domain types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface TenantSettings {
   name: string;
@@ -83,7 +83,7 @@ interface ApiResponse<T> {
   message?: string;
 }
 
-// ─── Sector options ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Sector options â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const SECTOR_OPTIONS = [
   { value: 'RESTAURATION',         label: 'Restauration' },
@@ -93,7 +93,7 @@ const SECTOR_OPTIONS = [
   { value: 'AUTRE',                label: 'Autre' },
 ] as const;
 
-// ─── Toggle component ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Toggle component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface ToggleProps {
   id: string;
@@ -131,7 +131,7 @@ function Toggle({ id, label, checked, onChange }: ToggleProps) {
   );
 }
 
-// ─── Section card wrapper ─────────────────────────────────────────────────────
+// â”€â”€â”€ Section card wrapper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface SectionCardProps {
   title: string;
@@ -147,7 +147,7 @@ function SectionCard({ title, children }: SectionCardProps) {
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function SettingsPage() {
   const currentUser = useAuthStore((s) => s.user);
@@ -182,7 +182,7 @@ export default function SettingsPage() {
   const updateMutation = useMutation({
     mutationFn: (body: TenantSettings) => api.patch('/api/v1/tenants/me', body),
     onSuccess: () => {
-      setToast('Paramètres enregistrés avec succès.');
+      setToast('ParamÃ¨tres enregistrÃ©s avec succÃ¨s.');
       setTimeout(() => setToast(null), 3500);
     },
   });
@@ -198,21 +198,21 @@ export default function SettingsPage() {
 
   return (
     <>
-      <Header title="Paramètres" subtitle="Configuration de l'établissement" />
+      <Header title="ParamÃ¨tres" subtitle="Configuration de l'Ã©tablissement" />
 
       <PageWrapper>
         {isLoading ? (
-          <div className="py-20 text-center text-sm text-gray-400">Chargement…</div>
+          <div className="py-20 text-center text-sm text-gray-400">Chargementâ€¦</div>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 max-w-2xl">
 
-            {/* ── Section 1: Establishment info ─────────────────────────── */}
-            <SectionCard title="Informations de l'établissement">
+            {/* â”€â”€ Section 1: Establishment info â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+            <SectionCard title="Informations de l'Ã©tablissement">
               <div className="flex flex-col gap-4">
                 {/* Name */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium text-gray-700">
-                    Nom de l'établissement <span className="text-red-500">*</span>
+                    Nom de l'Ã©tablissement <span className="text-red-500">*</span>
                   </label>
                   <input
                     {...register('name', { required: 'Champ obligatoire' })}
@@ -227,7 +227,7 @@ export default function SettingsPage() {
 
                 {/* SIRET */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-gray-700">Numéro SIRET</label>
+                  <label className="text-sm font-medium text-gray-700">NumÃ©ro SIRET</label>
                   <input
                     {...register('siret')}
                     type="text"
@@ -249,12 +249,12 @@ export default function SettingsPage() {
 
                 {/* Sector */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-gray-700">Secteur d'activité</label>
+                  <label className="text-sm font-medium text-gray-700">Secteur d'activitÃ©</label>
                   <select
                     {...register('sector')}
                     className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-medium"
                   >
-                    <option value="">-- Sélectionner --</option>
+                    <option value="">-- SÃ©lectionner --</option>
                     {SECTOR_OPTIONS.map((o) => (
                       <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
@@ -263,12 +263,12 @@ export default function SettingsPage() {
               </div>
             </SectionCard>
 
-            {/* ── Section 2: Security ───────────────────────────────────── */}
-            <SectionCard title="Sécurité">
+            {/* â”€â”€ Section 2: Security â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+            <SectionCard title="SÃ©curitÃ©">
               <div className="flex flex-col gap-4">
                 {/* JWT info box */}
                 <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-                  Les tokens expirent après <strong>24h</strong>. Les utilisateurs sont automatiquement déconnectés à l'expiration.
+                  Les tokens expirent aprÃ¨s <strong>24h</strong>. Les utilisateurs sont automatiquement dÃ©connectÃ©s Ã  l'expiration.
                 </div>
 
                 {/* Change password */}
@@ -289,18 +289,18 @@ export default function SettingsPage() {
               </div>
             </SectionCard>
 
-            {/* ── Section 3: Notifications ──────────────────────────────── */}
+            {/* â”€â”€ Section 3: Notifications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <SectionCard title="Notifications">
               <div className="divide-y divide-gray-100">
                 <Toggle
                   id="notifyNc"
-                  label="Nouvelles non-conformités par email"
+                  label="Nouvelles non-conformitÃ©s par email"
                   checked={notifyNc}
                   onChange={setNotifyNc}
                 />
                 <Toggle
                   id="notifyReports"
-                  label="Rapports validés par email"
+                  label="Rapports validÃ©s par email"
                   checked={notifyReports}
                   onChange={setNotifyReports}
                 />
@@ -313,14 +313,14 @@ export default function SettingsPage() {
               </div>
             </SectionCard>
 
-            {/* ── Error ─────────────────────────────────────────────────── */}
+            {/* â”€â”€ Error â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             {updateMutation.isError && (
               <p className="text-sm text-red-600">
-                Une erreur est survenue lors de l'enregistrement. Veuillez réessayer.
+                Une erreur est survenue lors de l'enregistrement. Veuillez rÃ©essayer.
               </p>
             )}
 
-            {/* ── Save button ───────────────────────────────────────────── */}
+            {/* â”€â”€ Save button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <div className="flex justify-end">
               <Button type="submit" size="md" loading={updateMutation.isPending}>
                 Enregistrer
@@ -336,13 +336,13 @@ export default function SettingsPage() {
           userId={currentUser.sub}
           onClose={() => {
             setShowPwdModal(false);
-            setToast('Mot de passe modifié avec succès.');
+            setToast('Mot de passe modifiÃ© avec succÃ¨s.');
             setTimeout(() => setToast(null), 3500);
           }}
         />
       )}
 
-      {/* Services health widget — ADMIN/SUPER_ADMIN only */}
+      {/* Services health widget â€” ADMIN/SUPER_ADMIN only */}
       {isSuperAdmin && (
         <PageWrapper>
           <ServicesHealth />
