@@ -12,7 +12,7 @@ import { showToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
 import type { ApiResponse, Tenant } from '@haccp/shared-types';
 
-// ─── Style constants ──────────────────────────────────────────────────────────
+// â”€â”€â”€ Style constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const STATUS_STYLES: Record<string, string> = {
   ACTIVE:    'bg-green-100 text-green-800',
@@ -21,18 +21,18 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  ACTIVE: 'Actif', ARCHIVED: 'Archivé', SUSPENDED: 'Suspendu',
+  ACTIVE: 'Actif', ARCHIVED: 'ArchivÃ©', SUSPENDED: 'Suspendu',
 };
 
 const PLAN_LABELS: Record<string, string> = {
   standard: 'Standard', premium: 'Premium', trial: 'Essai',
 };
 
-// ─── Form types ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Form types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface TenantFormValues { name: string; slug: string; plan: string; }
 
-// ─── Query hook ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Query hook â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function useTenants(page: number, search: string) {
   return useQuery({
@@ -46,7 +46,7 @@ function useTenants(page: number, search: string) {
   });
 }
 
-// ─── Create / Edit modal ──────────────────────────────────────────────────────
+// â”€â”€â”€ Create / Edit modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface TenantModalProps { tenant?: Tenant | null; onClose: () => void; }
 
@@ -69,14 +69,14 @@ function TenantModal({ tenant, onClose }: TenantModalProps) {
         : api.post('/api/v1/tenants', v),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tenants'] });
-      showToast({ title: isEdit ? 'Client modifié' : 'Client créé', variant: 'success' });
+      showToast({ title: isEdit ? 'Client modifiÃ©' : 'Client crÃ©Ã©', variant: 'success' });
       onClose();
     },
-    onError: () => showToast({ title: 'Erreur — vérifiez que le slug est unique', variant: 'error' }),
+    onError: () => showToast({ title: 'Erreur â€” vÃ©rifiez que le slug est unique', variant: 'error' }),
   });
 
   return (
-    <Modal title={isEdit ? 'Modifier le client' : 'Nouveau client'} onClose={onClose}>
+    <Modal open title={isEdit ? 'Modifier le client' : 'Nouveau client'} onClose={onClose}>
       <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-gray-700">Nom <span className="text-red-500">*</span></label>
@@ -107,7 +107,7 @@ function TenantModal({ tenant, onClose }: TenantModalProps) {
             className="h-9 w-full rounded-lg border border-gray-200 px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-medium disabled:bg-gray-50 disabled:text-gray-400"
           />
           {errors.slug && <p className="text-xs text-red-600">{errors.slug.message}</p>}
-          {!isEdit && <p className="text-xs text-gray-400">Unique et immuable après création</p>}
+          {!isEdit && <p className="text-xs text-gray-400">Unique et immuable aprÃ¨s crÃ©ation</p>}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -124,14 +124,14 @@ function TenantModal({ tenant, onClose }: TenantModalProps) {
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>Annuler</Button>
-          <Button type="submit" loading={mutation.isPending}>{isEdit ? 'Enregistrer' : 'Créer'}</Button>
+          <Button type="submit" loading={mutation.isPending}>{isEdit ? 'Enregistrer' : 'CrÃ©er'}</Button>
         </div>
       </form>
     </Modal>
   );
 }
 
-// ─── Tenant card ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Tenant card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface TenantCardProps {
   tenant:   Tenant;
@@ -165,18 +165,18 @@ function TenantCard({ tenant, onEdit, onStatus }: TenantCardProps) {
       <div className="mt-3 flex items-center gap-2 text-xs">
         <button onClick={() => onEdit(tenant)} className="text-brand-medium hover:underline">Modifier</button>
         {tenant.status === 'ACTIVE' && (
-          <><span className="text-gray-200">·</span>
+          <><span className="text-gray-200">Â·</span>
           <button onClick={() => onStatus(tenant.id, 'SUSPENDED')} className="text-yellow-600 hover:underline">Suspendre</button></>
         )}
         {tenant.status === 'SUSPENDED' && (
-          <><span className="text-gray-200">·</span>
-          <button onClick={() => onStatus(tenant.id, 'ACTIVE')} className="text-green-600 hover:underline">Réactiver</button></>
+          <><span className="text-gray-200">Â·</span>
+          <button onClick={() => onStatus(tenant.id, 'ACTIVE')} className="text-green-600 hover:underline">RÃ©activer</button></>
         )}
         {tenant.status !== 'ARCHIVED' && (
-          <><span className="text-gray-200">·</span>
+          <><span className="text-gray-200">Â·</span>
           <button
             onClick={() => {
-              if (window.confirm(`Archiver « ${tenant.name} » ?`)) onStatus(tenant.id, 'ARCHIVED');
+              if (window.confirm(`Archiver Â« ${tenant.name} Â» ?`)) onStatus(tenant.id, 'ARCHIVED');
             }}
             className="text-red-500 hover:underline"
           >Archiver</button></>
@@ -186,7 +186,7 @@ function TenantCard({ tenant, onEdit, onStatus }: TenantCardProps) {
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function ClientsPage() {
   const qc = useQueryClient();
@@ -203,7 +203,7 @@ export default function ClientsPage() {
       api.patch(`/api/v1/tenants/${id}`, { status }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tenants'] });
-      showToast({ title: 'Statut mis à jour', variant: 'success' });
+      showToast({ title: 'Statut mis Ã  jour', variant: 'success' });
     },
   });
 
@@ -211,7 +211,7 @@ export default function ClientsPage() {
     <>
       <Header
         title="Clients"
-        subtitle="Gestion des tenants — SUPER_ADMIN uniquement"
+        subtitle="Gestion des tenants â€” SUPER_ADMIN uniquement"
         icon={Building2}
         iconColor="bg-brand-light text-brand-dark"
       />
@@ -225,7 +225,7 @@ export default function ClientsPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
-                placeholder="Rechercher un client…"
+                placeholder="Rechercher un clientâ€¦"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="h-9 w-64 rounded-lg border border-surface-muted bg-white pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
@@ -246,9 +246,9 @@ export default function ClientsPage() {
         ) : (data?.data ?? []).length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-surface-muted bg-white py-20 text-center">
             <Building2 className="mb-3 h-10 w-10 text-gray-300" />
-            <p className="font-medium text-gray-500">Aucun client trouvé</p>
+            <p className="font-medium text-gray-500">Aucun client trouvÃ©</p>
             <Button className="mt-4" size="sm" onClick={() => setModalTenant(null)}>
-              <Plus className="mr-1 h-4 w-4" /> Créer le premier client
+              <Plus className="mr-1 h-4 w-4" /> CrÃ©er le premier client
             </Button>
           </div>
         ) : (
