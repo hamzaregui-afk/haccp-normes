@@ -11,7 +11,7 @@ const envSchema = z.object({
   MINIO_ACCESS_KEY: z.string().default('minioadmin'),
   MINIO_SECRET_KEY: z.string().default('minioadmin'),
   MINIO_BUCKET:    z.string().default('haccp-documents'),
-  MINIO_USE_SSL:   z.coerce.boolean().default(false),
+  MINIO_USE_SSL:   z.preprocess(v => v === 'true' || v === '1', z.boolean()).default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;
