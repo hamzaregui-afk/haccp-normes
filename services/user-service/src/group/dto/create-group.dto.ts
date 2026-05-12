@@ -6,6 +6,6 @@ export const CreateGroupDtoSchema = z.object({
 export type CreateGroupDto = z.infer<typeof CreateGroupDtoSchema>;
 
 export const AddMemberDtoSchema = z.object({
-  userId: z.string().cuid(),
+  userId: z.string().min(1),
 });
 export type AddMemberDto = z.infer<typeof AddMemberDtoSchema>;

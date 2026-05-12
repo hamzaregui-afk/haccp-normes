@@ -10,8 +10,8 @@ const EquipmentBaseSchema = z.object({
   type:         z.preprocess(emptyToUndefined, z.string().max(100).optional()),
   serialNumber: z.preprocess(emptyToUndefined, z.string().max(100).optional()),
   brand:        z.preprocess(emptyToUndefined, z.string().max(100).optional()),
-  // Empty string from an unselected <select> must not fail .cuid()
-  siteId:       z.preprocess(emptyToUndefined, z.string().cuid().optional()),
+  // Empty string from an unselected <select> must not fail validation
+  siteId:       z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   // Empty number inputs coerce "" → 0, triggering the tempMin < tempMax refine falsely
   tempMin:      z.preprocess(emptyToUndefined, z.coerce.number().optional()),
   tempMax:      z.preprocess(emptyToUndefined, z.coerce.number().optional()),

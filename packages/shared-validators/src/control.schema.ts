@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const CreateControlSchema = z.object({
-  ccpId: z.string().cuid(),
+  ccpId: z.string().min(1),
   measuredValue: z.number().optional(),
   unit: z.string().max(20).optional(),
   notes: z.string().max(1000).optional(),
@@ -11,7 +11,7 @@ export const CreateControlSchema = z.object({
 export type CreateControlDto = z.infer<typeof CreateControlSchema>;
 
 export const CreateNonconformitySchema = z.object({
-  controlId: z.string().cuid().optional(),
+  controlId: z.string().min(1).optional(),
   title: z.string().min(1).max(200),
   description: z.string().min(1).max(5000),
   category: z.enum([
@@ -19,7 +19,7 @@ export const CreateNonconformitySchema = z.object({
     'EQUIPMENT', 'SUPPLIER', 'PROCESS', 'OTHER',
   ]),
   severity: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
-  assignedToId: z.string().cuid().optional(),
+  assignedToId: z.string().min(1).optional(),
   dueDate: z.coerce.date().optional(),
 });
 

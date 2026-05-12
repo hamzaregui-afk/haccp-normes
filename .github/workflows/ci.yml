@@ -11,6 +11,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ─── 0. Static guardrails (fast, no deps needed) ────────────────────────
+  guardrails:
+    name: Static Guardrails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No z.string().cuid() in input DTOs
+        # ARCH-DECISION: Seeded/imported IDs may not match the strict CUID regex.
+        # All input DTO ID fields must use z.string().min(1) instead of
+        # z.string().cuid() so that non-CUID IDs never cause a 500 at the Zod
+        # validation boundary. See scripts/check-no-cuid-in-dtos.sh for details.
+        run: bash scripts/check-no-cuid-in-dtos.sh
+      - name: nginx configs declare client_max_body_size
+        # Ensures every nginx config that proxies /api/ explicitly sets the body
+        # size limit, preventing silent 413 rejections of file uploads.
+        run: |
+          for f in apps/web/nginx.conf infrastructure/nginx/nginx.conf; do
+            if ! grep -q "client_max_body_size" "$f"; then
+              echo "❌  $f is missing client_max_body_size"
+              exit 1
+            fi
+          done
+          echo "✅  All nginx configs declare client_max_body_size"
+
   # ─── 1. Lint & Type-check ─────────────────────────────────────────────────
   lint-typecheck:
     name: Lint & Type-check

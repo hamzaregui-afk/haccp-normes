@@ -10,8 +10,8 @@ export const CreateProductDtoSchema = z.object({
   packaging:   z.preprocess(emptyToUndefined, z.string().max(100).optional()),
   dlcDays:     z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),
   tempStorage: z.preprocess(emptyToUndefined, z.coerce.number().optional()),
-  // Empty string from an unselected <select> must map to undefined, not fail .cuid()
-  supplierId:  z.preprocess(emptyToUndefined, z.string().cuid().optional()),
+  // Empty string from an unselected <select> must map to undefined, not fail validation
+  supplierId:  z.preprocess(emptyToUndefined, z.string().min(1).optional()),
 });
 export type CreateProductDto = z.infer<typeof CreateProductDtoSchema>;
 
