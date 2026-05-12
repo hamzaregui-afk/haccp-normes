@@ -1,0 +1,1147 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Calendar,
+  Camera,
+  CheckCircle2,
+  ClipboardList,
+  Clock,
+  Edit2,
+  Eye,
+  ImageOff,
+  ListChecks,
+  Plus,
+  Search,
+  TrendingUp,
+  Upload,
+  User,
+  Users,
+} from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
+
+import { PageWrapper } from '@/components/layout/AppLayout';
+import { Header } from '@/components/layout/Header';
+import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Input } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
+import { Select } from '@/components/ui/Select';
+import { useDebounce } from '@/hooks/useDebounce';
+import { api } from '@/lib/api';
+import type { ApiResponse } from '@haccp/shared-types';
+import type { ControlStats, ControlTask, ControlTemplate, ControlType } from './types';
+
+// ─── Style maps ────────────────────────────────────────────────────────────────
+
+const STATUS_STYLES: Record<ControlTask['status'], string> = {
+  PLANNED:     'bg-gray-100 text-gray-700 border-gray-200',
+  IN_PROGRESS: 'bg-blue-50 text-blue-700 border-blue-200',
+  COMPLETED:   'bg-green-50 text-green-700 border-green-200',
+  OVERDUE:     'bg-red-50 text-red-700 border-red-200',
+  CANCELLED:   'bg-gray-100 text-gray-500 border-gray-200',
+};
+
+const STATUS_LABELS: Record<ControlTask['status'], string> = {
+  PLANNED:     'Planifié',
+  IN_PROGRESS: 'En cours',
+  COMPLETED:   'Complété',
+  OVERDUE:     'En retard',
+  CANCELLED:   'Annulé',
+};
+
+const TYPE_LABELS: Record<ControlType, string> = {
+  RECEPTION:           'Réception',
+  TEMPERATURE_STOCK:   'Temp. stock',
+  TEMPERATURE_DISPLAY: 'Temp. vitrine',
+  TEMPERATURE_OIL:     'Temp. huile',
+  EQUIPMENT:           'Équipement',
+  SANITARY:            'Sanitaire',
+  DAILY_PRODUCTION:    'Production quotidienne',
+};
+
+const TYPE_OPTIONS = (Object.keys(TYPE_LABELS) as ControlType[]).map((k) => ({
+  value: k,
+  label: TYPE_LABELS[k],
+}));
+
+const STATUS_FILTER_OPTIONS = [
+  { value: '',            label: 'Tous les statuts' },
+  { value: 'PLANNED',     label: 'Planifié' },
+  { value: 'IN_PROGRESS', label: 'En cours' },
+  { value: 'COMPLETED',   label: 'Complété' },
+  { value: 'OVERDUE',     label: 'En retard' },
+  { value: 'CANCELLED',   label: 'Annulé' },
+];
+
+const FREQUENCY_OPTIONS = [
+  { value: 'DAILY',        label: 'Quotidienne' },
+  { value: 'WEEKLY',       label: 'Hebdomadaire' },
+  { value: 'MONTHLY',      label: 'Mensuelle' },
+  { value: 'ON_RECEPTION', label: 'À la réception' },
+  { value: 'ON_DEMAND',    label: 'À la demande' },
+];
+
+// ─── Lookup types ──────────────────────────────────────────────────────────────
+
+interface ZoneRaw    { id: string; name: string }
+interface SiteRaw    { id: string; name: string; zones: ZoneRaw[] }
+interface UserRaw    { id: string; name: string; email: string }
+interface GroupRaw   { id: string; name: string }
+
+// ─── Lookup hooks ──────────────────────────────────────────────────────────────
+
+function useZoneLookup() {
+  const { data } = useQuery({
+    queryKey: ['sites.all'],
+    queryFn: async () => {
+      const { data } = await api.get<{ data: SiteRaw[] }>('/api/v1/sites');
+      return data.data ?? [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const zoneMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const site of (data ?? [])) {
+      for (const zone of (site.zones ?? [])) {
+        map[zone.id] = zone.name;
+      }
+    }
+    return map;
+  }, [data]);
+
+  const zoneOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [];
+    for (const site of (data ?? [])) {
+      for (const zone of (site.zones ?? [])) {
+        opts.push({ value: zone.id, label: `${site.name} — ${zone.name}` });
+      }
+    }
+    return opts;
+  }, [data]);
+
+  return { zoneMap, zoneOptions };
+}
+
+function useUserLookup() {
+  // ARCH-DECISION: retry:false + throwOnError:false so a 403 (MANAGER role cannot
+  // list users) silently yields an empty array rather than crashing the form.
+  const { data } = useQuery({
+    queryKey: ['users.all'],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get<{ data: UserRaw[] }>('/api/v1/users?page=1&limit=100');
+        return data.data ?? [];
+      } catch {
+        return [] as UserRaw[];
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  const userMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const u of (data ?? [])) map[u.id] = u.name;
+    return map;
+  }, [data]);
+
+  const userOptions = useMemo(
+    () => (data ?? []).map((u) => ({ value: u.id, label: `${u.name} (${u.email})` })),
+    [data],
+  );
+
+  return { userMap, userOptions };
+}
+
+function useGroupLookup() {
+  const { data } = useQuery({
+    queryKey: ['groups.all'],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get<{ data: GroupRaw[] }>('/api/v1/groups?page=1&limit=100');
+        return data.data ?? [];
+      } catch {
+        return [] as GroupRaw[];
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  const groupMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const g of (data ?? [])) map[g.id] = g.name;
+    return map;
+  }, [data]);
+
+  const groupOptions = useMemo(
+    () => (data ?? []).map((g) => ({ value: g.id, label: g.name })),
+    [data],
+  );
+
+  return { groupMap, groupOptions };
+}
+
+// ─── KPI cards ─────────────────────────────────────────────────────────────────
+
+interface KpiCardProps {
+  label: string;
+  value: string;
+  icon: React.ElementType;
+  iconColor: string;
+  iconBg: string;
+  valueColor: string;
+}
+
+function KpiCard({ label, value, icon: Icon, iconColor, iconBg, valueColor }: KpiCardProps) {
+  return (
+    <div className="rounded-xl border border-surface-muted bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm text-gray-500">{label}</p>
+          <p className={`mt-1 text-3xl font-bold ${valueColor}`}>{value}</p>
+        </div>
+        <div className={`rounded-lg p-2.5 ${iconBg}`}>
+          <Icon className={`h-5 w-5 ${iconColor}`} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Plan task form ────────────────────────────────────────────────────────────
+
+interface PlanTaskFormValues {
+  templateId:   string;
+  zoneId:       string;
+  assigneeType: 'user' | 'group';
+  assigneeId:   string;
+  groupId:      string;
+  scheduledAt:  string;
+}
+
+function PlanTaskForm({
+  templates,
+  zoneOptions,
+  userOptions,
+  groupOptions,
+  onSubmit,
+  loading,
+}: {
+  templates:    ControlTemplate[];
+  zoneOptions:  { value: string; label: string }[];
+  userOptions:  { value: string; label: string }[];
+  groupOptions: { value: string; label: string }[];
+  onSubmit:     (v: PlanTaskFormValues) => Promise<unknown>;
+  loading?:     boolean;
+}) {
+  // Default to 'group' only when userOptions is definitively empty AND groupOptions
+  // has items — meaning the user lookup failed (e.g. MANAGER 403) while groups
+  // loaded fine. Otherwise prefer 'user' so admins get the expected default.
+  const defaultAssigneeType: 'user' | 'group' =
+    userOptions.length === 0 && groupOptions.length > 0 ? 'group' : 'user';
+
+  const { register, handleSubmit, watch } = useForm<PlanTaskFormValues>({
+    defaultValues: { assigneeType: defaultAssigneeType },
+  });
+  const assigneeType = watch('assigneeType');
+
+  const canAssignUser  = userOptions.length > 0;
+  const canAssignGroup = groupOptions.length > 0;
+
+  const templateOptions = templates.map((t) => ({
+    value: t.id,
+    label: `${t.name} — ${TYPE_LABELS[t.type]}`,
+  }));
+
+  return (
+    <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4">
+      <Select
+        label="Modèle de contrôle"
+        placeholder="Sélectionner un modèle"
+        options={templateOptions}
+        required
+        {...register('templateId')}
+      />
+      <Select
+        label="Zone / Emplacement"
+        placeholder="Sélectionner une zone"
+        options={zoneOptions}
+        required
+        {...register('zoneId')}
+      />
+
+      {/* Assignment — only shown when at least one list is available */}
+      {(canAssignUser || canAssignGroup) ? (
+        <div>
+          <p className="mb-1.5 text-sm font-medium text-gray-700">Assigner à</p>
+          <div className="flex gap-4">
+            {(['user', 'group'] as const).map((type) => {
+              const enabled = type === 'user' ? canAssignUser : canAssignGroup;
+              return (
+                <label
+                  key={type}
+                  className={`flex cursor-pointer items-center gap-2 ${!enabled ? 'cursor-not-allowed opacity-40' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    value={type}
+                    disabled={!enabled}
+                    {...register('assigneeType')}
+                    className="accent-brand-medium"
+                  />
+                  <span className="flex items-center gap-1 text-sm text-gray-700">
+                    {type === 'user' ? <User className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
+                    {type === 'user' ? 'Utilisateur' : 'Groupe'}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+
+          {!canAssignUser && assigneeType === 'group' && (
+            <p className="mt-1.5 text-[11px] text-gray-400">
+              L'assignation individuelle n'est disponible que pour les administrateurs.
+            </p>
+          )}
+
+          <div className="mt-3">
+            {assigneeType === 'user' ? (
+              <Select
+                label="Utilisateur"
+                placeholder="Sélectionner un utilisateur"
+                options={userOptions}
+                {...register('assigneeId')}
+              />
+            ) : (
+              <Select
+                label="Groupe"
+                placeholder="Sélectionner un groupe"
+                options={groupOptions}
+                {...register('groupId')}
+              />
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2.5 text-xs text-orange-700">
+          Aucun utilisateur ou groupe disponible. Contactez un administrateur pour en créer.
+        </div>
+      )}
+
+      <Input
+        label="Date planifiée"
+        type="datetime-local"
+        required
+        {...register('scheduledAt')}
+      />
+      <div className="flex justify-end gap-3 border-t border-surface-muted pt-4">
+        <Button type="submit" loading={loading}>Planifier</Button>
+      </div>
+    </form>
+  );
+}
+
+// ─── Control photo type ────────────────────────────────────────────────────────
+
+interface ControlPhoto {
+  id:         string;
+  taskId:     string;
+  url:        string;
+  uploadedAt: string;
+}
+
+// ─── Task detail + reassign modal ──────────────────────────────────────────────
+
+interface ReassignFormValues {
+  assigneeType: 'user' | 'group';
+  assigneeId:   string;
+  groupId:      string;
+}
+
+function TaskDetailModal({
+  task,
+  open,
+  onClose,
+  zoneMap,
+  userMap,
+  groupMap,
+  userOptions,
+  groupOptions,
+}: {
+  task:         ControlTask | null;
+  open:         boolean;
+  onClose:      () => void;
+  zoneMap:      Record<string, string>;
+  userMap:      Record<string, string>;
+  groupMap:     Record<string, string>;
+  userOptions:  { value: string; label: string }[];
+  groupOptions: { value: string; label: string }[];
+}) {
+  const queryClient  = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  // Prefer the task's current assignment type, but fall back to 'group'
+  // when userOptions is empty (e.g. MANAGER has no permission to list users).
+  const defaultReassignType: 'user' | 'group' =
+    userOptions.length === 0 && groupOptions.length > 0
+      ? 'group'
+      : (task?.groupId ? 'group' : 'user');
+
+  const { register, handleSubmit, watch, reset } = useForm<ReassignFormValues>({
+    defaultValues: {
+      assigneeType: defaultReassignType,
+      assigneeId:   task?.assigneeId ?? '',
+      groupId:      task?.groupId ?? '',
+    },
+  });
+  const assigneeType = watch('assigneeType');
+
+  // Fetch photos for this task
+  const { data: photosData, refetch: refetchPhotos } = useQuery({
+    queryKey: ['controls.tasks.photos', task?.id],
+    queryFn: async () => {
+      const { data } = await api.get<{ data: ControlPhoto[] }>(
+        `/api/v1/controls/tasks/${task!.id}/photos`,
+      );
+      return data.data ?? [];
+    },
+    enabled: open && task !== null,
+  });
+
+  const uploadPhotoMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      await api.post(`/api/v1/controls/tasks/${task!.id}/photos`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    },
+    onSuccess: () => void refetchPhotos(),
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) void uploadPhotoMutation.mutate(file);
+    e.target.value = '';
+  };
+
+  const reassignMutation = useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      api.patch(`/api/v1/controls/tasks/${task?.id}`, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['controls.tasks'] });
+      onClose();
+    },
+  });
+
+  const handleReassign = (v: ReassignFormValues) => {
+    if (v.assigneeType === 'user' && v.assigneeId) {
+      void reassignMutation.mutateAsync({ assigneeId: v.assigneeId });
+    } else if (v.assigneeType === 'group' && v.groupId) {
+      void reassignMutation.mutateAsync({ groupId: v.groupId });
+    }
+  };
+
+  if (!task) return null;
+
+  const photos       = photosData ?? [];
+  const zoneName     = zoneMap[task.zoneId] ?? task.zoneId;
+  const assigneeName = task.assigneeId
+    ? (userMap[task.assigneeId] ?? task.assigneeId)
+    : task.groupId
+      ? (groupMap[task.groupId] ?? task.groupId)
+      : '—';
+  const assigneeKind = task.groupId ? 'Groupe' : 'Utilisateur';
+
+  return (
+    <>
+      <Modal open={open} onClose={() => { onClose(); reset(); }} title="Détail de la tâche" size="lg">
+        {/* Info grid */}
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <div>
+            <dt className="font-medium text-gray-500">Modèle</dt>
+            <dd className="mt-0.5 text-gray-900">{task.template?.name ?? task.templateId.slice(0, 8)}</dd>
+          </div>
+          <div>
+            <dt className="font-medium text-gray-500">Type</dt>
+            <dd className="mt-0.5 text-gray-900">
+              {task.template ? TYPE_LABELS[task.template.type as ControlType] ?? task.template.type : '—'}
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-gray-500">Zone</dt>
+            <dd className="mt-0.5 text-gray-900">{zoneName}</dd>
+          </div>
+          <div>
+            <dt className="font-medium text-gray-500">Statut</dt>
+            <dd className="mt-0.5">
+              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[task.status]}`}>
+                {STATUS_LABELS[task.status]}
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-gray-500">Date planifiée</dt>
+            <dd className="mt-0.5 text-gray-900">
+              {new Date(task.scheduledAt).toLocaleString('fr-FR', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit',
+              })}
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-gray-500">{assigneeKind} actuel</dt>
+            <dd className="mt-0.5 text-gray-900 flex items-center gap-1">
+              {task.groupId ? <Users className="h-3.5 w-3.5 text-gray-400" /> : <User className="h-3.5 w-3.5 text-gray-400" />}
+              {assigneeName}
+            </dd>
+          </div>
+        </dl>
+
+        {/* ── Photo section ──────────────────────────────────────────────────── */}
+        <div className="mt-5">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <Camera className="h-4 w-4 text-brand-medium" />
+              Photos du contrôle ({photos.length})
+            </h3>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadPhotoMutation.isPending}
+              className="flex items-center gap-1.5 rounded-lg border border-brand-medium bg-white px-3 py-1.5 text-xs font-medium text-brand-medium hover:bg-brand-light transition-colors disabled:opacity-50"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              {uploadPhotoMutation.isPending ? 'Upload…' : 'Ajouter une photo'}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+          </div>
+
+          {uploadPhotoMutation.isError && (
+            <p className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+              Erreur lors du téléversement. Veuillez réessayer.
+            </p>
+          )}
+
+          {photos.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-surface-muted py-8 text-center">
+              <ImageOff className="mb-2 h-7 w-7 text-gray-300" />
+              <p className="text-sm text-gray-400">Aucune photo pour ce contrôle</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {photos.map((photo) => (
+                <button
+                  key={photo.id}
+                  type="button"
+                  onClick={() => setLightboxUrl(photo.url)}
+                  className="group relative aspect-square overflow-hidden rounded-lg border border-surface-muted bg-gray-50 hover:border-brand-medium transition-colors"
+                >
+                  <img
+                    src={photo.url}
+                    alt="Photo contrôle"
+                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">
+                    <Eye className="h-5 w-5 text-white" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Reassign section */}
+        <div className="mt-5 rounded-lg border border-surface-muted bg-surface-page px-4 py-4">
+          <p className="mb-3 text-sm font-semibold text-gray-700">Réassigner la tâche</p>
+          {(userOptions.length > 0 || groupOptions.length > 0) ? (
+            <form onSubmit={(e) => void handleSubmit(handleReassign)(e)} className="space-y-3">
+              <div className="flex gap-4">
+                {(['user', 'group'] as const).map((type) => {
+                  const enabled = type === 'user' ? userOptions.length > 0 : groupOptions.length > 0;
+                  return (
+                    <label
+                      key={type}
+                      className={`flex cursor-pointer items-center gap-2 ${!enabled ? 'cursor-not-allowed opacity-40' : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        value={type}
+                        disabled={!enabled}
+                        {...register('assigneeType')}
+                        className="accent-brand-medium"
+                      />
+                      <span className="flex items-center gap-1 text-sm text-gray-700">
+                        {type === 'user' ? <User className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
+                        {type === 'user' ? 'Utilisateur' : 'Groupe'}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {assigneeType === 'user' ? (
+                <Select placeholder="Sélectionner un utilisateur" options={userOptions} {...register('assigneeId')} />
+              ) : (
+                <Select placeholder="Sélectionner un groupe" options={groupOptions} {...register('groupId')} />
+              )}
+
+              <div className="flex justify-end">
+                <Button type="submit" size="sm" loading={reassignMutation.isPending}>
+                  Réassigner
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <p className="text-xs text-gray-400">
+              Aucun utilisateur ou groupe disponible pour la réassignation.
+            </p>
+          )}
+        </div>
+      </Modal>
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            type="button"
+            className="absolute right-4 top-4 rounded-full bg-white/20 p-2 text-white hover:bg-white/30"
+            onClick={() => setLightboxUrl(null)}
+          >
+            ✕
+          </button>
+          <img
+            src={lightboxUrl}
+            alt="Photo contrôle agrandie"
+            className="max-h-full max-w-full rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── Create template form ──────────────────────────────────────────────────────
+
+interface CreateTemplateFormValues {
+  name:      string;
+  type:      ControlType;
+  frequency: string;
+}
+
+function CreateTemplateForm({
+  onSubmit,
+  loading,
+}: {
+  onSubmit: (v: CreateTemplateFormValues) => Promise<unknown>;
+  loading?: boolean;
+}) {
+  const { register, handleSubmit } = useForm<CreateTemplateFormValues>();
+  return (
+    <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4">
+      <Input
+        label="Nom du modèle"
+        placeholder="Contrôle réception viande…"
+        required
+        {...register('name')}
+      />
+      <Select
+        label="Type"
+        placeholder="Sélectionner un type"
+        options={TYPE_OPTIONS}
+        required
+        {...register('type')}
+      />
+      <Select
+        label="Fréquence"
+        placeholder="Sélectionner une fréquence"
+        options={FREQUENCY_OPTIONS}
+        {...register('frequency')}
+      />
+      <div className="flex justify-end gap-3 border-t border-surface-muted pt-4">
+        <Button type="submit" loading={loading}>Créer le modèle</Button>
+      </div>
+    </form>
+  );
+}
+
+// ─── Tasks tab ─────────────────────────────────────────────────────────────────
+
+function TasksTab({
+  templates,
+  zoneMap,
+  zoneOptions,
+  userMap,
+  userOptions,
+  groupMap,
+  groupOptions,
+}: {
+  templates:    ControlTemplate[];
+  zoneMap:      Record<string, string>;
+  zoneOptions:  { value: string; label: string }[];
+  userMap:      Record<string, string>;
+  userOptions:  { value: string; label: string }[];
+  groupMap:     Record<string, string>;
+  groupOptions: { value: string; label: string }[];
+}) {
+  const [page, setPage]               = useState(1);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<ControlTask | null>(null);
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['controls.tasks', page, statusFilter],
+    queryFn: async () => {
+      const p = new URLSearchParams({ page: String(page), limit: '20' });
+      if (statusFilter) p.set('status', statusFilter);
+      const { data } = await api.get<ApiResponse<ControlTask[]>>(`/api/v1/controls/tasks?${p}`);
+      return data;
+    },
+  });
+
+  const createTaskMutation = useMutation({
+    mutationFn: (body: Record<string, unknown>) => api.post('/api/v1/controls/tasks', body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['controls.tasks'] });
+      void queryClient.invalidateQueries({ queryKey: ['controls.stats'] });
+      setPlanModalOpen(false);
+    },
+  });
+
+  const tasks = data?.data ?? [];
+
+  const handlePlanSubmit = (v: PlanTaskFormValues) =>
+    createTaskMutation.mutateAsync({
+      templateId:  v.templateId,
+      zoneId:      v.zoneId,
+      scheduledAt: v.scheduledAt,
+      ...(v.assigneeType === 'user'  ? { assigneeId: v.assigneeId } : { groupId: v.groupId }),
+    });
+
+  return (
+    <>
+      {/* Toolbar */}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <select
+          value={statusFilter}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+          className="h-9 rounded-lg border border-surface-muted bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
+        >
+          {STATUS_FILTER_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        <Button size="sm" onClick={() => setPlanModalOpen(true)}>
+          <Plus className="h-4 w-4" /> Planifier
+        </Button>
+      </div>
+
+      {/* Content */}
+      {isLoading ? (
+        <div className="py-20 text-center text-sm text-gray-400">Chargement…</div>
+      ) : tasks.length === 0 ? (
+        <EmptyState
+          icon={Calendar}
+          title="Aucune tâche"
+          description="Planifiez votre première tâche de contrôle à partir d'un modèle existant."
+          actionLabel="Planifier une tâche"
+          onAction={() => setPlanModalOpen(true)}
+        />
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-surface-muted bg-white shadow-sm">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-surface-muted bg-surface-page text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <th className="px-4 py-3">Modèle</th>
+                <th className="px-4 py-3">Zone</th>
+                <th className="px-4 py-3">Assigné</th>
+                <th className="px-4 py-3">Date planifiée</th>
+                <th className="px-4 py-3">Statut</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-surface-muted">
+              {tasks.map((task) => {
+                const zoneName = zoneMap[task.zoneId] ?? <span className="font-mono text-xs text-gray-400">{task.zoneId.slice(0, 8)}…</span>;
+                const assigneeName = task.assigneeId
+                  ? (userMap[task.assigneeId] ?? <span className="font-mono text-xs text-gray-400">{task.assigneeId.slice(0, 8)}…</span>)
+                  : task.groupId
+                    ? (groupMap[task.groupId] ?? <span className="font-mono text-xs text-gray-400">{task.groupId.slice(0, 8)}…</span>)
+                    : <span className="text-gray-400">—</span>;
+
+                return (
+                  <tr
+                    key={task.id}
+                    className="cursor-pointer hover:bg-surface-page transition-colors"
+                    onClick={() => setSelectedTask(task)}
+                  >
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      {task.template?.name ?? <span className="text-gray-400 text-xs font-mono">{task.templateId.slice(0, 8)}…</span>}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">{zoneName}</td>
+                    <td className="px-4 py-3 text-gray-700">
+                      <span className="flex items-center gap-1">
+                        {task.groupId
+                          ? <Users className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                          : <User  className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                        }
+                        {assigneeName}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                      {new Date(task.scheduledAt).toLocaleString('fr-FR', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                      })}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[task.status]}`}
+                      >
+                        {STATUS_LABELS[task.status]}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        className="text-xs text-brand-medium hover:underline"
+                        onClick={(e) => { e.stopPropagation(); setSelectedTask(task); }}
+                      >
+                        Voir
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {data?.meta && data.meta.lastPage > 1 && (
+            <div className="flex items-center justify-between border-t border-surface-muted px-4 py-3 text-sm text-gray-500">
+              <span>Page {data.meta.page} sur {data.meta.lastPage} — {data.meta.total} tâche(s)</span>
+              <div className="flex gap-2">
+                <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Précédent</Button>
+                <Button variant="secondary" size="sm" disabled={page === data.meta.lastPage} onClick={() => setPage((p) => p + 1)}>Suivant</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Plan task modal */}
+      <Modal open={planModalOpen} onClose={() => setPlanModalOpen(false)} title="Planifier une tâche" size="md">
+        <PlanTaskForm
+          templates={templates}
+          zoneOptions={zoneOptions}
+          userOptions={userOptions}
+          groupOptions={groupOptions}
+          loading={createTaskMutation.isPending}
+          onSubmit={handlePlanSubmit}
+        />
+      </Modal>
+
+      {/* Task detail / reassign modal — key resets form defaults when task changes */}
+      <TaskDetailModal
+        key={selectedTask?.id}
+        task={selectedTask}
+        open={selectedTask !== null}
+        onClose={() => setSelectedTask(null)}
+        zoneMap={zoneMap}
+        userMap={userMap}
+        groupMap={groupMap}
+        userOptions={userOptions}
+        groupOptions={groupOptions}
+      />
+    </>
+  );
+}
+
+// ─── Templates tab ─────────────────────────────────────────────────────────────
+
+function TemplatesTab() {
+  const [page, setPage]         = useState(1);
+  const [search, setSearch]     = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const queryClient             = useQueryClient();
+  const navigate                = useNavigate();
+  const debouncedSearch         = useDebounce(search, 400);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['controls.templates', page, debouncedSearch],
+    queryFn: async () => {
+      const p = new URLSearchParams({ page: String(page), limit: '20' });
+      if (debouncedSearch) p.set('search', debouncedSearch);
+      const { data } = await api.get<ApiResponse<ControlTemplate[]>>(`/api/v1/controls/templates?${p}`);
+      return data;
+    },
+  });
+
+  const createTemplateMutation = useMutation({
+    mutationFn: (body: Record<string, unknown>) => api.post('/api/v1/controls/templates', body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['controls.templates'] });
+      setModalOpen(false);
+    },
+  });
+
+  const deleteTemplateMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/controls/templates/${id}`),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['controls.templates'] }),
+  });
+
+  const templates = data?.data ?? [];
+
+  const handleDelete = (id: string, name: string) => {
+    if (window.confirm(`Supprimer le modèle "${name}" ?`)) {
+      void deleteTemplateMutation.mutate(id);
+    }
+  };
+
+  return (
+    <>
+      {/* Toolbar */}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            placeholder="Rechercher un modèle…"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="h-9 w-60 rounded-lg border border-surface-muted bg-white pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
+          />
+        </div>
+        <Button size="sm" onClick={() => setModalOpen(true)}>
+          <Plus className="h-4 w-4" /> Nouveau modèle
+        </Button>
+      </div>
+
+      {/* Content */}
+      {isLoading ? (
+        <div className="py-20 text-center text-sm text-gray-400">Chargement…</div>
+      ) : templates.length === 0 ? (
+        <EmptyState
+          icon={ClipboardList}
+          title="Aucun modèle"
+          description="Créez des modèles de contrôle réutilisables pour standardiser vos relevés HACCP."
+          actionLabel="Créer un modèle"
+          onAction={() => setModalOpen(true)}
+        />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {templates.map((tpl) => {
+              const itemCount = Array.isArray(tpl.checklistJson) ? (tpl.checklistJson as unknown[]).length : 0;
+              return (
+                <div
+                  key={tpl.id}
+                  className="rounded-xl border border-surface-muted bg-white p-5 shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-lighter">
+                        <ClipboardList className="h-5 w-5 text-brand-dark" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">{tpl.name}</p>
+                        <span className="inline-block rounded-full bg-brand-light px-2 py-0.5 text-xs font-medium text-brand-dark border border-brand-lighter mt-0.5">
+                          {TYPE_LABELS[tpl.type]}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-3 text-xs text-gray-500">
+                    {tpl.frequency && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gold-light px-2.5 py-0.5 font-medium text-gold">
+                        <Clock className="h-3 w-3" />
+                        {FREQUENCY_OPTIONS.find((f) => f.value === tpl.frequency)?.label ?? tpl.frequency}
+                      </span>
+                    )}
+                    <span className="inline-flex items-center gap-1">
+                      <ListChecks className="h-3.5 w-3.5" />
+                      {itemCount} point{itemCount !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 flex gap-2 border-t border-surface-muted pt-3">
+                    <button
+                      className="flex items-center gap-1 text-xs text-brand-medium hover:underline"
+                      onClick={() => navigate(`/controls/templates/${tpl.id}`)}
+                    >
+                      <Edit2 className="h-3 w-3" />
+                      Gérer la checklist
+                    </button>
+                    <span className="text-gray-300">·</span>
+                    <button
+                      className="text-xs text-red-500 hover:underline"
+                      onClick={() => handleDelete(tpl.id, tpl.name)}
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {data?.meta && data.meta.lastPage > 1 && (
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Précédent</Button>
+              <Button variant="secondary" size="sm" disabled={page === data.meta.lastPage} onClick={() => setPage((p) => p + 1)}>Suivant</Button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Create template modal */}
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nouveau modèle de contrôle" size="md">
+        <CreateTemplateForm
+          loading={createTemplateMutation.isPending}
+          onSubmit={(v) =>
+            createTemplateMutation.mutateAsync({
+              name:         v.name,
+              type:         v.type,
+              frequency:    v.frequency || undefined,
+              checklistJson: [],
+            })
+          }
+        />
+      </Modal>
+    </>
+  );
+}
+
+// ─── Page ───────────────────────────────────────────────────────────────────────
+
+type Tab = 'tasks' | 'templates';
+
+export default function ControlsPage() {
+  const [activeTab, setActiveTab] = useState<Tab>('tasks');
+
+  // Lookup data fetched once for the whole page
+  const { zoneMap, zoneOptions } = useZoneLookup();
+  const { userMap, userOptions }  = useUserLookup();
+  const { groupMap, groupOptions } = useGroupLookup();
+
+  // Stats
+  const { data: statsData } = useQuery({
+    queryKey: ['controls.stats'],
+    queryFn: async () => {
+      const { data } = await api.get<{ data: ControlStats }>('/api/v1/controls/stats');
+      return data.data;
+    },
+  });
+
+  // Templates list for the PlanTaskForm dropdown (fetched once)
+  const { data: templatesData } = useQuery({
+    queryKey: ['controls.templates', 1, ''],
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<ControlTemplate[]>>('/api/v1/controls/templates?page=1&limit=100');
+      return data;
+    },
+  });
+
+  const stats       = statsData;
+  const allTemplates = templatesData?.data ?? [];
+
+  const overdueColor    = (stats?.openOverdue ?? 0) > 0 ? 'text-red-600'  : 'text-gray-700';
+  const overdueIconColor = (stats?.openOverdue ?? 0) > 0 ? 'text-red-600'  : 'text-gray-500';
+  const overdueIconBg   = (stats?.openOverdue ?? 0) > 0 ? 'bg-red-50'     : 'bg-gray-100';
+
+  return (
+    <>
+      <Header title="Contrôle" subtitle="Planification et suivi des tâches de contrôle HACCP" />
+      <PageWrapper>
+
+        {/* KPI row */}
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard
+            label="Contrôles du jour"
+            value={String(stats?.todayTotal ?? '—')}
+            icon={CheckCircle2}
+            iconColor="text-green-600"
+            iconBg="bg-green-50"
+            valueColor="text-green-600"
+          />
+          <KpiCard
+            label="Complétés"
+            value={stats ? `${stats.todayCompleted} / ${stats.todayTotal}` : '—'}
+            icon={CheckCircle2}
+            iconColor="text-brand-dark"
+            iconBg="bg-brand-light"
+            valueColor="text-brand-dark"
+          />
+          <KpiCard
+            label="En retard"
+            value={String(stats?.openOverdue ?? '—')}
+            icon={Clock}
+            iconColor={overdueIconColor}
+            iconBg={overdueIconBg}
+            valueColor={overdueColor}
+          />
+          <KpiCard
+            label="Taux conformité"
+            value={stats ? `${stats.complianceRate}%` : '—'}
+            icon={TrendingUp}
+            iconColor="text-brand-dark"
+            iconBg="bg-brand-lighter"
+            valueColor="text-brand-dark"
+          />
+        </div>
+
+        {/* Tab bar */}
+        <div className="mb-5 flex border-b border-surface-muted">
+          {([
+            { key: 'tasks',     label: 'Tâches planifiées' },
+            { key: 'templates', label: 'Modèles de contrôle' },
+          ] as { key: Tab; label: string }[]).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={[
+                'px-5 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px',
+                activeTab === key
+                  ? 'border-brand-medium text-brand-medium'
+                  : 'border-transparent text-gray-500 hover:text-gray-800',
+              ].join(' ')}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        {activeTab === 'tasks' ? (
+          <TasksTab
+            templates={allTemplates}
+            zoneMap={zoneMap}
+            zoneOptions={zoneOptions}
+            userMap={userMap}
+            userOptions={userOptions}
+            groupMap={groupMap}
+            groupOptions={groupOptions}
+          />
+        ) : (
+          <TemplatesTab />
+        )}
+
+      </PageWrapper>
+    </>
+  );
+}

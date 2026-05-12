@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { api } from '@/lib/api';
+import { showToast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/store/auth.store';
 import type { ApiResponse, User, UserRole, UserStatus } from '@haccp/shared-types';
 
@@ -422,6 +423,7 @@ export default function UsersPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/users/${id}`),
     onSuccess:  refresh,
+    onError: () => showToast({ title: 'Erreur lors de la suppression', variant: 'error' }),
   });
 
   const handleDelete = (user: User) => {

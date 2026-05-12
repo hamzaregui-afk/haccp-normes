@@ -13,7 +13,7 @@ import {
   Upload,
   XCircle,
 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 
 import { PageWrapper } from '@/components/layout/AppLayout';
 import { Header } from '@/components/layout/Header';
@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
+import { showToast } from '@/components/ui/Toast';
 import { useDebounce } from '@/hooks/useDebounce';
 import { api } from '@/lib/api';
 
@@ -191,14 +192,14 @@ function NCDetailModal({
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append('file', file);
-      await api.post(`/api/v1/nonconformities/${nc!.id}/photos`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      // Do NOT set Content-Type manually — browser must set it with the multipart boundary.
+      await api.post(`/api/v1/nonconformities/${nc!.id}/photos`, formData);
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['nonconformities'] });
       onPhotosUpdated?.();
     },
+    onError: () => showToast({ title: 'Erreur lors du téléversement', variant: 'error' }),
   });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -374,6 +375,45 @@ const SEVERITY_FILTER_OPTIONS = [
   { value: 'CRITICAL', label: 'Critique' },
 ];
 
+// ─── Lookup hooks ────────────────────────────────────────────────────────────
+
+interface SiteRaw { id: string; name: string; zones?: unknown[] }
+interface ProductRaw { id: string; name: string }
+
+function useSiteOptions() {
+  const { data } = useQuery({
+    queryKey: ['sites.all'],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get<{ data: SiteRaw[] }>('/api/v1/sites?page=1&limit=100');
+        return data.data ?? [];
+      } catch {
+        return [] as SiteRaw[];
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  return useMemo(() => (data ?? []).map((s) => ({ value: s.id, label: s.name })), [data]);
+}
+
+function useProductOptions() {
+  const { data } = useQuery({
+    queryKey: ['products.all'],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get<{ data: ProductRaw[] }>('/api/v1/products?page=1&limit=100');
+        return data.data ?? [];
+      } catch {
+        return [] as ProductRaw[];
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  return useMemo(() => (data ?? []).map((p) => ({ value: p.id, label: p.name })), [data]);
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function NonconformitiesPage() {
@@ -385,8 +425,10 @@ export default function NonconformitiesPage() {
   const [selectedNC, setSelectedNC]       = useState<NonConformity | null>(null);
   const [form, setForm]                   = useState<CreateNCValues>(INITIAL_FORM);
 
-  const debouncedSearch = useDebounce(search, 400);
-  const queryClient     = useQueryClient();
+  const debouncedSearch  = useDebounce(search, 400);
+  const queryClient      = useQueryClient();
+  const siteOptions      = useSiteOptions();
+  const productOptions   = useProductOptions();
 
   const { data: stats } = useNCStats();
   const { data, isLoading, isError } = useNonConformities(
@@ -404,6 +446,7 @@ export default function NonconformitiesPage() {
       setCreateModalOpen(false);
       setForm(INITIAL_FORM);
     },
+    onError: () => showToast({ title: 'Erreur lors de la création de la NC', variant: 'error' }),
   });
 
   const closeMutation = useMutation({
@@ -412,6 +455,7 @@ export default function NonconformitiesPage() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['nonconformities'] });
     },
+    onError: () => showToast({ title: 'Erreur lors de la clôture', variant: 'error' }),
   });
 
   function handleCreate(e: React.FormEvent) {
@@ -674,30 +718,22 @@ export default function NonconformitiesPage() {
               />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-gray-700">
-                Site <span className="text-red-500">*</span>
-              </label>
-              <input
-                required
-                type="text"
-                placeholder="ID du site"
-                value={form.siteId}
-                onChange={(e) => setForm((f) => ({ ...f, siteId: e.target.value }))}
-                className="h-9 w-full rounded-lg border border-surface-muted bg-white px-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-medium"
-              />
-            </div>
+            <Select
+              label="Site"
+              required
+              placeholder="Sélectionner un site…"
+              options={siteOptions}
+              value={form.siteId}
+              onChange={(e) => setForm((f) => ({ ...f, siteId: e.target.value }))}
+            />
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-gray-700">Produit</label>
-              <input
-                type="text"
-                placeholder="ID produit (optionnel)"
-                value={form.productId}
-                onChange={(e) => setForm((f) => ({ ...f, productId: e.target.value }))}
-                className="h-9 w-full rounded-lg border border-surface-muted bg-white px-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-medium"
-              />
-            </div>
+            <Select
+              label="Produit (optionnel)"
+              placeholder="Sélectionner un produit…"
+              options={productOptions}
+              value={form.productId}
+              onChange={(e) => setForm((f) => ({ ...f, productId: e.target.value }))}
+            />
 
             <Select
               label="Sévérité"

@@ -170,6 +170,7 @@ export default function EquipmentsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/equipments/${id}`),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['equipments'] }),
+    onError: () => showToast({ title: 'Erreur lors de la suppression', variant: 'error' }),
   });
 
   // Helpers

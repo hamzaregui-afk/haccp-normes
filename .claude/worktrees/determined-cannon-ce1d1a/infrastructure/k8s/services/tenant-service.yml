@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tenant-service
+  namespace: haccp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tenant-service
+  template:
+    metadata:
+      labels:
+        app: tenant-service
+    spec:
+      initContainers:
+        - name: migrate
+          image: haccp/tenant-service:latest
+          imagePullPolicy: IfNotPresent
+          command: ["npx", "prisma", "migrate", "deploy"]
+          envFrom:
+            - configMapRef:
+                name: haccp-config
+            - secretRef:
+                name: haccp-secrets
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres-service:5432/haccp_tenants"
+      containers:
+        - name: tenant-service
+          image: haccp/tenant-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3018
+          envFrom:
+            - configMapRef:
+                name: haccp-config
+            - secretRef:
+                name: haccp-secrets
+          env:
+            - name: PORT
+              value: "3018"
+            - name: DATABASE_URL
+              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres-service:5432/haccp_tenants"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3018
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3018
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tenant-service
+  namespace: haccp
+spec:
+  selector:
+    app: tenant-service
+  ports:
+    - port: 3018
+      targetPort: 3018

@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-surface-muted;
+  }
+
+  body {
+    @apply bg-surface-page text-gray-900 font-sans antialiased;
+  }
+
+  /* Custom scrollbar — brand colors */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { @apply bg-surface-page; }
+  ::-webkit-scrollbar-thumb { @apply bg-brand-medium rounded-full; }
+}
+
+@layer utilities {
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium
+           text-green-100 hover:bg-brand-medium hover:text-white transition-colors;
+  }
+
+  .sidebar-link.active {
+    @apply bg-brand-medium text-white;
+  }
+}
+
+/* Toast slide-in animation */
+@keyframes slide-in {
+  from { transform: translateX(110%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.animate-slide-in {
+  animation: slide-in 0.25s ease-out forwards;
+}

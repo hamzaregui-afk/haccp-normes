@@ -74,7 +74,9 @@ export class ControlService {
     if (!existing) throw new NotFoundException(`Modèle de contrôle ${id} introuvable`);
 
     const template = await this.prisma.controlTemplate.update({
-      where: { id },
+      // tenantId in where is defence-in-depth: the findFirst above already verified ownership,
+      // but this ensures a TOCTOU window between the two queries cannot affect a different tenant.
+      where: { id, tenantId },
       data: {
         ...(dto.name          !== undefined ? { name: dto.name }                   : {}),
         ...(dto.type          !== undefined ? { type: dto.type }                   : {}),

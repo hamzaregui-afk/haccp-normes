@@ -76,7 +76,7 @@ function TenantModal({ tenant, onClose }: TenantModalProps) {
   });
 
   return (
-    <Modal title={isEdit ? 'Modifier le client' : 'Nouveau client'} onClose={onClose}>
+    <Modal open title={isEdit ? 'Modifier le client' : 'Nouveau client'} onClose={onClose}>
       <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-gray-700">Nom <span className="text-red-500">*</span></label>

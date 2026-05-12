@@ -1,0 +1,67 @@
+// tenant-service owns: Tenant, Site, Zone
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TenantStatus {
+  ACTIVE
+  ARCHIVED
+  SUSPENDED
+}
+
+model Tenant {
+  id        String       @id @default(cuid())
+  name      String
+  slug      String       @unique
+  status    TenantStatus @default(ACTIVE)
+  plan      String       @default("standard")
+
+  // Business / settings fields — populated via SettingsPage PATCH /tenants/me
+  siret                   String?  @map("siret")
+  address                 String?  @map("address")
+  sector                  String?  @map("sector")
+  notifyNewNc             Boolean  @default(false) @map("notify_new_nc")
+  notifyValidatedReports  Boolean  @default(false) @map("notify_validated_reports")
+  notifyCriticalDlc       Boolean  @default(false) @map("notify_critical_dlc")
+
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  sites Site[]
+
+  @@map("tenants")
+}
+
+model Site {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  tenantId  String   @map("tenant_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  zones  Zone[]
+
+  @@unique([name, tenantId])
+  @@index([tenantId])
+  @@map("sites")
+}
+
+model Zone {
+  id        String   @id @default(cuid())
+  name      String
+  siteId    String   @map("site_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  site Site @relation(fields: [siteId], references: [id])
+
+  @@unique([name, siteId])
+  @@map("zones")
+}

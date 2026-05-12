@@ -75,23 +75,26 @@ export class NonconformityService {
   // ── Create ────────────────────────────────────────────────────────────────
 
   async create(dto: CreateNcDto, tenantId: string, reporterId: string) {
-    const reference = await this.generateReference(tenantId);
-
-    const nc = await this.prisma.nonConformity.create({
-      data: {
-        reference,
-        tenantId,
-        siteId:           dto.siteId,
-        productId:        dto.productId,
-        reporterId,
-        description:      dto.description,
-        correctiveAction: dto.correctiveAction,
-        severity:         dto.severity ?? NCSeverity.MEDIUM,
-        category:         dto.category ?? NCCategory.OTHER,
-        status:           NCStatus.OPEN,
-      },
-      include: { photos: true },
-    });
+    // ARCH-DECISION: reference generation + insert run in a single SERIALIZABLE transaction
+    // so that concurrent requests cannot receive the same NC-YYYY-NNNN sequence number.
+    const nc = await this.prisma.$transaction(async (tx) => {
+      const reference = await this.generateReference(tx, tenantId);
+      return tx.nonConformity.create({
+        data: {
+          reference,
+          tenantId,
+          siteId:           dto.siteId,
+          productId:        dto.productId,
+          reporterId,
+          description:      dto.description,
+          correctiveAction: dto.correctiveAction,
+          severity:         dto.severity ?? NCSeverity.MEDIUM,
+          category:         dto.category ?? NCCategory.OTHER,
+          status:           NCStatus.OPEN,
+        },
+        include: { photos: true },
+      });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
     this.logger.log(`Created NonConformity ${nc.reference} for tenant ${tenantId}`);
     return toApiResponse(nc as NcWithPhotos, undefined, 'Non-conformity created successfully');
@@ -99,7 +102,7 @@ export class NonconformityService {
 
   // ── Update ────────────────────────────────────────────────────────────────
 
-  async update(id: string, dto: UpdateNcDto, tenantId: string) {
+  async update(id: string, dto: UpdateNcDto, tenantId: string, actorId: string) {
     // Verify ownership before mutating
     const existing = await this.prisma.nonConformity.findFirst({
       where: { id, tenantId },
@@ -108,7 +111,7 @@ export class NonconformityService {
       throw new NotFoundException(`NonConformity ${id} not found`);
     }
 
-    // ARCH-DECISION: closedAt is set server-side when status transitions to CLOSED
+    // ARCH-DECISION: closedAt + closedById are set server-side when status transitions to CLOSED
     // to guarantee timestamp accuracy and prevent client-supplied manipulation.
     const closedAt =
       dto.status === NCStatus.CLOSED && existing.status !== NCStatus.CLOSED
@@ -120,8 +123,10 @@ export class NonconformityService {
       data: {
         ...(dto.status           !== undefined ? { status:           dto.status }           : {}),
         ...(dto.correctiveAction !== undefined ? { correctiveAction: dto.correctiveAction } : {}),
-        ...(dto.closedById       !== undefined ? { closedById:       dto.closedById }       : {}),
-        ...(closedAt             !== undefined ? { closedAt }                               : {}),
+        ...(dto.severity         !== undefined ? { severity:         dto.severity }         : {}),
+        ...(dto.category         !== undefined ? { category:         dto.category }         : {}),
+        // closedAt and closedById are always set together — never from client body
+        ...(closedAt             !== undefined ? { closedAt, closedById: actorId }          : {}),
       },
       include: { photos: true },
     });
@@ -182,6 +187,8 @@ export class NonconformityService {
     tenantId: string,
     file: Express.Multer.File,
   ) {
+    if (!file) throw new BadRequestException('No file provided');
+
     const nc = await this.prisma.nonConformity.findFirst({ where: { id, tenantId } });
     if (!nc) throw new NotFoundException(`NonConformity ${id} not found`);
 
@@ -207,19 +214,19 @@ export class NonconformityService {
 
   /**
    * Generates a unique reference in NC-YYYY-NNNN format.
-   * Uses the count of NCs for this tenant in the current year to derive the
-   * next sequence number. Wrapped in a serializable transaction to handle
-   * concurrent inserts without a dedicated sequence table.
+   * Must be called inside a SERIALIZABLE transaction (see create()) so that the
+   * count and the subsequent insert are atomic — prevents duplicate references
+   * under concurrent load.
    */
-  private async generateReference(tenantId: string): Promise<string> {
+  private async generateReference(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+  ): Promise<string> {
     const year = new Date().getFullYear();
     const startOfYear = new Date(`${year}-01-01T00:00:00.000Z`);
 
-    const count = await this.prisma.nonConformity.count({
-      where: {
-        tenantId,
-        createdAt: { gte: startOfYear },
-      },
+    const count = await tx.nonConformity.count({
+      where: { tenantId, createdAt: { gte: startOfYear } },
     });
 
     const seq = String(count + 1).padStart(4, '0');

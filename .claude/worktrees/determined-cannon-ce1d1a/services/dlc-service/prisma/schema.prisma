@@ -1,0 +1,27 @@
+// dlc-service owns: DlcLabel (printed labels log)
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model DlcLabel {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  productId   String   @map("product_id")   // FK to asset-service (no join)
+  productName String   @map("product_name") // Denormalised for label printing speed
+  lotNumber   String?  @map("lot_number")    // HACCP traceability: batch ID (optional but required for full regulatory compliance)
+  producedAt  DateTime @map("produced_at")
+  expiresAt   DateTime @map("expires_at")
+  printedBy   String   @map("printed_by")   // userId
+  printedAt   DateTime @default(now()) @map("printed_at")
+
+  @@index([tenantId])
+  @@index([expiresAt])
+  @@map("dlc_labels")
+}

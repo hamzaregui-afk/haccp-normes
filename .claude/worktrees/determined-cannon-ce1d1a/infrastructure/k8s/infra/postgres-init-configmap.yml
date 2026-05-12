@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-sql
+  namespace: haccp
+data:
+  init.sql: |
+    -- ─── Create one database per service ─────────────────────────────────────
+    -- Runs once on first postgres container start via docker-entrypoint-initdb.d/
+    -- Each service manages its own schema via Prisma migrate deploy
+    CREATE DATABASE haccp_auth;
+    CREATE DATABASE haccp_users;
+    CREATE DATABASE haccp_tenants;
+    CREATE DATABASE haccp_controls;
+    CREATE DATABASE haccp_nonconformities;
+    CREATE DATABASE haccp_assets;
+    CREATE DATABASE haccp_reports;
+    CREATE DATABASE haccp_dlc;
+    CREATE DATABASE haccp_audit;
+    CREATE DATABASE haccp_notifications;

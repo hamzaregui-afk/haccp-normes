@@ -49,15 +49,20 @@ export const CreateTaskDtoSchema = z.object({
 });
 export type CreateTaskDto = z.infer<typeof CreateTaskDtoSchema>;
 
-export const UpdateTaskDtoSchema = z.object({
-  status:      TaskStatusSchema.optional(),
-  assigneeId:  z.string().min(1).optional(),
-  groupId:     z.string().min(1).optional(),
-  notes:       z.string().max(2000).optional(),
-  resultJson:  z.unknown().optional(),
-  startedAt:   z.coerce.date().optional(),
-  completedAt: z.coerce.date().optional(),
-});
+export const UpdateTaskDtoSchema = z
+  .object({
+    status:      TaskStatusSchema.optional(),
+    assigneeId:  z.string().min(1).optional(),
+    groupId:     z.string().min(1).optional(),
+    notes:       z.string().max(2000).optional(),
+    resultJson:  z.unknown().optional(),
+    startedAt:   z.coerce.date().optional(),
+    completedAt: z.coerce.date().optional(),
+  })
+  .refine((d) => !(d.assigneeId && d.groupId), {
+    message: 'assigneeId et groupId sont mutuellement exclusifs',
+    path: ['assigneeId'],
+  });
 export type UpdateTaskDto = z.infer<typeof UpdateTaskDtoSchema>;
 
 // ─── Query schemas ────────────────────────────────────────────────────────────

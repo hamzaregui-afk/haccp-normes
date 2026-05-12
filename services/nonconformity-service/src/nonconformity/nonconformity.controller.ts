@@ -109,7 +109,7 @@ export class NonconformityController {
     @CurrentUser() user: JwtPayload,
   ) {
     const dto = UpdateNcDtoSchema.parse(rawBody);
-    const result = await this.nonconformityService.update(id, dto, user.tenantId);
+    const result = await this.nonconformityService.update(id, dto, user.tenantId, user.sub);
 
     void emitAuditEvent({
       userId:     user.sub,

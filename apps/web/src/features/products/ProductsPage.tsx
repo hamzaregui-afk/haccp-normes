@@ -96,6 +96,7 @@ export default function ProductsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/products/${id}`),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['products'] }),
+    onError: () => showToast({ title: 'Erreur lors de la suppression', variant: 'error' }),
   });
 
   // Helpers

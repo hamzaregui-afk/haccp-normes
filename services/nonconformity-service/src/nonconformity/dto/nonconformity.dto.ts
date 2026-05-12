@@ -22,7 +22,7 @@ export const UpdateNcDtoSchema = z
     severity:         z.nativeEnum(NCSeverity).optional(),
     category:         z.nativeEnum(NCCategory).optional(),
     correctiveAction: z.string().optional(),
-    closedById:       z.string().optional(),
+    // closedById is set server-side from the JWT actor — never accepted from the client
   })
   // closedAt is set automatically by the service when status transitions to CLOSED
   .strict();

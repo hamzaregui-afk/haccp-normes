@@ -1,0 +1,34 @@
+// report-service owns: Report
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ReportStatus {
+  PENDING
+  UNDER_REVIEW
+  VALIDATED
+  SENT
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  type        String                              // MONTHLY_HYGIENE | ANNUAL_HACCP | …
+  status      ReportStatus @default(PENDING)
+  tenantId    String       @map("tenant_id")
+  fileUrl     String?      @map("file_url")       // MinIO presigned URL after generation
+  validatedBy String?      @map("validated_by")   // userId (no join)
+  generatedAt DateTime     @default(now()) @map("generated_at")
+  validatedAt DateTime?    @map("validated_at")
+  sentAt      DateTime?    @map("sent_at")
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("reports")
+}

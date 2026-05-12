@@ -1,0 +1,14 @@
+-- ─── DEPRECATED — do not run this file directly ─────────────────────────────
+--
+-- This file was the original seed script but it had two critical bugs:
+--
+--   1. Cross-database notation (haccp_tenants.tenants) — PostgreSQL does NOT
+--      support querying across databases with schema.table dot-notation.
+--      Each psql connection is scoped to a single database.
+--
+--   2. Placeholder bcrypt hashes ('$2b$10$demo_hash_placeholder') — these are
+--      not 60-character bcrypt hashes and bcrypt.compare() rejects them.
+--
+-- ✅  The replacement is:  infrastructure/scripts/seed.js
+-- Run via:                 ./infrastructure/scripts/seed.sh
+-- ─────────────────────────────────────────────────────────────────────────────

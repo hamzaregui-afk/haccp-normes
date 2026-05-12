@@ -154,6 +154,7 @@ export default function SuppliersPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/suppliers/${id}`),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['suppliers'] }),
+    onError: () => showToast({ title: 'Erreur lors de la suppression', variant: 'error' }),
   });
 
   // Helpers

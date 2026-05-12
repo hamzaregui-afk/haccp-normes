@@ -185,7 +185,8 @@ export function useNotifications(): NotificationsState {
       socket.off('notification:report-validated', onReportValidated);
       socket.off('notification:dlc-expiring-today', onDlcExpiring);
     };
-  }, [token]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, t]);
 
   // ── Mark all read ─────────────────────────────────────────────────────────
   const markAllRead = useCallback(async () => {

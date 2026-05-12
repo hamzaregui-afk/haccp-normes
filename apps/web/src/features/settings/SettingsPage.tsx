@@ -25,7 +25,7 @@ function ChangePasswordModal({ userId, onClose }: { userId: string; onClose: () 
   });
 
   return (
-    <Modal title="Changer le mot de passe" onClose={onClose}>
+    <Modal open title="Changer le mot de passe" onClose={onClose}>
       <form
         onSubmit={handleSubmit((v) => mutation.mutate({ password: v.password }))}
         className="flex flex-col gap-4"

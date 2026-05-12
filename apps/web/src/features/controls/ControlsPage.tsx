@@ -29,6 +29,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { useDebounce } from '@/hooks/useDebounce';
 import { api } from '@/lib/api';
+import { showToast } from '@/components/ui/Toast';
 import type { ApiResponse } from '@haccp/shared-types';
 import type { ControlStats, ControlTask, ControlTemplate, ControlType } from './types';
 
@@ -263,14 +264,14 @@ function PlanTaskForm({
         placeholder="Sélectionner un modèle"
         options={templateOptions}
         required
-        {...register('templateId')}
+        {...register('templateId', { required: 'Veuillez sélectionner un modèle' })}
       />
       <Select
         label="Zone / Emplacement"
         placeholder="Sélectionner une zone"
         options={zoneOptions}
         required
-        {...register('zoneId')}
+        {...register('zoneId', { required: 'Veuillez sélectionner une zone' })}
       />
 
       {/* Assignment — only shown when at least one list is available */}
@@ -416,9 +417,9 @@ function TaskDetailModal({
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append('file', file);
-      await api.post(`/api/v1/controls/tasks/${task!.id}/photos`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      // ARCH-DECISION: Do NOT set Content-Type manually — the browser must set it
+      // with the correct multipart boundary; a hardcoded header would break parsing.
+      await api.post(`/api/v1/controls/tasks/${task!.id}/photos`, formData);
     },
     onSuccess: () => void refetchPhotos(),
   });
@@ -436,6 +437,7 @@ function TaskDetailModal({
       void queryClient.invalidateQueries({ queryKey: ['controls.tasks'] });
       onClose();
     },
+    onError: () => showToast({ title: 'Erreur lors de la réassignation', variant: 'error' }),
   });
 
   const handleReassign = (v: ReassignFormValues) => {
@@ -723,6 +725,7 @@ function TasksTab({
       void queryClient.invalidateQueries({ queryKey: ['controls.stats'] });
       setPlanModalOpen(false);
     },
+    onError: () => showToast({ title: 'Erreur lors de la planification', variant: 'error' }),
   });
 
   const tasks = data?.data ?? [];
@@ -898,11 +901,13 @@ function TemplatesTab() {
       void queryClient.invalidateQueries({ queryKey: ['controls.templates'] });
       setModalOpen(false);
     },
+    onError: () => showToast({ title: 'Erreur lors de la création du modèle', variant: 'error' }),
   });
 
   const deleteTemplateMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/controls/templates/${id}`),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['controls.templates'] }),
+    onError: () => showToast({ title: 'Erreur lors de la suppression', variant: 'error' }),
   });
 
   const templates = data?.data ?? [];

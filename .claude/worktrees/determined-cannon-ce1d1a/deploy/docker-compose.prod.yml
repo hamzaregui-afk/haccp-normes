@@ -1,0 +1,118 @@
+# ─── Production overrides ────────────────────────────────────────────────────
+# Usage: docker-compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d
+#
+# This file:
+#  - Removes internal dev ports that should NOT be exposed on the internet
+#  - Adds restart: always (instead of unless-stopped) for production resilience
+#  - Caps container memory to protect the host from runaway processes
+
+version: '3.9'
+
+services:
+  # ── Infrastructure — remove direct port exposure ──────────────────────────
+  postgres:
+    restart: always
+    ports: []          # no direct DB access from internet
+    deploy:
+      resources:
+        limits: { memory: 512M }
+
+  redis:
+    restart: always
+    ports: []
+    deploy:
+      resources:
+        limits: { memory: 256M }
+
+  rabbitmq:
+    restart: always
+    ports:
+      - "15672:15672"  # keep management UI (secure with SG / VPN in prod)
+    deploy:
+      resources:
+        limits: { memory: 256M }
+
+  minio:
+    restart: always
+    deploy:
+      resources:
+        limits: { memory: 512M }
+
+  # ── Microservices ─────────────────────────────────────────────────────────
+  auth-service:
+    restart: always
+    deploy:
+      resources:
+        limits: { memory: 256M }
+
+  user-service:
+    restart: always
+    deploy:
+      resources:
+        limits: { memory: 256M }
+
+  tenant-service:
+    restart: always
+    deploy:
+      resources:
+        limits: { memory: 256M }
+
+  control-service:
+    restart: always
+    deploy:
+      resources:
+        limits: { memory: 256M }
+
+  nonconformity-service:
+    restart: always
+    deploy:
+      resources:
+        limits: { memory: 256M }
+
+  asset-service:
+    restart: always
+    deploy:
+      resources:
+        limits: { memory: 256M }
+
+  notification-service:
+    restart: always
+    deploy:
+      resources:
+        limits: { memory: 256M }
+
+  report-service:
+    restart: always
+    deploy:
+      resources:
+        limits: { memory: 256M }
+
+  dlc-service:
+    restart: always
+    deploy:
+      resources:
+        limits: { memory: 256M }
+
+  audit-service:
+    restart: always
+    deploy:
+      resources:
+        limits: { memory: 256M }
+
+  # ── Frontend ──────────────────────────────────────────────────────────────
+  web:
+    restart: always
+    deploy:
+      resources:
+        limits: { memory: 128M }
+
+  # ── Monitoring ────────────────────────────────────────────────────────────
+  prometheus:
+    restart: always
+    ports: []          # access via Grafana only
+
+  grafana:
+    restart: always
+    deploy:
+      resources:
+        limits: { memory: 256M }

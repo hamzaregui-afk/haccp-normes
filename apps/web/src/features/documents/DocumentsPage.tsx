@@ -41,6 +41,7 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
 import { api } from '@/lib/api';
+import { showToast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/store/auth.store';
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
@@ -250,7 +251,8 @@ function UploadModal({
       fd.append('file', file);
       fd.append('name', name || file.name);
       fd.append('category', category);
-      await api.post('/api/v1/documents', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      // Do NOT set Content-Type manually — browser must set it with the multipart boundary.
+      await api.post('/api/v1/documents', fd);
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['ged.documents'] });
@@ -501,6 +503,7 @@ function LibraryTab({ isAdmin }: { isAdmin: boolean }) {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/documents/${id}`),
     onSuccess:  () => void queryClient.invalidateQueries({ queryKey: ['ged.documents'] }),
+    onError: () => showToast({ title: 'Erreur lors de la suppression', variant: 'error' }),
   });
 
   const handleDelete = (id: string, name: string) => {

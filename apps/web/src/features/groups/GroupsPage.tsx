@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { api } from '@/lib/api';
+import { showToast } from '@/components/ui/Toast';
 import { useDebounce } from '@/hooks/useDebounce';
 import type { ApiResponse, Group, User } from '@haccp/shared-types';
 
@@ -194,6 +195,7 @@ export default function GroupsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/groups/${id}`),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['groups'] }),
+    onError: () => showToast({ title: 'Erreur lors de la suppression', variant: 'error' }),
   });
 
   // Client-side filter by group name (groups list is typically small)

@@ -78,11 +78,6 @@ export class NotificationService {
     tenantId: string,
   ): Promise<void> {
     try {
-      // Fetch user email from DB — notification payload may not include it
-      const user = await this.prisma.notification
-        .findFirst({ where: { userId: dto.userId, tenantId } })
-        .catch(() => null);
-
       // ARCH-DECISION: The notification service does not own user records.
       // For now we derive the recipient email from the notification link metadata
       // or fall back to a generic address. A proper solution would be a

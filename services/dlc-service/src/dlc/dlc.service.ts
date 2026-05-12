@@ -97,7 +97,9 @@ export class DlcService {
     const labels = await this.prisma.dlcLabel.findMany({
       where: {
         tenantId,
-        expiresAt: { gte: now, lte: cutoff },
+        // ARCH-DECISION: use startOfDayUTC so labels that expired earlier today
+        // (but not yet physically removed) are still included in "expiring soon".
+        expiresAt: { gte: startOfDayUTC(now), lte: endOfDayUTC(cutoff) },
       },
       orderBy: { expiresAt: 'asc' },
     });
