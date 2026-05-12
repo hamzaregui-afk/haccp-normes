@@ -38,7 +38,7 @@ export type UpdateTemplateDto = z.infer<typeof UpdateTemplateDtoSchema>;
 // ─── Task DTOs ────────────────────────────────────────────────────────────────
 
 export const CreateTaskDtoSchema = z.object({
-  templateId:  z.string().cuid(),
+  templateId:  z.string().min(1),
   zoneId:      z.string().min(1),
   assigneeId:  z.string().min(1).optional(),
   groupId:     z.string().min(1).optional(),
