@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Tag } from 'lucide-react';
+import { Plus, Printer, Tag } from 'lucide-react';
 import { useState } from 'react';
 
 import { PageWrapper } from '@/components/layout/AppLayout';
@@ -11,20 +11,25 @@ import { api } from '@/lib/api';
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
-// ARCH-DECISION: Field names mirror the Prisma DlcLabel model exactly.
-// Previous version used fabricationDate/expirationDate/shelfLifeDays/createdAt
-// which don't exist on the backend — all queries displayed blank/NaN values.
 interface DLCLabel {
   id: string;
   productId: string;
   productName: string;
-  lotNumber: string | null;  // optional HACCP batch ID
-  producedAt: string;        // was fabricationDate
-  expiresAt: string;         // was expirationDate
-  dlcDays?: number;          // not stored in DB — only present on calculate responses
+  lotNumber: string | null;
+  producedAt: string;   // date d'ouverture
+  expiresAt: string;    // DLC calculée
   printedBy: string;
-  printedAt: string;         // was createdAt
+  printedAt: string;
   tenantId: string;
+}
+
+interface Product {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  dlcDays?: number | null;
+  isActive: boolean;
 }
 
 interface ApiResponse<T> {
@@ -62,6 +67,92 @@ function daysLeft(expiresAt: string): number {
   return Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86_400_000);
 }
 
+function fmtDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('fr-FR');
+}
+
+function addDays(dateStr: string, days: number): Date {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+// ─── ZPL label generation ─────────────────────────────────────────────────────
+
+// ARCH-DECISION: ZPL is the native language of Zebra thermal printers,
+// the industry standard for food-safety labels. We generate the ZPL string
+// client-side and offer two print paths:
+//   1. Zebra Browser Print (local agent on port 9100) — seamless, no file needed
+//   2. Download .zpl file — fallback that works with any Zebra driver / hot-folder
+// Label size: 57 mm × 32 mm (PW=323 dots, LL=182 dots at 203 dpi) — standard
+// retail food label. Adjust PW/LL for your printer media settings.
+
+function generateZPL(productName: string, openedAt: string, expiresAt: string, dlcDays: number): string {
+  const opened  = new Date(openedAt).toLocaleDateString('fr-FR');
+  const expires = new Date(expiresAt).toLocaleDateString('fr-FR');
+
+  // Truncate long names to avoid label overflow
+  const safeName = productName.length > 28 ? productName.slice(0, 26) + '…' : productName;
+
+  return [
+    '^XA',
+    '^MMT',
+    '^PW323',      // 57 mm @ 203 dpi
+    '^LL182',      // 32 mm @ 203 dpi
+    '^LS0',
+    // Product name — bold, large
+    `^FO10,12^A0N,32,32^FD${safeName}^FS`,
+    // Separator line
+    '^FO10,55^GB303,2,2^FS',
+    // Opening date
+    `^FO10,68^A0N,26,26^FDOuverture : ${opened}^FS`,
+    // DLC date
+    `^FO10,104^A0N,26,26^FDDLC       : ${expires}^FS`,
+    // Conservation duration — small
+    `^FO10,140^A0N,20,20^FD(${dlcDays} jour${dlcDays > 1 ? 's' : ''} de conservation)^FS`,
+    // Print 1 copy
+    '^PQ1,0,1,Y',
+    '^XZ',
+  ].join('\n');
+}
+
+// Try Zebra Browser Print first (requires the local Zebra agent to be running).
+// Falls back to downloading the .zpl file so it works on every machine.
+async function printZPL(zpl: string, productName: string): Promise<void> {
+  // Attempt Zebra Browser Print
+  try {
+    const resp = await fetch('http://localhost:9100/available', {
+      signal: AbortSignal.timeout(800),
+    });
+    if (resp.ok) {
+      const discovered = (await resp.json()) as { printer?: { uid: string } };
+      const uid = discovered?.printer?.uid;
+      if (uid) {
+        await fetch('http://localhost:9100/write', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ device: { uid }, data: zpl }),
+          signal: AbortSignal.timeout(3000),
+        });
+        return; // success via Browser Print
+      }
+    }
+  } catch {
+    // Zebra Browser Print not available — fall through to download
+  }
+
+  // Fallback: download .zpl file
+  const blob = new Blob([zpl], { type: 'text/plain' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `DLC_${productName.replace(/\s+/g, '_')}_${Date.now()}.zpl`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ─── Tab definition ───────────────────────────────────────────────────────────
 
 type Tab = 'today' | 'soon' | 'all';
@@ -75,6 +166,19 @@ const TABS: { id: Tab; label: string }[] = [
 // ─── Query hooks ──────────────────────────────────────────────────────────────
 
 const REFETCH_MS = 5 * 60 * 1000;
+
+function useProducts() {
+  return useQuery({
+    queryKey: ['products', 'dlc-select'],
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<Product[]>>(
+        '/api/v1/products?page=1&limit=500&active=true',
+      );
+      return data.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
 
 function useExpiringToday() {
   return useQuery({
@@ -113,9 +217,7 @@ function useAllLabels(page: number) {
 
 // ─── DLC table ────────────────────────────────────────────────────────────────
 
-interface DLCTableProps {
-  labels: DLCLabel[];
-}
+interface DLCTableProps { labels: DLCLabel[] }
 
 function DLCTable({ labels }: DLCTableProps) {
   if (labels.length === 0) {
@@ -128,44 +230,53 @@ function DLCTable({ labels }: DLCTableProps) {
     );
   }
 
+  function handleReprint(label: DLCLabel) {
+    const dlcDays = Math.round(
+      (new Date(label.expiresAt).getTime() - new Date(label.producedAt).getTime()) / 86_400_000,
+    );
+    const zpl = generateZPL(label.productName, label.producedAt, label.expiresAt, dlcDays);
+    void printZPL(zpl, label.productName);
+  }
+
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
             <th className="px-4 py-3">Produit</th>
-            <th className="px-4 py-3">Lot</th>
-            <th className="px-4 py-3">Fabrication</th>
-            <th className="px-4 py-3">Expiration</th>
+            <th className="px-4 py-3">Ouverture</th>
+            <th className="px-4 py-3">DLC</th>
             <th className="px-4 py-3 text-center">Jours restants</th>
             <th className="px-4 py-3">Statut</th>
+            <th className="px-4 py-3 text-center">Étiquette</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
           {labels.map((label) => {
-            const remaining = daysLeft(label.expiresAt);  // was label.expirationDate → undefined
+            const remaining = daysLeft(label.expiresAt);
             const status    = getDLCStatus(remaining);
             return (
               <tr key={label.id} className="transition-colors hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium text-gray-900">{label.productName}</td>
-                <td className="px-4 py-3 font-mono text-xs text-gray-600">
-                  {label.lotNumber ?? '—'}
-                </td>
-                <td className="px-4 py-3 text-gray-500">
-                  {new Date(label.producedAt).toLocaleDateString('fr-FR')}
-                </td>
-                <td className="px-4 py-3 text-gray-500">
-                  {new Date(label.expiresAt).toLocaleDateString('fr-FR')}
-                </td>
+                <td className="px-4 py-3 text-gray-500">{fmtDate(label.producedAt)}</td>
+                <td className="px-4 py-3 font-medium text-gray-800">{fmtDate(label.expiresAt)}</td>
                 <td className="px-4 py-3 text-center font-semibold text-gray-800">
                   {remaining <= 0 ? '—' : remaining}
                 </td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}
-                  >
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}>
                     {STATUS_LABELS[status]}
                   </span>
+                </td>
+                <td className="px-4 py-3 text-center">
+                  <button
+                    onClick={() => handleReprint(label)}
+                    title="Réimprimer l'étiquette ZPL"
+                    className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 shadow-sm transition-colors hover:border-brand-medium hover:text-brand-dark"
+                  >
+                    <Printer className="h-3 w-3" />
+                    Imprimer
+                  </button>
                 </td>
               </tr>
             );
@@ -176,88 +287,104 @@ function DLCTable({ labels }: DLCTableProps) {
   );
 }
 
-// ─── Create label form values ─────────────────────────────────────────────────
-
-// ARCH-DECISION: CreateLabelPayload mirrors PrintLabelDtoSchema exactly.
-// Previous CreateLabelValues used fabricationDate/shelfLifeDays (wrong field names)
-// and was missing the required productId field — every POST returned 400.
-interface CreateLabelPayload {
-  productId:   string;  // required by PrintLabelDtoSchema (using productName as de-facto ID for manual entries)
-  productName: string;
-  lotNumber:   string;  // optional in DTO but we require it in the UI for full traceability
-  dlcDays:     number;  // was shelfLifeDays
-  producedAt:  string;  // was fabricationDate
-}
+// ─── Create label form ────────────────────────────────────────────────────────
 
 interface CreateLabelFormState {
-  productName:  string;
-  lotNumber:    string;
-  producedAt:   string;
-  dlcDays:      number;
+  productId:   string;
+  productName: string;
+  producedAt:  string;
+  dlcDays:     number;
 }
 
 const INITIAL_FORM: CreateLabelFormState = {
+  productId:   '',
   productName: '',
-  lotNumber:   '',
-  producedAt:  '',
+  producedAt:  new Date().toISOString().slice(0, 10), // default to today
   dlcDays:     1,
 };
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DLCWebPage() {
-  const [activeTab, setActiveTab]   = useState<Tab>('today');
-  const [modalOpen, setModalOpen]   = useState(false);
-  const [form, setForm]             = useState<CreateLabelFormState>(INITIAL_FORM);
-  const [allPage, setAllPage]       = useState(1);
+  const [activeTab, setActiveTab] = useState<Tab>('today');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm]           = useState<CreateLabelFormState>(INITIAL_FORM);
+  const [allPage, setAllPage]     = useState(1);
 
   const queryClient = useQueryClient();
 
-  const todayQuery  = useExpiringToday();
-  const soonQuery   = useExpiringSoon();
-  const allQuery    = useAllLabels(allPage);
+  const productsQuery = useProducts();
+  const todayQuery    = useExpiringToday();
+  const soonQuery     = useExpiringSoon();
+  const allQuery      = useAllLabels(allPage);
+
+  // Real-time DLC preview
+  const previewDlc: Date | null =
+    form.producedAt && form.dlcDays > 0
+      ? addDays(form.producedAt, form.dlcDays)
+      : null;
 
   const createMutation = useMutation({
-    mutationFn: (payload: CreateLabelPayload) =>
-      api.post('/api/v1/dlc/labels', payload),
-    onSuccess: () => {
+    mutationFn: (payload: CreateLabelFormState & { expiresAt: string }) =>
+      api.post<ApiResponse<DLCLabel>>('/api/v1/dlc/labels', {
+        productId:  payload.productId,
+        productName: payload.productName,
+        dlcDays:    payload.dlcDays,
+        producedAt: payload.producedAt,
+        expiresAt:  payload.expiresAt,
+      }),
+    onSuccess: (resp, vars) => {
       void queryClient.invalidateQueries({ queryKey: ['dlc'] });
       setModalOpen(false);
       setForm(INITIAL_FORM);
+
+      // Auto-print ZPL label after successful creation
+      const label = resp.data.data;
+      const expiresAt = label?.expiresAt ?? vars.expiresAt;
+      const zpl = generateZPL(vars.productName, vars.producedAt, expiresAt, vars.dlcDays);
+      void printZPL(zpl, vars.productName);
     },
   });
 
-  function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    // ARCH-DECISION: productId reuses productName for manual web entries because
-    // the web DLC form is a free-text entry (no product catalog lookup).
-    // PrintLabelDtoSchema validates productId as z.string().min(1), not CUID,
-    // so any non-empty string is accepted.
-    const payload: CreateLabelPayload = {
-      productId:   form.productName.trim(),
-      productName: form.productName.trim(),
-      lotNumber:   form.lotNumber.trim(),
-      dlcDays:     form.dlcDays,
-      producedAt:  form.producedAt,
-    };
-    createMutation.mutate(payload);
+  function handleProductSelect(e: React.ChangeEvent<HTMLSelectElement>) {
+    const selectedId = e.target.value;
+    const product    = productsQuery.data?.find((p) => p.id === selectedId);
+    if (!product) {
+      setForm((f) => ({ ...f, productId: '', productName: '', dlcDays: 1 }));
+      return;
+    }
+    setForm((f) => ({
+      ...f,
+      productId:   product.id,
+      productName: product.name,
+      dlcDays:     product.dlcDays ?? f.dlcDays,
+    }));
   }
 
-  // Determine which data / state to show for current tab
-  const activeQuery =
-    activeTab === 'today' ? todayQuery :
-    activeTab === 'soon'  ? soonQuery  :
-    allQuery;
+  function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.productId || !form.producedAt || form.dlcDays < 1) return;
+    const expiresAt = addDays(form.producedAt, form.dlcDays).toISOString();
+    createMutation.mutate({ ...form, expiresAt });
+  }
 
-  const isLoading = activeQuery.isLoading;
-  const isError   = activeQuery.isError;
+  function closeModal() {
+    setModalOpen(false);
+    setForm(INITIAL_FORM);
+  }
 
+  // ─── Active tab data ────────────────────────────────────────────────────────
+
+  const activeQuery = activeTab === 'today' ? todayQuery : activeTab === 'soon' ? soonQuery : allQuery;
+  const isLoading   = activeQuery.isLoading;
+  const isError     = activeQuery.isError;
   const labels: DLCLabel[] =
     activeTab === 'all'
       ? (allQuery.data?.data ?? [])
       : ((activeQuery.data as DLCLabel[] | undefined) ?? []);
-
   const allMeta = activeTab === 'all' ? allQuery.data?.meta : undefined;
+
+  // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <>
@@ -266,7 +393,6 @@ export default function DLCWebPage() {
       <PageWrapper>
         {/* Toolbar */}
         <div className="mb-4 flex items-center justify-between gap-4">
-          {/* Tabs */}
           <div className="flex rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
             {TABS.map((tab) => (
               <button
@@ -283,7 +409,6 @@ export default function DLCWebPage() {
             ))}
           </div>
 
-          {/* New label button */}
           <Button size="sm" onClick={() => setModalOpen(true)}>
             <Plus className="h-4 w-4" />
             Nouveau label DLC
@@ -301,27 +426,18 @@ export default function DLCWebPage() {
           <>
             <DLCTable labels={labels} />
 
-            {/* Pagination for "all" tab */}
             {allMeta && allMeta.lastPage > 1 && (
               <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
                 <span>
                   Page {allMeta.page} sur {allMeta.lastPage} — {allMeta.total} label(s)
                 </span>
                 <div className="flex gap-2">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    disabled={allPage === 1}
-                    onClick={() => setAllPage((p) => p - 1)}
-                  >
+                  <Button variant="secondary" size="sm" disabled={allPage === 1}
+                    onClick={() => setAllPage((p) => p - 1)}>
                     Précédent
                   </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    disabled={allPage === allMeta.lastPage}
-                    onClick={() => setAllPage((p) => p + 1)}
-                  >
+                  <Button variant="secondary" size="sm" disabled={allPage === allMeta.lastPage}
+                    onClick={() => setAllPage((p) => p + 1)}>
                     Suivant
                   </Button>
                 </div>
@@ -330,49 +446,47 @@ export default function DLCWebPage() {
           </>
         )}
 
-        {/* Create label modal */}
+        {/* ── Create label modal ─────────────────────────────────────────────── */}
         <Modal
           open={modalOpen}
-          onClose={() => { setModalOpen(false); setForm(INITIAL_FORM); }}
+          onClose={closeModal}
           title="Nouveau label DLC"
-          description="Renseignez les informations du produit pour générer un label."
+          description="Sélectionnez un produit pour générer et imprimer une étiquette DLC."
           size="sm"
         >
           <form onSubmit={handleCreate} className="flex flex-col gap-4">
-            {/* Product name */}
+
+            {/* ── Product dropdown ── */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-gray-700">
-                Nom du produit <span className="text-red-500">*</span>
+                Produit <span className="text-red-500">*</span>
               </label>
-              <input
-                required
-                type="text"
-                placeholder="Poulet rôti"
-                value={form.productName}
-                onChange={(e) => setForm((f) => ({ ...f, productName: e.target.value }))}
-                className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-medium"
-              />
+              {productsQuery.isLoading ? (
+                <div className="h-9 animate-pulse rounded-lg bg-gray-100" />
+              ) : (
+                <select
+                  required
+                  value={form.productId}
+                  onChange={handleProductSelect}
+                  className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-medium"
+                >
+                  <option value="">— Sélectionner un produit —</option>
+                  {(productsQuery.data ?? [])
+                    .slice()
+                    .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}{p.dlcDays ? ` (${p.dlcDays}j)` : ''}
+                      </option>
+                    ))}
+                </select>
+              )}
             </div>
 
-            {/* Lot number */}
+            {/* ── Opening date ── */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-gray-700">
-                Numéro de lot <span className="text-red-500">*</span>
-              </label>
-              <input
-                required
-                type="text"
-                placeholder="LOT-20260103-001"
-                value={form.lotNumber}
-                onChange={(e) => setForm((f) => ({ ...f, lotNumber: e.target.value }))}
-                className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-medium"
-              />
-            </div>
-
-            {/* Production date */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-gray-700">
-                Date de fabrication <span className="text-red-500">*</span>
+                Date d'ouverture <span className="text-red-500">*</span>
               </label>
               <input
                 required
@@ -383,7 +497,7 @@ export default function DLCWebPage() {
               />
             </div>
 
-            {/* Shelf life */}
+            {/* ── DLC days (editable — may differ from product default) ── */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-gray-700">
                 Durée de conservation (jours) <span className="text-red-500">*</span>
@@ -392,34 +506,50 @@ export default function DLCWebPage() {
                 required
                 type="number"
                 min={1}
-                placeholder="3"
                 value={form.dlcDays}
                 onChange={(e) =>
-                  setForm((f) => ({ ...f, dlcDays: parseInt(e.target.value, 10) || 1 }))
+                  setForm((f) => ({ ...f, dlcDays: Math.max(1, parseInt(e.target.value, 10) || 1) }))
                 }
-                className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-medium"
+                className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
               />
             </div>
 
-            {/* Error */}
+            {/* ── Real-time DLC preview ── */}
+            {previewDlc && form.productName && (
+              <div className="rounded-lg border border-brand-medium/30 bg-brand-medium/5 px-4 py-3">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                  Aperçu étiquette
+                </p>
+                <p className="text-sm font-semibold text-gray-900">{form.productName}</p>
+                <p className="text-sm text-gray-600">
+                  Ouverture : {new Date(form.producedAt).toLocaleDateString('fr-FR')}
+                </p>
+                <p className="text-sm font-medium text-brand-dark">
+                  DLC : {previewDlc.toLocaleDateString('fr-FR')}
+                </p>
+              </div>
+            )}
+
+            {/* ── Error ── */}
             {createMutation.isError && (
               <p className="text-xs text-red-600">
                 Une erreur est survenue. Veuillez réessayer.
               </p>
             )}
 
-            {/* Actions */}
+            {/* ── Actions ── */}
             <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => { setModalOpen(false); setForm(INITIAL_FORM); }}
-              >
+              <Button type="button" variant="secondary" size="sm" onClick={closeModal}>
                 Annuler
               </Button>
-              <Button type="submit" size="sm" loading={createMutation.isPending}>
-                Créer le label
+              <Button
+                type="submit"
+                size="sm"
+                loading={createMutation.isPending}
+                disabled={!form.productId}
+              >
+                <Printer className="h-4 w-4" />
+                Créer &amp; imprimer
               </Button>
             </div>
           </form>
