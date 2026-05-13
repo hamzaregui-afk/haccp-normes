@@ -17,7 +17,7 @@ import {
   GripVertical,
   Hash,
   List,
-  PenLine,
+  Pen,
   Plus,
   Save,
   Thermometer,
@@ -65,7 +65,7 @@ const ITEM_TYPE_ICONS: Record<ChecklistItem['type'], React.ElementType> = {
   TEMPERATURE: Thermometer,
   TEXT:        Type,
   PHOTO:       Camera,
-  SIGNATURE:   PenLine,
+  SIGNATURE:   Pen,
   DATE:        Calendar,
   SELECT:      List,
 };

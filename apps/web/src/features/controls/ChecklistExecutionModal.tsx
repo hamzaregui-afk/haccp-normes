@@ -6,7 +6,7 @@ import {
   CheckCircle2,
   Hash,
   List,
-  PenLine,
+  Pen,
   Thermometer,
   ToggleLeft,
   Trash2,
@@ -36,21 +36,40 @@ const TYPE_ICONS: Record<ChecklistItem['type'], React.ElementType> = {
   TEMPERATURE: Thermometer,
   TEXT:        Type,
   PHOTO:       Camera,
-  SIGNATURE:   PenLine,
+  SIGNATURE:   Pen,
   DATE:        Calendar,
   SELECT:      List,
 };
+
+const VALID_ITEM_TYPES = new Set<string>([
+  'BOOLEAN', 'NUMBER', 'TEXT', 'TEMPERATURE', 'PHOTO', 'SIGNATURE', 'DATE', 'SELECT',
+]);
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function parseChecklist(raw: unknown): ChecklistItem[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter((item): item is ChecklistItem =>
-    item !== null &&
-    typeof item === 'object' &&
-    typeof (item as Record<string, unknown>).id === 'string' &&
-    typeof (item as Record<string, unknown>).label === 'string',
-  );
+  const result: ChecklistItem[] = [];
+  for (const item of raw) {
+    if (item === null || typeof item !== 'object') continue;
+    const r = item as Record<string, unknown>;
+    // type must be a known, supported value — unknown types would crash the renderer
+    if (typeof r['id'] !== 'string' || typeof r['label'] !== 'string') continue;
+    if (!VALID_ITEM_TYPES.has(String(r['type']))) continue;
+    result.push({
+      id:       r['id'],
+      label:    r['label'],
+      type:     r['type'] as ChecklistItem['type'],
+      unit:     typeof r['unit'] === 'string' ? r['unit'] : undefined,
+      min:      typeof r['min'] === 'number' ? r['min'] : undefined,
+      max:      typeof r['max'] === 'number' ? r['max'] : undefined,
+      required: r['required'] !== false,
+      options:  Array.isArray(r['options'])
+        ? (r['options'] as unknown[]).filter((o): o is string => typeof o === 'string')
+        : undefined,
+    });
+  }
+  return result;
 }
 
 function isItemCompliant(
