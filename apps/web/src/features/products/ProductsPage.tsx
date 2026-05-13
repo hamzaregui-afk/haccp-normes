@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
 import { showToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
-import { exportCSV, importCSV } from '@/lib/csv';
+import { exportCSV, importFile } from '@/lib/csv';
 import { useDebounce } from '@/hooks/useDebounce';
 import type { ApiResponse, Product } from '@haccp/shared-types';
 import { ProductForm } from './components/ProductForm';
@@ -126,23 +126,29 @@ export default function ProductsPage() {
     exportCSV(rows, CSV_COLUMNS, 'produits');
   };
 
-  // CSV import
+  // Import CSV / Excel
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setImporting(true);
     try {
-      const records = await importCSV(file);
+      // importFile normalise toutes les clés : minuscules + sans accents
+      const records = await importFile(file);
       let ok = 0;
       let fail = 0;
       for (const row of records) {
+        const code = row['code'] ?? '';
+        const name = row['nom'] ?? row['name'] ?? '';
+        if (!code && !name) { fail++; continue; }
+        const dlcRaw = row['dlc(jours)'] ?? row['dlc_jours'] ?? row['dlc jours'] ?? row['dlc'] ?? '';
+        const tempRaw = row['temp.stockage'] ?? row['temp_stockage'] ?? row['temperature stockage'] ?? '';
         try {
           await api.post('/api/v1/products', {
-            code: row['code'] ?? row['Code'] ?? '',
-            name: row['nom'] ?? row['Nom'] ?? '',
-            category: row['categorie'] ?? row['Catégorie'] ?? '',
-            dlcDays: row['dlc_jours'] ?? row['DLC(jours)'] ? Number(row['dlc_jours'] ?? row['DLC(jours)']) : undefined,
-            tempStorage: row['temp_stockage'] ?? row['Temp.Stockage'] ? Number(row['temp_stockage'] ?? row['Temp.Stockage']) : undefined,
+            code,
+            name,
+            category:    row['categorie'] ?? row['category'] ?? undefined,
+            dlcDays:     dlcRaw  ? Number(dlcRaw)  : undefined,
+            tempStorage: tempRaw ? Number(tempRaw) : undefined,
           } satisfies Record<string, unknown>);
           ok++;
         } catch {
@@ -150,9 +156,12 @@ export default function ProductsPage() {
         }
       }
       void queryClient.invalidateQueries({ queryKey: ['products'] });
-      showToast({ title: `Import terminé : ${ok} ligne(s)${fail ? `, ${fail} erreur(s)` : ''}`, variant: fail ? 'warning' : 'success' });
+      showToast({
+        title: `Import terminé : ${ok} ligne(s) importée(s)${fail ? `, ${fail} ignorée(s)` : ''}`,
+        variant: fail && ok === 0 ? 'error' : fail ? 'warning' : 'success',
+      });
     } catch {
-      showToast({ title: 'Erreur lors de la lecture du fichier CSV.', variant: 'error' });
+      showToast({ title: 'Erreur lors de la lecture du fichier.', variant: 'error' });
     } finally {
       setImporting(false);
       if (importRef.current) importRef.current.value = '';
@@ -226,7 +235,7 @@ export default function ProductsPage() {
             <input
               ref={importRef}
               type="file"
-              accept=".csv,text/csv"
+              accept=".csv,.xlsx,.xls,text/csv"
               className="hidden"
               onChange={(e) => void handleImportFile(e)}
             />

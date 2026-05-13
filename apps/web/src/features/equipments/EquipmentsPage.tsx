@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { showToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
-import { exportCSV, importCSV } from '@/lib/csv';
+import { exportCSV, importFile } from '@/lib/csv';
 import { useDebounce } from '@/hooks/useDebounce';
 import type { ApiResponse, Equipment } from '@haccp/shared-types';
 
@@ -210,25 +210,31 @@ export default function EquipmentsPage() {
     exportCSV(rows, CSV_COLUMNS, 'equipements');
   };
 
-  // CSV import
+  // Import CSV / Excel
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setImporting(true);
     try {
-      const records = await importCSV(file);
+      // importFile normalise toutes les clés : minuscules + sans accents
+      const records = await importFile(file);
       let ok = 0;
       let fail = 0;
       for (const row of records) {
+        const code = row['code'] ?? '';
+        const name = row['nom'] ?? row['name'] ?? '';
+        if (!code && !name) { fail++; continue; }
+        const tempMinRaw = row['temp.min'] ?? row['temp_min'] ?? row['temperature min'] ?? '';
+        const tempMaxRaw = row['temp.max'] ?? row['temp_max'] ?? row['temperature max'] ?? '';
         try {
           await api.post('/api/v1/equipments', {
-            code: row['code'] ?? row['Code'] ?? '',
-            name: row['nom'] ?? row['Nom'] ?? '',
-            type: row['type'] ?? row['Type'] ?? undefined,
-            brand: row['marque'] ?? row['Marque'] ?? undefined,
-            serialNumber: row['serie'] ?? row['N°Série'] ?? undefined,
-            tempMin: row['temp_min'] ?? row['Temp.Min'] ? Number(row['temp_min'] ?? row['Temp.Min']) : undefined,
-            tempMax: row['temp_max'] ?? row['Temp.Max'] ? Number(row['temp_max'] ?? row['Temp.Max']) : undefined,
+            code,
+            name,
+            type:         row['type']          || undefined,
+            brand:        row['marque']         || row['brand']        || undefined,
+            serialNumber: row['n° serie']       || row['serie']        || row['serial'] || undefined,
+            tempMin:      tempMinRaw ? Number(tempMinRaw) : undefined,
+            tempMax:      tempMaxRaw ? Number(tempMaxRaw) : undefined,
           } satisfies Record<string, unknown>);
           ok++;
         } catch {
@@ -236,9 +242,12 @@ export default function EquipmentsPage() {
         }
       }
       void queryClient.invalidateQueries({ queryKey: ['equipments'] });
-      showToast({ title: `Import terminé : ${ok} ligne(s)${fail ? `, ${fail} erreur(s)` : ''}`, variant: fail ? 'warning' : 'success' });
+      showToast({
+        title: `Import terminé : ${ok} ligne(s) importée(s)${fail ? `, ${fail} ignorée(s)` : ''}`,
+        variant: fail && ok === 0 ? 'error' : fail ? 'warning' : 'success',
+      });
     } catch {
-      showToast({ title: 'Erreur lors de la lecture du fichier CSV.', variant: 'error' });
+      showToast({ title: 'Erreur lors de la lecture du fichier.', variant: 'error' });
     } finally {
       setImporting(false);
       if (importRef.current) importRef.current.value = '';
@@ -295,7 +304,7 @@ export default function EquipmentsPage() {
             <input
               ref={importRef}
               type="file"
-              accept=".csv,text/csv"
+              accept=".csv,.xlsx,.xls,text/csv"
               className="hidden"
               onChange={(e) => void handleImportFile(e)}
             />

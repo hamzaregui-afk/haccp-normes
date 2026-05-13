@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { showToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
-import { exportCSV, importCSV } from '@/lib/csv';
+import { exportCSV, importFile } from '@/lib/csv';
 import { useDebounce } from '@/hooks/useDebounce';
 import type { ApiResponse, Supplier } from '@haccp/shared-types';
 
@@ -185,24 +185,28 @@ export default function SuppliersPage() {
     exportCSV(rows, CSV_COLUMNS, 'fournisseurs');
   };
 
-  // CSV import
+  // Import CSV / Excel
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setImporting(true);
     try {
-      const records = await importCSV(file);
+      // importFile normalise toutes les clés : minuscules + sans accents
+      const records = await importFile(file);
       let ok = 0;
       let fail = 0;
       for (const row of records) {
+        const code = row['code'] ?? '';
+        const name = row['raison sociale'] ?? row['nom'] ?? row['name'] ?? '';
+        if (!code && !name) { fail++; continue; }
         try {
           await api.post('/api/v1/suppliers', {
-            code: row['code'] ?? row['Code'] ?? '',
-            name: row['nom'] ?? row['Raison sociale'] ?? '',
-            email:   (row['email']     ?? row['Email'])      || undefined,
-            phone:   (row['telephone'] ?? row['Téléphone']) || undefined,
-            vat:     (row['tva']       ?? row['TVA'])        || undefined,
-            address: (row['adresse']   ?? row['Adresse'])   || undefined,
+            code,
+            name,
+            email:   row['email']     || undefined,
+            phone:   row['telephone'] || row['phone'] || undefined,
+            vat:     row['tva']       || row['n° tva'] || row['vat'] || undefined,
+            address: row['adresse']   || row['address'] || undefined,
           } satisfies Record<string, unknown>);
           ok++;
         } catch {
@@ -210,9 +214,12 @@ export default function SuppliersPage() {
         }
       }
       void queryClient.invalidateQueries({ queryKey: ['suppliers'] });
-      showToast({ title: `Import terminé : ${ok} ligne(s)${fail ? `, ${fail} erreur(s)` : ''}`, variant: fail ? 'warning' : 'success' });
+      showToast({
+        title: `Import terminé : ${ok} ligne(s) importée(s)${fail ? `, ${fail} ignorée(s)` : ''}`,
+        variant: fail && ok === 0 ? 'error' : fail ? 'warning' : 'success',
+      });
     } catch {
-      showToast({ title: 'Erreur lors de la lecture du fichier CSV.', variant: 'error' });
+      showToast({ title: 'Erreur lors de la lecture du fichier.', variant: 'error' });
     } finally {
       setImporting(false);
       if (importRef.current) importRef.current.value = '';
@@ -270,7 +277,7 @@ export default function SuppliersPage() {
             <input
               ref={importRef}
               type="file"
-              accept=".csv,text/csv"
+              accept=".csv,.xlsx,.xls,text/csv"
               className="hidden"
               onChange={(e) => void handleImportFile(e)}
             />
