@@ -364,10 +364,14 @@ function ChecklistItemCard({
   item,
   value,
   onChange,
+  measuredTemp,
+  onMeasuredTempChange,
 }: {
-  item:     ChecklistItem;
-  value:    ItemValue;
-  onChange: (val: ItemValue) => void;
+  item:                 ChecklistItem;
+  value:                ItemValue;
+  onChange:             (val: ItemValue) => void;
+  measuredTemp:         string;
+  onMeasuredTempChange: (v: string) => void;
 }) {
   const Icon         = TYPE_ICONS[item.type];
   const compliant    = isItemCompliant(item, value);
@@ -423,6 +427,22 @@ function ChecklistItemCard({
             }
           </span>
         )}
+      </div>
+
+      {/* ── Température relevée — visible sur tous les items ─────────────── */}
+      <div className="mx-4 mb-3 flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2">
+        <Thermometer className="h-4 w-4 shrink-0 text-blue-500" />
+        <span className="text-xs font-medium text-blue-700 whitespace-nowrap">Valeur relevée</span>
+        <input
+          type="number"
+          inputMode="decimal"
+          step="0.1"
+          value={measuredTemp}
+          onChange={(e) => onMeasuredTempChange(e.target.value)}
+          placeholder="—"
+          className="min-w-0 flex-1 bg-transparent text-right text-sm font-bold text-blue-900 placeholder:text-blue-300 focus:outline-none"
+        />
+        <span className="text-xs font-semibold text-blue-600">°C</span>
       </div>
 
       {/* Card input area */}
@@ -669,6 +689,12 @@ function ResultsView({ result }: { result: TaskResult }) {
                   {item.label}
                   {item.required && <span className="ml-1 text-red-400">*</span>}
                 </p>
+                {item.measuredTemp && (
+                  <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-blue-700">
+                    <Thermometer className="h-3 w-3" />
+                    Relevé : {item.measuredTemp} °C
+                  </p>
+                )}
                 <p className="mt-0.5 text-sm text-gray-600">{displayValue}</p>
               </div>
               <span className={[
@@ -748,11 +774,12 @@ export function ChecklistExecutionModal({
   const currentUser = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
 
-  const [values, setValues]         = useState<ValuesMap>({});
-  const [notes, setNotes]           = useState('');
-  const [ncComment, setNcComment]   = useState('');
-  const [ncPhoto, setNcPhoto]       = useState<string | null>(null);
-  const [success, setSuccess]       = useState(false);
+  const [values, setValues]               = useState<ValuesMap>({});
+  const [measuredTemps, setMeasuredTemps] = useState<Record<string, string>>({});
+  const [notes, setNotes]                 = useState('');
+  const [ncComment, setNcComment]         = useState('');
+  const [ncPhoto, setNcPhoto]             = useState<string | null>(null);
+  const [success, setSuccess]             = useState(false);
   const [lastCompliant, setLastCompliant] = useState(true);
 
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -760,6 +787,7 @@ export function ChecklistExecutionModal({
 
   useEffect(() => {
     setValues({});
+    setMeasuredTemps({});
     setNotes('');
     setNcComment('');
     setNcPhoto(null);
@@ -838,15 +866,16 @@ export function ChecklistExecutionModal({
 
   const buildItems = (): TaskResultItem[] =>
     checklist.map((item) => ({
-      id:        item.id,
-      label:     item.label,
-      type:      item.type,
-      value:     values[item.id] ?? null,
-      unit:      item.unit,
-      min:       item.min,
-      max:       item.max,
-      compliant: isItemCompliant(item, values[item.id]),
-      required:  item.required,
+      id:           item.id,
+      label:        item.label,
+      type:         item.type,
+      value:        values[item.id] ?? null,
+      unit:         item.unit,
+      min:          item.min,
+      max:          item.max,
+      compliant:    isItemCompliant(item, values[item.id]),
+      required:     item.required,
+      measuredTemp: measuredTemps[item.id] || undefined,
     }));
 
   const computedItems    = buildItems();
@@ -976,6 +1005,10 @@ export function ChecklistExecutionModal({
                   item={item}
                   value={values[item.id] ?? null}
                   onChange={(val) => handleItemChange(item.id, val)}
+                  measuredTemp={measuredTemps[item.id] ?? ''}
+                  onMeasuredTempChange={(v) =>
+                    setMeasuredTemps((prev) => ({ ...prev, [item.id]: v }))
+                  }
                 />
               ))}
 

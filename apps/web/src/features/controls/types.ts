@@ -55,15 +55,17 @@ export interface ControlStats {
 
 // Résultat d'un item de checklist stocké dans resultJson
 export interface TaskResultItem {
-  id:        string;
-  label:     string;
-  type:      ChecklistItem['type'];
-  value:     boolean | number | string | null;
-  unit?:     string;
-  min?:      number;
-  max?:      number;
-  compliant: boolean;
-  required:  boolean;
+  id:           string;
+  label:        string;
+  type:         ChecklistItem['type'];
+  value:        boolean | number | string | null;
+  unit?:        string;
+  min?:         number;
+  max?:         number;
+  compliant:    boolean;
+  required:     boolean;
+  /** Valeur mesurée saisie manuellement (ex : température relevée en °C) */
+  measuredTemp?: string;
 }
 
 // Structure complète de resultJson stocké en base
