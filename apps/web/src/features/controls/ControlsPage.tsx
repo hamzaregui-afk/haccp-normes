@@ -285,7 +285,7 @@ function PlanTaskForm({
     queryKey: ['controls.templates.all'],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<ControlTemplate[]>>(
-        '/api/v1/controls/templates?page=1&limit=200',
+        '/api/v1/controls/templates?page=1&limit=100',
       );
       return data.data ?? [];
     },
