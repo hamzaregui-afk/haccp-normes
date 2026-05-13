@@ -19,12 +19,13 @@ import {
 } from 'lucide-react';
 import { Component, useEffect, useMemo, useRef, useState } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 
 import { PageWrapper } from '@/components/layout/AppLayout';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
+import { Combobox } from '@/components/ui/Combobox';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
@@ -263,58 +264,119 @@ interface PlanTaskFormValues {
   scheduledAt:  string;
 }
 
+/**
+ * PlanTaskForm — fetches templates and zones directly so the dropdowns
+ * always reflect the latest data without needing a page reload.
+ * staleTime:0 ensures every modal-open triggers a fresh request.
+ */
 function PlanTaskForm({
-  templates,
-  zoneOptions,
   userOptions,
   groupOptions,
   onSubmit,
   loading,
 }: {
-  templates:    ControlTemplate[];
-  zoneOptions:  { value: string; label: string }[];
   userOptions:  { value: string; label: string }[];
   groupOptions: { value: string; label: string }[];
   onSubmit:     (v: PlanTaskFormValues) => Promise<unknown>;
   loading?:     boolean;
 }) {
-  // Default to 'group' only when userOptions is definitively empty AND groupOptions
-  // has items — meaning the user lookup failed (e.g. MANAGER 403) while groups
-  // loaded fine. Otherwise prefer 'user' so admins get the expected default.
-  const defaultAssigneeType: 'user' | 'group' =
-    userOptions.length === 0 && groupOptions.length > 0 ? 'group' : 'user';
-
-  const { register, handleSubmit, watch } = useForm<PlanTaskFormValues>({
-    defaultValues: { assigneeType: defaultAssigneeType },
+  // ── Live templates ────────────────────────────────────────────────────────
+  const { data: templatesData, isLoading: templatesLoading } = useQuery({
+    queryKey: ['controls.templates.all'],
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<ControlTemplate[]>>(
+        '/api/v1/controls/templates?page=1&limit=200',
+      );
+      return data.data ?? [];
+    },
+    staleTime: 0,          // always re-fetch when the modal opens
+    refetchOnWindowFocus: true,
   });
-  const assigneeType = watch('assigneeType');
 
+  // ── Live sites + zones ────────────────────────────────────────────────────
+  const { data: sitesData, isLoading: zonesLoading } = useQuery({
+    queryKey: ['sites.all.live'],
+    queryFn: async () => {
+      const { data } = await api.get<{ data: SiteRaw[] }>('/api/v1/sites');
+      return data.data ?? [];
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+  });
+
+  const templateOptions = useMemo(
+    () => (templatesData ?? []).map((t) => ({
+      value:    t.id,
+      label:    t.name,
+      sublabel: TYPE_LABELS[t.type],
+    })),
+    [templatesData],
+  );
+
+  const zoneOptions = useMemo(() => {
+    const opts: { value: string; label: string; sublabel: string }[] = [];
+    for (const site of (sitesData ?? [])) {
+      for (const zone of (site.zones ?? [])) {
+        opts.push({ value: zone.id, label: zone.name, sublabel: site.name });
+      }
+    }
+    return opts;
+  }, [sitesData]);
+
+  // ── Form ──────────────────────────────────────────────────────────────────
   const canAssignUser  = userOptions.length > 0;
   const canAssignGroup = groupOptions.length > 0;
 
-  const templateOptions = templates.map((t) => ({
-    value: t.id,
-    label: `${t.name} — ${TYPE_LABELS[t.type]}`,
-  }));
+  const defaultAssigneeType: 'user' | 'group' =
+    userOptions.length === 0 && groupOptions.length > 0 ? 'group' : 'user';
+
+  const { register, handleSubmit, watch, control, formState: { errors } } =
+    useForm<PlanTaskFormValues>({ defaultValues: { assigneeType: defaultAssigneeType } });
+
+  const assigneeType = watch('assigneeType');
 
   return (
     <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4">
-      <Select
-        label="Modèle de contrôle"
-        placeholder="Sélectionner un modèle"
-        options={templateOptions}
-        required
-        {...register('templateId', { required: 'Veuillez sélectionner un modèle' })}
-      />
-      <Select
-        label="Zone / Emplacement"
-        placeholder="Sélectionner une zone"
-        options={zoneOptions}
-        required
-        {...register('zoneId', { required: 'Veuillez sélectionner une zone' })}
+
+      {/* ── Modèle de contrôle — Combobox avec autocomplete ──────────────── */}
+      <Controller
+        name="templateId"
+        control={control}
+        rules={{ required: 'Veuillez sélectionner un modèle' }}
+        render={({ field }) => (
+          <Combobox
+            label="Modèle de contrôle"
+            placeholder="Rechercher un modèle…"
+            required
+            loading={templatesLoading}
+            options={templateOptions}
+            value={field.value ?? ''}
+            onChange={field.onChange}
+            error={errors.templateId?.message}
+          />
+        )}
       />
 
-      {/* Assignment — only shown when at least one list is available */}
+      {/* ── Zone / Emplacement — Combobox avec autocomplete ──────────────── */}
+      <Controller
+        name="zoneId"
+        control={control}
+        rules={{ required: 'Veuillez sélectionner une zone' }}
+        render={({ field }) => (
+          <Combobox
+            label="Zone / Emplacement"
+            placeholder="Rechercher une zone…"
+            required
+            loading={zonesLoading}
+            options={zoneOptions}
+            value={field.value ?? ''}
+            onChange={field.onChange}
+            error={errors.zoneId?.message}
+          />
+        )}
+      />
+
+      {/* ── Assignation ──────────────────────────────────────────────────── */}
       {(canAssignUser || canAssignGroup) ? (
         <div>
           <p className="mb-1.5 text-sm font-medium text-gray-700">Assigner à</p>
@@ -825,9 +887,7 @@ function CreateTemplateForm({
 // ─── Tasks tab ─────────────────────────────────────────────────────────────────
 
 function TasksTab({
-  templates,
   zoneMap,
-  zoneOptions,
   userMap,
   userOptions,
   groupMap,
@@ -835,9 +895,7 @@ function TasksTab({
   isOperator,
   operatorId,
 }: {
-  templates:    ControlTemplate[];
   zoneMap:      Record<string, string>;
-  zoneOptions:  { value: string; label: string }[];
   userMap:      Record<string, string>;
   userOptions:  { value: string; label: string }[];
   groupMap:     Record<string, string>;
@@ -1042,8 +1100,6 @@ function TasksTab({
       {/* Plan task modal */}
       <Modal open={planModalOpen} onClose={() => setPlanModalOpen(false)} title="Planifier une tâche" size="md">
         <PlanTaskForm
-          templates={templates}
-          zoneOptions={zoneOptions}
           userOptions={userOptions}
           groupOptions={groupOptions}
           loading={createTaskMutation.isPending}
@@ -1251,7 +1307,8 @@ export default function ControlsPage() {
   const operatorId  = currentUser?.sub ?? '';
 
   // Lookup data fetched once for the whole page
-  const { zoneMap, zoneOptions } = useZoneLookup();
+  // zoneOptions is intentionally not destructured — PlanTaskForm fetches zones with staleTime:0
+  const { zoneMap } = useZoneLookup();
   const { userMap, userOptions }  = useUserLookup();
   const { groupMap, groupOptions } = useGroupLookup();
 
@@ -1264,17 +1321,7 @@ export default function ControlsPage() {
     },
   });
 
-  // Templates list for the PlanTaskForm dropdown (fetched once)
-  const { data: templatesData } = useQuery({
-    queryKey: ['controls.templates', 1, ''],
-    queryFn: async () => {
-      const { data } = await api.get<ApiResponse<ControlTemplate[]>>('/api/v1/controls/templates?page=1&limit=100');
-      return data;
-    },
-  });
-
-  const stats       = statsData;
-  const allTemplates = templatesData?.data ?? [];
+  const stats = statsData;
 
   const overdueColor    = (stats?.openOverdue ?? 0) > 0 ? 'text-red-600'  : 'text-gray-700';
   const overdueIconColor = (stats?.openOverdue ?? 0) > 0 ? 'text-red-600'  : 'text-gray-500';
@@ -1345,9 +1392,7 @@ export default function ControlsPage() {
         {/* Tab content */}
         {activeTab === 'tasks' ? (
           <TasksTab
-            templates={allTemplates}
             zoneMap={zoneMap}
-            zoneOptions={zoneOptions}
             userMap={userMap}
             userOptions={userOptions}
             groupMap={groupMap}
