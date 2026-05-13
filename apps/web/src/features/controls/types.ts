@@ -18,11 +18,13 @@ export interface ControlTask {
 export interface ChecklistItem {
   id: string;
   label: string;
-  type: 'BOOLEAN' | 'NUMBER' | 'TEXT' | 'TEMPERATURE';
+  type: 'BOOLEAN' | 'NUMBER' | 'TEXT' | 'TEMPERATURE' | 'PHOTO' | 'SIGNATURE' | 'DATE' | 'SELECT';
   unit?: string;
   min?: number;
   max?: number;
   required: boolean;
+  /** Selectable options for SELECT type */
+  options?: string[];
 }
 
 export type ControlType =
@@ -70,6 +72,8 @@ export interface TaskResult {
   submittedBy:      string;  // userId
   overallCompliant: boolean;
   notes?:           string;
+  ncComment?:       string;  // Mandatory comment when overallCompliant is false
+  ncPhoto?:         string;  // Optional base64 photo for non-conformity
   items:            TaskResultItem[];
 }
 

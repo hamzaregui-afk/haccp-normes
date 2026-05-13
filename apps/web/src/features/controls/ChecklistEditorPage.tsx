@@ -11,14 +11,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
+  Calendar,
+  Camera,
   CheckSquare,
   GripVertical,
+  Hash,
+  List,
+  PenLine,
   Plus,
   Save,
   Thermometer,
   Trash2,
   Type,
-  Hash,
   ToggleLeft,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -40,11 +44,19 @@ function generateId(): string {
   return Math.random().toString(36).slice(2, 11);
 }
 
+const ALL_VALID_TYPES = [
+  'BOOLEAN', 'NUMBER', 'TEXT', 'TEMPERATURE', 'PHOTO', 'SIGNATURE', 'DATE', 'SELECT',
+] as const;
+
 const ITEM_TYPE_OPTIONS = [
-  { value: 'BOOLEAN',     label: 'Oui / Non' },
+  { value: 'BOOLEAN',     label: 'Oui / Non (conforme / non conforme)' },
   { value: 'NUMBER',      label: 'Valeur numérique' },
   { value: 'TEMPERATURE', label: 'Température (°C)' },
   { value: 'TEXT',        label: 'Texte libre' },
+  { value: 'PHOTO',       label: 'Photo' },
+  { value: 'SIGNATURE',   label: 'Signature' },
+  { value: 'DATE',        label: 'Date / Heure' },
+  { value: 'SELECT',      label: 'Choix multiple' },
 ];
 
 const ITEM_TYPE_ICONS: Record<ChecklistItem['type'], React.ElementType> = {
@@ -52,6 +64,10 @@ const ITEM_TYPE_ICONS: Record<ChecklistItem['type'], React.ElementType> = {
   NUMBER:      Hash,
   TEMPERATURE: Thermometer,
   TEXT:        Type,
+  PHOTO:       Camera,
+  SIGNATURE:   PenLine,
+  DATE:        Calendar,
+  SELECT:      List,
 };
 
 const ITEM_TYPE_LABELS: Record<ChecklistItem['type'], string> = {
@@ -59,6 +75,10 @@ const ITEM_TYPE_LABELS: Record<ChecklistItem['type'], string> = {
   NUMBER:      'Numérique',
   TEMPERATURE: 'Température',
   TEXT:        'Texte',
+  PHOTO:       'Photo',
+  SIGNATURE:   'Signature',
+  DATE:        'Date / Heure',
+  SELECT:      'Choix multiple',
 };
 
 // ─── Add / edit item form ─────────────────────────────────────────────────────
@@ -70,6 +90,8 @@ interface ItemFormValues {
   min:      string;
   max:      string;
   required: boolean;
+  /** Comma-separated list of selectable options (SELECT type only) */
+  options:  string;
 }
 
 function ItemForm({
@@ -89,26 +111,30 @@ function ItemForm({
       min:      initial?.min      ?? '',
       max:      initial?.max      ?? '',
       required: initial?.required ?? true,
+      options:  initial?.options  ?? '',
     },
   });
-  const itemType = watch('type');
-  const showLimits = itemType === 'NUMBER' || itemType === 'TEMPERATURE';
+  const itemType  = watch('type');
+  const showLimits  = itemType === 'NUMBER' || itemType === 'TEMPERATURE';
+  const showOptions = itemType === 'SELECT';
 
   return (
     <form onSubmit={(e) => void handleSubmit(onSave)(e)} className="space-y-4">
       <Input
         label="Libellé du point de contrôle"
-        placeholder="Ex: Température à réception"
+        placeholder="Ex: Température à réception, DLC produit, Signature responsable…"
         required
         {...register('label')}
       />
+
       <Select
-        label="Type de mesure"
+        label="Type de saisie"
         options={ITEM_TYPE_OPTIONS}
         required
         {...register('type')}
       />
 
+      {/* Numeric limits (NUMBER / TEMPERATURE) */}
       {showLimits && (
         <div className="grid grid-cols-3 gap-3">
           <Input
@@ -133,6 +159,39 @@ function ItemForm({
         </div>
       )}
 
+      {/* Options list (SELECT) */}
+      {showOptions && (
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            Options (séparées par des virgules) <span className="text-red-500">*</span>
+          </label>
+          <Input
+            placeholder="Ex: Conforme, Non conforme, À vérifier"
+            {...register('options')}
+          />
+          <p className="mt-1 text-xs text-gray-400">
+            Chaque valeur séparée par une virgule deviendra un bouton de sélection.
+          </p>
+        </div>
+      )}
+
+      {/* Type descriptions */}
+      {itemType === 'PHOTO' && (
+        <p className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-700">
+          📷 L'opérateur devra prendre ou sélectionner une photo depuis son appareil.
+        </p>
+      )}
+      {itemType === 'SIGNATURE' && (
+        <p className="rounded-lg bg-purple-50 border border-purple-100 px-3 py-2 text-xs text-purple-700">
+          ✍️ L'opérateur devra apposer sa signature électronique dans un cadre dédié.
+        </p>
+      )}
+      {itemType === 'DATE' && (
+        <p className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-700">
+          📅 L'opérateur devra renseigner une date et une heure.
+        </p>
+      )}
+
       <label className="flex cursor-pointer items-center gap-2">
         <input
           type="checkbox"
@@ -140,6 +199,7 @@ function ItemForm({
           {...register('required')}
         />
         <span className="text-sm text-gray-700">Champ obligatoire</span>
+        <span className="text-xs text-gray-400">(bloque la validation si non renseigné)</span>
       </label>
 
       <div className="flex justify-end gap-2 border-t border-surface-muted pt-3">
@@ -162,19 +222,18 @@ interface ItemRowProps {
 function ItemRow({ item, index, onEdit, onDelete }: ItemRowProps) {
   const TypeIcon = ITEM_TYPE_ICONS[item.type];
 
-  const limits =
-    item.type === 'NUMBER' || item.type === 'TEMPERATURE'
-      ? [
-          item.min !== undefined ? `min ${item.min}` : null,
-          item.max !== undefined ? `max ${item.max}` : null,
-          item.unit ?? null,
-        ]
-          .filter(Boolean)
-          .join(' · ')
-      : null;
+  const meta: string[] = [];
+  if (item.type === 'NUMBER' || item.type === 'TEMPERATURE') {
+    if (item.min !== undefined) meta.push(`min ${item.min}`);
+    if (item.max !== undefined) meta.push(`max ${item.max}`);
+    if (item.unit)              meta.push(item.unit);
+  }
+  if (item.type === 'SELECT' && item.options?.length) {
+    meta.push(`${item.options.length} option${item.options.length > 1 ? 's' : ''}`);
+  }
 
   return (
-    <div className="group flex items-center gap-3 rounded-lg border border-surface-muted bg-white px-4 py-3 shadow-sm">
+    <div className="group flex items-center gap-3 rounded-lg border border-surface-muted bg-white px-4 py-3 shadow-sm transition-shadow hover:shadow-md">
       {/* Drag handle (visual only) */}
       <GripVertical className="h-4 w-4 shrink-0 text-gray-300 group-hover:text-gray-400" />
 
@@ -189,9 +248,9 @@ function ItemRow({ item, index, onEdit, onDelete }: ItemRowProps) {
       {/* Label + meta */}
       <div className="flex-1 min-w-0">
         <p className="truncate font-medium text-gray-900">{item.label}</p>
-        <p className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
+        <p className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
           <span>{ITEM_TYPE_LABELS[item.type]}</span>
-          {limits && <span className="text-gray-400">— {limits}</span>}
+          {meta.length > 0 && <span className="text-gray-400">— {meta.join(' · ')}</span>}
           {item.required && (
             <span className="rounded-full bg-brand-lighter px-1.5 py-0.5 text-brand-dark font-medium">
               Obligatoire
@@ -203,14 +262,14 @@ function ItemRow({ item, index, onEdit, onDelete }: ItemRowProps) {
       {/* Actions */}
       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
-          className="rounded p-1 text-gray-400 hover:bg-surface-page hover:text-brand-medium"
+          className="rounded p-1.5 text-gray-400 hover:bg-surface-page hover:text-brand-medium transition-colors"
           onClick={onEdit}
           title="Modifier"
         >
           <CheckSquare className="h-4 w-4" />
         </button>
         <button
-          className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
+          className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
           onClick={onDelete}
           title="Supprimer"
         >
@@ -224,17 +283,15 @@ function ItemRow({ item, index, onEdit, onDelete }: ItemRowProps) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ChecklistEditorPage() {
-  const { id }       = useParams<{ id: string }>();
-  const navigate     = useNavigate();
-  const queryClient  = useQueryClient();
+  const { id }      = useParams<{ id: string }>();
+  const navigate    = useNavigate();
+  const queryClient = useQueryClient();
 
-  // Local checklist state (edited in-memory, saved on submit)
-  const [items, setItems]           = useState<ChecklistItem[] | null>(null);
+  const [items, setItems]               = useState<ChecklistItem[] | null>(null);
   const [addModalOpen, setAddModalOpen] = useState(false);
-  const [editItem, setEditItem]     = useState<ChecklistItem | null>(null);
-  const [dirty, setDirty]           = useState(false);
+  const [editItem, setEditItem]         = useState<ChecklistItem | null>(null);
+  const [dirty, setDirty]               = useState(false);
 
-  // Fetch template
   const { data: templateData, isLoading } = useQuery({
     queryKey: ['controls.template', id],
     queryFn: async () => {
@@ -242,8 +299,6 @@ export default function ChecklistEditorPage() {
       return data.data;
     },
     enabled: !!id,
-    // ARCH-DECISION: initialise local items from server data the first time only
-    // (onSuccess is deprecated in TanStack Query v5 — we check if items===null)
   });
 
   // One-time initialisation of local checklist items from server data.
@@ -257,13 +312,16 @@ export default function ChecklistEditorPage() {
             return {
               id:       typeof r['id'] === 'string' ? r['id'] : generateId(),
               label:    typeof r['label'] === 'string' ? r['label'] : '',
-              type:     (['BOOLEAN', 'NUMBER', 'TEXT', 'TEMPERATURE'].includes(r['type'] as string)
+              type:     (ALL_VALID_TYPES.includes(r['type'] as ChecklistItem['type'])
                 ? r['type']
                 : 'TEXT') as ChecklistItem['type'],
               unit:     typeof r['unit'] === 'string' ? r['unit'] : undefined,
               min:      typeof r['min'] === 'number' ? r['min'] : undefined,
               max:      typeof r['max'] === 'number' ? r['max'] : undefined,
               required: r['required'] !== false,
+              options:  Array.isArray(r['options'])
+                ? (r['options'] as unknown[]).filter((o): o is string => typeof o === 'string')
+                : undefined,
             };
           })
         : [];
@@ -273,7 +331,6 @@ export default function ChecklistEditorPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateData]);
 
-  // Save mutation
   const saveMutation = useMutation({
     mutationFn: (checklistJson: ChecklistItem[]) =>
       api.patch(`/api/v1/controls/templates/${id}`, { checklistJson }),
@@ -286,6 +343,12 @@ export default function ChecklistEditorPage() {
 
   // ─── Handlers ────────────────────────────────────────────────────────────
 
+  const parseOptions = (type: ChecklistItem['type'], raw: string): string[] | undefined => {
+    if (type !== 'SELECT') return undefined;
+    const opts = raw.split(',').map((o) => o.trim()).filter(Boolean);
+    return opts.length > 0 ? opts : undefined;
+  };
+
   const handleAdd = (v: ItemFormValues) => {
     const newItem: ChecklistItem = {
       id:       generateId(),
@@ -295,6 +358,7 @@ export default function ChecklistEditorPage() {
       min:      v.min !== '' ? Number(v.min) : undefined,
       max:      v.max !== '' ? Number(v.max) : undefined,
       required: v.required,
+      options:  parseOptions(v.type, v.options),
     };
     setItems((prev) => [...(prev ?? []), newItem]);
     setDirty(true);
@@ -308,12 +372,13 @@ export default function ChecklistEditorPage() {
         item.id === editItem.id
           ? {
               ...item,
-              label:    v.label,
-              type:     v.type,
-              unit:     v.unit || undefined,
-              min:      v.min !== '' ? Number(v.min) : undefined,
-              max:      v.max !== '' ? Number(v.max) : undefined,
+              label:   v.label,
+              type:    v.type,
+              unit:    v.unit || undefined,
+              min:     v.min !== '' ? Number(v.min) : undefined,
+              max:     v.max !== '' ? Number(v.max) : undefined,
               required: v.required,
+              options: parseOptions(v.type, v.options),
             }
           : item,
       ),
@@ -333,7 +398,7 @@ export default function ChecklistEditorPage() {
 
   // ─── Render ──────────────────────────────────────────────────────────────
 
-  const template = templateData;
+  const template    = templateData;
   const currentItems = items ?? [];
 
   return (
@@ -355,7 +420,9 @@ export default function ChecklistEditorPage() {
 
           <div className="flex items-center gap-2">
             {dirty && (
-              <span className="text-xs text-amber-600 font-medium">Modifications non sauvegardées</span>
+              <span className="text-xs text-amber-600 font-medium">
+                Modifications non sauvegardées
+              </span>
             )}
             <Button
               size="sm"
@@ -370,20 +437,49 @@ export default function ChecklistEditorPage() {
         </div>
 
         {isLoading ? (
-          <div className="py-20 text-center text-sm text-gray-400">Chargement du modèle…</div>
+          <div className="space-y-3 animate-pulse">
+            <div className="h-12 rounded-xl bg-surface-muted" />
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-16 rounded-lg bg-surface-muted" />
+            ))}
+          </div>
         ) : (
           <>
             {/* Template info banner */}
             {template && (
-              <div className="mb-5 rounded-xl border border-brand-lighter bg-brand-lighter/30 px-5 py-3 flex items-center gap-4 text-sm">
+              <div className="mb-5 flex flex-wrap items-center gap-4 rounded-xl border border-brand-lighter bg-brand-lighter/30 px-5 py-3 text-sm">
                 <div>
-                  <span className="font-medium text-brand-dark">{template.name}</span>
+                  <span className="font-semibold text-brand-dark">{template.name}</span>
                   {template.frequency && (
                     <span className="ml-2 text-gray-500">— {template.frequency}</span>
                   )}
                 </div>
                 <span className="text-gray-400">·</span>
-                <span className="text-gray-600">{currentItems.length} point{currentItems.length !== 1 ? 's' : ''} de contrôle</span>
+                <span className="text-gray-600">
+                  {currentItems.length} point{currentItems.length !== 1 ? 's' : ''} de contrôle
+                </span>
+                {/* Type breakdown */}
+                {currentItems.length > 0 && (
+                  <div className="ml-auto flex flex-wrap gap-1.5">
+                    {(Object.entries(
+                      currentItems.reduce<Partial<Record<ChecklistItem['type'], number>>>(
+                        (acc, item) => ({ ...acc, [item.type]: (acc[item.type] ?? 0) + 1 }),
+                        {},
+                      ),
+                    ) as [ChecklistItem['type'], number][]).map(([type, count]) => {
+                      const Icon = ITEM_TYPE_ICONS[type];
+                      return (
+                        <span
+                          key={type}
+                          className="inline-flex items-center gap-1 rounded-full bg-white border border-surface-muted px-2 py-0.5 text-xs text-gray-600"
+                        >
+                          <Icon className="h-3 w-3 text-brand-medium" />
+                          {count}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
@@ -392,7 +488,9 @@ export default function ChecklistEditorPage() {
               <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-surface-muted bg-white py-16 text-center">
                 <CheckSquare className="mx-auto mb-3 h-10 w-10 text-gray-300" />
                 <p className="font-medium text-gray-600">Aucun point de contrôle</p>
-                <p className="mt-1 text-sm text-gray-400">Ajoutez des points pour définir ce qui doit être vérifié.</p>
+                <p className="mt-1 text-sm text-gray-400">
+                  Ajoutez des points pour définir ce qui doit être vérifié.
+                </p>
                 <Button size="sm" className="mt-4" onClick={() => setAddModalOpen(true)}>
                   <Plus className="h-4 w-4" /> Ajouter un point
                 </Button>
@@ -451,6 +549,7 @@ export default function ChecklistEditorPage() {
               min:      editItem.min !== undefined ? String(editItem.min) : '',
               max:      editItem.max !== undefined ? String(editItem.max) : '',
               required: editItem.required,
+              options:  editItem.options?.join(', ') ?? '',
             }}
             onSave={handleEdit}
             onCancel={() => setEditItem(null)}

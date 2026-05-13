@@ -27,7 +27,7 @@ export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 export const TaskResultItemSchema = z.object({
   id:        z.string(),
   label:     z.string(),
-  type:      z.enum(['BOOLEAN', 'NUMBER', 'TEXT', 'TEMPERATURE']),
+  type:      z.enum(['BOOLEAN', 'NUMBER', 'TEXT', 'TEMPERATURE', 'PHOTO', 'SIGNATURE', 'DATE', 'SELECT']),
   value:     z.union([z.boolean(), z.number(), z.string(), z.null()]),
   unit:      z.string().optional(),
   min:       z.number().optional(),
@@ -41,6 +41,8 @@ export const TaskResultSchema = z.object({
   submittedBy:      z.string(),
   overallCompliant: z.boolean(),
   notes:            z.string().optional(),
+  ncComment:        z.string().optional(),
+  ncPhoto:          z.string().optional(),
   items:            z.array(TaskResultItemSchema),
 });
 export type TaskResult = z.infer<typeof TaskResultSchema>;
