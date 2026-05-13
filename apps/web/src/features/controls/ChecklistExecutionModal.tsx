@@ -311,7 +311,7 @@ export function ChecklistExecutionModal({
   const [success, setSuccess] = useState(false);
 
   // Ref for the auto-close timer so it can be cleared on unmount or taskId change
-  const closeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reset local state when task changes; also cancel any pending close timer
   useEffect(() => {
