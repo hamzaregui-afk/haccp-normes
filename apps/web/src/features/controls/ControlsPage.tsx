@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  AlertTriangle,
   Calendar,
   Camera,
   CheckCircle2,
@@ -16,7 +17,8 @@ import {
   User,
   Users,
 } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { Component, useEffect, useMemo, useRef, useState } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 
@@ -34,6 +36,42 @@ import { useAuthStore } from '@/store/auth.store';
 import type { ApiResponse } from '@haccp/shared-types';
 import type { ControlStats, ControlTask, ControlTemplate, ControlType, TaskResult } from './types';
 import { ChecklistExecutionModal } from './ChecklistExecutionModal';
+
+// ─── Error Boundary ────────────────────────────────────────────────────────────
+
+interface ErrorBoundaryState { hasError: boolean; error?: Error; }
+class ControlsErrorBoundary extends Component<
+  { children: ReactNode },
+  ErrorBoundaryState
+> {
+  state: ErrorBoundaryState = { hasError: false };
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('[ControlsPage]', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <AlertTriangle className="mb-4 h-10 w-10 text-amber-400" />
+          <p className="text-lg font-semibold text-gray-900">Une erreur est survenue</p>
+          <p className="mt-1 text-sm text-gray-500">
+            {this.state.error?.message ?? 'Erreur inconnue'}
+          </p>
+          <button
+            onClick={() => this.setState({ hasError: false })}
+            className="mt-4 rounded-lg bg-brand-medium px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark"
+          >
+            Réessayer
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ─── Style maps ────────────────────────────────────────────────────────────────
 
@@ -444,6 +482,20 @@ function TaskDetailModal({
     onError: () => showToast({ title: 'Erreur lors de la réassignation', variant: 'error' }),
   });
 
+  const cancelMutation = useMutation({
+    mutationFn: () =>
+      api.patch<ApiResponse<ControlTask>>(`/api/v1/controls/tasks/${task?.id}`, {
+        status: 'CANCELLED',
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['controls.tasks'] });
+      void queryClient.invalidateQueries({ queryKey: ['controls.stats'] });
+      onClose();
+      reset();
+    },
+    onError: () => showToast({ title: 'Erreur', body: "Impossible d'annuler la tâche", variant: 'error' }),
+  });
+
   const handleReassign = (v: ReassignFormValues) => {
     if (v.assigneeType === 'user' && v.assigneeId) {
       void reassignMutation.mutateAsync({ assigneeId: v.assigneeId });
@@ -685,6 +737,20 @@ function TaskDetailModal({
             </p>
           )}
         </div>}
+
+        {/* Cancel task — hidden for OPERATOR and for already terminal statuses */}
+        {!isOperator && !['COMPLETED', 'CANCELLED'].includes(task.status) && (
+          <div className="mt-4 flex justify-end border-t border-surface-muted pt-4">
+            <Button
+              variant="secondary"
+              onClick={() => void cancelMutation.mutateAsync()}
+              loading={cancelMutation.isPending}
+              className="text-red-600 border-red-200 hover:bg-red-50"
+            >
+              Annuler la tâche
+            </Button>
+          </div>
+        )}
       </Modal>
 
       {/* Lightbox */}
@@ -781,10 +847,16 @@ function TasksTab({
 }) {
   const [page, setPage]                     = useState(1);
   const [statusFilter, setStatusFilter]     = useState('');
+  const [search, setSearch]                 = useState('');
   const [planModalOpen, setPlanModalOpen]   = useState(false);
   const [selectedTask, setSelectedTask]     = useState<ControlTask | null>(null);
   const [selectedExecTaskId, setSelectedExecTaskId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  // Reset search when status filter changes
+  useEffect(() => {
+    setSearch('');
+  }, [statusFilter]);
 
   const { data, isLoading } = useQuery({
     // ARCH-DECISION: When the current user is an OPERATOR, inject their ID as
@@ -811,6 +883,15 @@ function TasksTab({
   });
 
   const tasks = data?.data ?? [];
+
+  // Client-side search filter on the current page's data
+  // (backend doesn't support task search yet)
+  const filteredTasks = search.trim()
+    ? tasks.filter((t) =>
+        t.template?.name.toLowerCase().includes(search.toLowerCase()) ||
+        t.zoneId.toLowerCase().includes(search.toLowerCase())
+      )
+    : tasks;
 
   const handlePlanSubmit = (v: PlanTaskFormValues) =>
     createTaskMutation.mutateAsync({
@@ -842,6 +923,18 @@ function TasksTab({
         )}
       </div>
 
+      {/* Search filter */}
+      <div className="relative mb-3">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Rechercher…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-9 w-full rounded-lg border border-surface-muted pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
+        />
+      </div>
+
       {/* Content */}
       {isLoading ? (
         <div className="py-20 text-center text-sm text-gray-400">Chargement…</div>
@@ -867,7 +960,7 @@ function TasksTab({
               </tr>
             </thead>
             <tbody className="divide-y divide-surface-muted">
-              {tasks.map((task) => {
+              {filteredTasks.map((task) => {
                 const zoneName = zoneMap[task.zoneId] ?? <span className="font-mono text-xs text-gray-400">{task.zoneId.slice(0, 8)}…</span>;
                 const assigneeName = task.assigneeId
                   ? (userMap[task.assigneeId] ?? <span className="font-mono text-xs text-gray-400">{task.assigneeId.slice(0, 8)}…</span>)
@@ -1188,7 +1281,7 @@ export default function ControlsPage() {
   const overdueIconBg   = (stats?.openOverdue ?? 0) > 0 ? 'bg-red-50'     : 'bg-gray-100';
 
   return (
-    <>
+    <ControlsErrorBoundary>
       <Header title="Contrôle" subtitle="Planification et suivi des tâches de contrôle HACCP" />
       <PageWrapper>
 
@@ -1267,6 +1360,6 @@ export default function ControlsPage() {
         )}
 
       </PageWrapper>
-    </>
+    </ControlsErrorBoundary>
   );
 }

@@ -7,7 +7,9 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Injectable, Logger } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import type { Server, Socket } from 'socket.io';
+import { env } from '../config/env';
 
 @Injectable()
 @WebSocketGateway({ cors: { origin: '*' }, namespace: '/' })
@@ -17,41 +19,38 @@ export class NotificationGateway implements OnGatewayConnection, OnGatewayDiscon
 
   private readonly logger = new Logger(NotificationGateway.name);
 
+  constructor(private readonly jwtService: JwtService) {}
+
   handleConnection(client: Socket) {
-    // ARCH-DECISION: The web client sends auth: { token } (JWT Bearer).
-    // We decode the payload to extract sub (userId) and tenantId without
-    // verifying the signature here — full JWT verification happens on REST
-    // endpoints via JwtAuthGuard. This is acceptable for WebSocket room
-    // membership because the worst case is a spoofed user receiving their
-    // own notifications or their tenant's notifications.
     const token = client.handshake.auth['token'] as string | undefined;
     let userId:   string | undefined;
     let tenantId: string | undefined;
 
     if (token) {
       try {
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          const payload = JSON.parse(
-            Buffer.from(parts[1]!, 'base64url').toString('utf8'),
-          ) as Record<string, unknown>;
-          userId   = typeof payload['sub']      === 'string' ? payload['sub']      : undefined;
-          tenantId = typeof payload['tenantId'] === 'string' ? payload['tenantId'] : undefined;
-        }
+        // ARCH-DECISION: Verify JWT signature to prevent cross-tenant room spoofing.
+        // The REST layer uses JwtAuthGuard for HTTP; here we inline the same verification
+        // for WebSocket connections where Passport guards are unavailable.
+        const payload = this.jwtService.verify<Record<string, unknown>>(token, {
+          secret: env.JWT_SECRET,
+        });
+        userId   = typeof payload['sub']      === 'string' ? payload['sub']      : undefined;
+        tenantId = typeof payload['tenantId'] === 'string' ? payload['tenantId'] : undefined;
       } catch {
-        this.logger.warn(`Client ${client.id}: failed to decode JWT payload`);
+        this.logger.warn(`Client ${client.id}: invalid JWT — disconnecting`);
+        client.disconnect(true);
+        return;
       }
+    } else {
+      // No token: disconnect anonymous clients
+      this.logger.warn(`Client ${client.id}: no auth token — disconnecting`);
+      client.disconnect(true);
+      return;
     }
-
-    // Fallback: allow explicit userId / tenantId from handshake (mobile / server-to-server)
-    if (!userId)   userId   = client.handshake.auth['userId']   as string | undefined;
-    if (!tenantId) tenantId = client.handshake.auth['tenantId'] as string | undefined;
 
     if (userId) {
       void client.join(`user:${userId}`);
       this.logger.log(`Client ${client.id} joined room user:${userId}`);
-    } else {
-      this.logger.warn(`Client ${client.id} connected without identifiable user — no user room joined`);
     }
 
     // ARCH-DECISION: Each client also joins a tenant-scoped room so that

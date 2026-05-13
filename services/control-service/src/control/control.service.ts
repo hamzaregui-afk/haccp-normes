@@ -1,15 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { toApiResponse, toPaginationMeta } from '@haccp/shared-types';
+import { publishDomainEvent } from '@haccp/shared-utils';
 import { PrismaService } from '../prisma/prisma.service';
 import { MinioService } from '../minio/minio.service';
-import type {
-  CreateTemplateDto,
-  UpdateTemplateDto,
-  TemplateQuery,
-  CreateTaskDto,
-  UpdateTaskDto,
-  TaskQuery,
+import {
+  VALID_TRANSITIONS,
+  type CreateTemplateDto,
+  type UpdateTemplateDto,
+  type TemplateQuery,
+  type CreateTaskDto,
+  type UpdateTaskDto,
+  type TaskQuery,
 } from './dto/control.dto';
 
 @Injectable()
@@ -93,7 +95,8 @@ export class ControlService {
     });
     if (!existing) throw new NotFoundException(`Modèle de contrôle ${id} introuvable`);
 
-    await this.prisma.controlTemplate.delete({ where: { id } });
+    // SECURITY FIX: Include tenantId in WHERE to prevent TOCTOU cross-tenant deletion
+    await this.prisma.controlTemplate.delete({ where: { id, tenantId } });
     return toApiResponse(null, undefined, 'Modèle supprimé');
   }
 
@@ -156,18 +159,39 @@ export class ControlService {
 
     const task = await this.prisma.controlTask.create({
       data: {
-        templateId:  dto.templateId,
-        zoneId:      dto.zoneId,
-        assigneeId:  dto.assigneeId ?? null,
-        groupId:     dto.groupId    ?? null,
+        templateId:        dto.templateId,
+        zoneId:            dto.zoneId,
+        assigneeId:        dto.assigneeId ?? null,
+        groupId:           dto.groupId    ?? null,
         tenantId,
-        scheduledAt: dto.scheduledAt,
-        status:      'PLANNED',
+        scheduledAt:       dto.scheduledAt,
+        status:            'PLANNED',
+        // ARCH-DECISION: checklistSnapshot freezes the checklist definition at task creation.
+        // This is critical for HACCP audit compliance — inspectors must see exactly what
+        // questions were asked, even if the template is updated after the fact.
+        checklistSnapshot: template.checklistJson as Prisma.InputJsonValue,
       },
       include: {
         template: { select: { id: true, name: true, type: true } },
       },
     });
+
+    // Notify assignee via domain event
+    const targetId = dto.assigneeId ?? dto.groupId;
+    if (targetId) {
+      void publishDomainEvent({
+        eventType: 'control.task.assigned',
+        tenantId,
+        payload: {
+          taskId:       task.id,
+          assigneeId:   dto.assigneeId ?? null,
+          groupId:      dto.groupId    ?? null,
+          templateName: template.name,
+          scheduledAt:  dto.scheduledAt.toISOString(),
+        },
+      });
+    }
+
     return toApiResponse(task, undefined, 'Tâche planifiée');
   }
 
@@ -177,8 +201,18 @@ export class ControlService {
     });
     if (!existing) throw new NotFoundException(`Tâche de contrôle ${id} introuvable`);
 
+    // Status transition guard
+    if (dto.status && existing.status !== dto.status) {
+      const allowed = VALID_TRANSITIONS[existing.status] ?? [];
+      if (!(allowed as readonly string[]).includes(dto.status)) {
+        throw new BadRequestException(
+          `Transition invalide: ${existing.status} → ${dto.status}`,
+        );
+      }
+    }
+
     const task = await this.prisma.controlTask.update({
-      where: { id },
+      where: { id, tenantId },   // SECURITY FIX: add tenantId to WHERE clause
       data: {
         ...(dto.status      !== undefined ? { status: dto.status }                     : {}),
         ...(dto.assigneeId  !== undefined ? { assigneeId: dto.assigneeId, groupId: null } : {}),
@@ -222,7 +256,18 @@ export class ControlService {
 
   // ─── Photos ────────────────────────────────────────────────────────────────
 
-  async addPhoto(taskId: string, tenantId: string, file: Express.Multer.File) {
+  async addPhoto(taskId: string, tenantId: string, file: Express.Multer.File | undefined) {
+    // Guard: file must be present and be an image
+    if (!file) {
+      throw new BadRequestException('Aucun fichier reçu');
+    }
+    const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!ALLOWED_MIME.includes(file.mimetype)) {
+      throw new BadRequestException(
+        `Type de fichier non autorisé: ${file.mimetype}. Types acceptés: JPEG, PNG, WEBP, GIF`,
+      );
+    }
+
     const existing = await this.prisma.controlTask.findFirst({ where: { id: taskId, tenantId } });
     if (!existing) throw new NotFoundException(`Tâche de contrôle ${taskId} introuvable`);
 

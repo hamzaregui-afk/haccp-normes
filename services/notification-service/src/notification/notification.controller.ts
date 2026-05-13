@@ -37,11 +37,16 @@ export class NotificationController {
     );
   }
 
-  /** Mark a list of notification IDs as read. */
+  /** Mark notifications as read. If body has `ids`, marks only those; otherwise marks all for the calling user. */
   @Patch('read')
   @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'OPERATOR', 'VIEWER')
   markRead(@Body() body: unknown, @CurrentUser() user: JwtPayload) {
-    return this.notificationService.markRead(MarkReadDtoSchema.parse(body), user.tenantId);
+    const parsed = MarkReadDtoSchema.safeParse(body);
+    if (parsed.success) {
+      return this.notificationService.markRead(parsed.data, user.tenantId);
+    }
+    // No valid IDs provided → mark all unread for this user
+    return this.notificationService.markAllReadForUser(user.sub, user.tenantId);
   }
 
   @Get('unread-count')

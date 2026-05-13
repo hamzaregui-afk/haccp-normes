@@ -22,6 +22,29 @@ export const TaskStatusSchema = z.enum([
 ]);
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 
+// ─── Task result schemas ───────────────────────────────────────────────────────
+
+export const TaskResultItemSchema = z.object({
+  id:        z.string(),
+  label:     z.string(),
+  type:      z.enum(['BOOLEAN', 'NUMBER', 'TEXT', 'TEMPERATURE']),
+  value:     z.union([z.boolean(), z.number(), z.string(), z.null()]),
+  unit:      z.string().optional(),
+  min:       z.number().optional(),
+  max:       z.number().optional(),
+  compliant: z.boolean(),
+  required:  z.boolean(),
+});
+
+export const TaskResultSchema = z.object({
+  submittedAt:      z.string(),
+  submittedBy:      z.string(),
+  overallCompliant: z.boolean(),
+  notes:            z.string().optional(),
+  items:            z.array(TaskResultItemSchema),
+});
+export type TaskResult = z.infer<typeof TaskResultSchema>;
+
 // ─── Template DTOs ────────────────────────────────────────────────────────────
 
 export const CreateTemplateDtoSchema = z.object({
@@ -49,20 +72,33 @@ export const CreateTaskDtoSchema = z.object({
 });
 export type CreateTaskDto = z.infer<typeof CreateTaskDtoSchema>;
 
+// Valid status transitions (enforced additionally in service)
+export const VALID_TRANSITIONS: Record<string, readonly string[]> = {
+  PLANNED:     ['IN_PROGRESS', 'CANCELLED', 'OVERDUE'],
+  IN_PROGRESS: ['COMPLETED', 'CANCELLED'],
+  OVERDUE:     ['IN_PROGRESS', 'CANCELLED'],
+  COMPLETED:   [],
+  CANCELLED:   [],
+} as const;
+
 export const UpdateTaskDtoSchema = z
   .object({
     status:      TaskStatusSchema.optional(),
     assigneeId:  z.string().min(1).optional(),
     groupId:     z.string().min(1).optional(),
     notes:       z.string().max(2000).optional(),
-    resultJson:  z.unknown().optional(),
+    resultJson:  TaskResultSchema.optional(),
     startedAt:   z.coerce.date().optional(),
     completedAt: z.coerce.date().optional(),
   })
   .refine((d) => !(d.assigneeId && d.groupId), {
     message: 'assigneeId et groupId sont mutuellement exclusifs',
     path: ['assigneeId'],
-  });
+  })
+  .refine(
+    (d) => !(d.status === 'COMPLETED' && !d.resultJson),
+    { message: 'resultJson est requis pour valider un contrôle', path: ['resultJson'] }
+  );
 export type UpdateTaskDto = z.infer<typeof UpdateTaskDtoSchema>;
 
 // ─── Query schemas ────────────────────────────────────────────────────────────

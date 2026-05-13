@@ -55,9 +55,11 @@ model ControlTask {
   scheduledAt DateTime   @map("scheduled_at")
   startedAt   DateTime?  @map("started_at")
   completedAt DateTime?  @map("completed_at")
-  resultJson  Json?      @map("result_json")      // Filled checklist answers
-  notes       String?
-  createdAt   DateTime   @default(now()) @map("created_at")
+  resultJson        Json?      @map("result_json")        // Filled checklist answers
+  notes             String?
+  checklistSnapshot Json?      @map("checklist_snapshot") // Immutable copy of checklistJson at task creation
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+  createdAt         DateTime   @default(now()) @map("created_at")
 
   template ControlTemplate @relation(fields: [templateId], references: [id])
   photos   ControlPhoto[]
@@ -67,6 +69,7 @@ model ControlTask {
   @@index([groupId])
   @@index([scheduledAt])
   @@index([status])
+  @@index([templateId])
   @@map("control_tasks")
 }
 

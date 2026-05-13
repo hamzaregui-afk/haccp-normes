@@ -8,7 +8,7 @@ import {
   Type,
   XCircle,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -310,11 +310,17 @@ export function ChecklistExecutionModal({
   const [notes, setNotes]     = useState('');
   const [success, setSuccess] = useState(false);
 
-  // Reset local state when task changes
+  // Ref for the auto-close timer so it can be cleared on unmount or taskId change
+  const closeTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Reset local state when task changes; also cancel any pending close timer
   useEffect(() => {
     setValues({});
     setNotes('');
     setSuccess(false);
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
   }, [taskId]);
 
   // Fetch full task detail (includes checklistJson)
@@ -341,6 +347,16 @@ export function ChecklistExecutionModal({
       void queryClient.invalidateQueries({ queryKey: ['controls.tasks'] });
       void queryClient.invalidateQueries({ queryKey: ['controls.stats'] });
     },
+    onError: () => {
+      // Non-blocking: the operator can still fill the checklist even if
+      // the IN_PROGRESS transition fails (e.g. already IN_PROGRESS on another device).
+      // The COMPLETED submit will enforce the correct final state.
+      showToast({
+        title:   'Attention',
+        body:    'Impossible de démarrer la tâche automatiquement. Vous pouvez continuer à remplir la checklist.',
+        variant: 'warning',
+      });
+    },
   });
 
   useEffect(() => {
@@ -361,15 +377,22 @@ export function ChecklistExecutionModal({
       void queryClient.invalidateQueries({ queryKey: ['controls.tasks'] });
       void queryClient.invalidateQueries({ queryKey: ['controls.stats'] });
       setSuccess(true);
-      setTimeout(() => {
+      closeTimerRef.current = setTimeout(() => {
         onCompleted();
       }, 1500);
     },
     onError: () => showToast({ title: 'Erreur lors de la validation', variant: 'error' }),
   });
 
-  const isOpen     = taskId !== null;
-  const checklist  = parseChecklist(taskDetail?.template?.checklistJson);
+  const isOpen = taskId !== null;
+  // ARCH-DECISION: Prefer the frozen checklistSnapshot (stored at task creation time)
+  // over the live template checklistJson. This ensures operators fill the same
+  // checklist that was intended when the task was planned, even if the template
+  // was updated since. Falls back to template.checklistJson for tasks created
+  // before this migration (legacy compatibility).
+  const checklist  = parseChecklist(
+    taskDetail?.checklistSnapshot ?? taskDetail?.template?.checklistJson
+  );
   const isReadOnly = taskDetail?.status === 'COMPLETED';
   const existingResult =
     isReadOnly && taskDetail?.resultJson
@@ -432,7 +455,7 @@ export function ChecklistExecutionModal({
   return (
     <Modal
       open={isOpen}
-      onClose={success ? () => undefined : onClose}
+      onClose={success ? () => { onCompleted(); } : onClose}
       title={modalTitle}
       size="lg"
     >

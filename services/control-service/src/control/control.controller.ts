@@ -134,7 +134,16 @@ export class ControlController {
       resource:   'controls',
       ...(extractResourceId(result) !== undefined && { resourceId: extractResourceId(result) }),
       tenantId:   user.tenantId,
+      payload:    {
+        templateId:  dto.templateId,
+        assigneeId:  dto.assigneeId,
+        groupId:     dto.groupId,
+        scheduledAt: dto.scheduledAt,
+      },
     });
+
+    // NOTE: control.task.assigned domain event is published by the service layer
+    // to avoid double-publishing when the service is called directly.
 
     return result;
   }
@@ -150,15 +159,19 @@ export class ControlController {
     const result = await this.controlService.updateTask(id, dto, user.tenantId);
 
     // ARCH-DECISION: task completion is the most audit-critical event in the
-    // HACCP workflow. We emit UPDATE for all task patches but tag status in
-    // the payload so audit reports can filter by COMPLETED status specifically.
+    // HACCP workflow. We emit UPDATE for all task patches but tag status and
+    // assignment info in the payload so audit reports can filter specifically.
     void emitAuditEvent({
       userId:     user.sub,
       action:     'UPDATE',
       resource:   'controls',
       resourceId: id,
       tenantId:   user.tenantId,
-      payload:    { status: dto.status },
+      payload:    {
+        status:     dto.status,
+        assigneeId: dto.assigneeId,
+        groupId:    dto.groupId,
+      },
     });
 
     // Publish domain event only when the task is explicitly completed —
@@ -171,6 +184,19 @@ export class ControlController {
           taskId:      id,
           completedBy: user.sub,
           status:      'COMPLETED',
+        },
+      });
+    }
+
+    // Notify new assignee if task is being reassigned
+    if (dto.assigneeId ?? dto.groupId) {
+      void publishDomainEvent({
+        eventType: 'control.task.assigned',
+        tenantId:  user.tenantId,
+        payload: {
+          taskId:     id,
+          assigneeId: dto.assigneeId ?? null,
+          groupId:    dto.groupId    ?? null,
         },
       });
     }
@@ -193,7 +219,7 @@ export class ControlController {
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
   async addTaskPhoto(
     @Param('id') id: string,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File | undefined,
     @CurrentUser() user: JwtPayload,
   ) {
     return this.controlService.addPhoto(id, user.tenantId, file);

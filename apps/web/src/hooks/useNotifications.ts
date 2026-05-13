@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/lib/api';
 import { getSocket, connectSocket } from '@/lib/socket';
@@ -56,6 +57,23 @@ interface DlcExpiringTodayPayload {
   labels?:   Array<{ productName: string; lotNumber?: string | null }>;
 }
 
+interface TaskAssignedPayload {
+  eventId:       string;
+  timestamp:     string;
+  taskId?:       string;
+  assigneeId?:   string | null;
+  groupId?:      string | null;
+  templateName?: string;
+  scheduledAt?:  string;
+}
+
+interface TasksOverduePayload {
+  eventId:   string;
+  timestamp: string;
+  count:     number;
+  taskIds?:  string[];
+}
+
 // ── Helpers — synthesise a Notification from a domain event ──────────────────
 
 type TFn = (key: string) => string;
@@ -93,11 +111,23 @@ function fromReportValidated(p: ReportValidatedPayload, t: TFn): Notification {
   };
 }
 
+function fromTaskAssigned(p: TaskAssignedPayload, t: TFn): Notification {
+  return {
+    id:        p.eventId,
+    title:     t('notifications.taskAssigned'),
+    body:      p.templateName ? `${p.templateName}` : `Tâche ${p.taskId ?? ''}`,
+    type:      'TASK_ASSIGNED',
+    isRead:    false,
+    createdAt: p.timestamp,
+  };
+}
+
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useNotifications(): NotificationsState {
   const { t }   = useTranslation();
   const token = useAuthStore((s) => s.accessToken);
+  const queryClient = useQueryClient();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -132,7 +162,11 @@ export function useNotifications(): NotificationsState {
 
     // Direct user notification (persisted in DB, pushed via user:{id} room)
     const onNew = (notification: Notification) => {
-      setNotifications((prev) => [notification, ...prev]);
+      setNotifications((prev) => {
+        // Deduplication: don't add the same id twice
+        if (prev.some((e) => e.id === notification.id)) return prev;
+        return [notification, ...prev];
+      });
       setUnreadCount((prev) => prev + 1);
       showToast({ title: notification.title, body: notification.body, variant: 'info' });
     };
@@ -140,7 +174,10 @@ export function useNotifications(): NotificationsState {
     // Domain event: non-conformity created (tenant-scoped broadcast)
     const onNcCreated = (payload: NcCreatedPayload) => {
       const n = fromNcCreated(payload, t);
-      setNotifications((prev) => [n, ...prev]);
+      setNotifications((prev) => {
+        if (prev.some((e) => e.id === n.id)) return prev;
+        return [n, ...prev];
+      });
       setUnreadCount((prev) => prev + 1);
       showToast({ title: n.title, body: n.body, variant: 'warning' });
     };
@@ -148,15 +185,25 @@ export function useNotifications(): NotificationsState {
     // Domain event: control task completed (tenant-scoped broadcast)
     const onTaskCompleted = (payload: TaskCompletedPayload) => {
       const n = fromTaskCompleted(payload, t);
-      setNotifications((prev) => [n, ...prev]);
+      setNotifications((prev) => {
+        // Deduplication: don't add the same eventId twice
+        if (prev.some((existing) => existing.id === n.id)) return prev;
+        return [n, ...prev];
+      });
       setUnreadCount((prev) => prev + 1);
       showToast({ title: n.title, body: n.body, variant: 'success' });
+      // Invalidate task list and stats so managers see updated data without manual refresh
+      void queryClient.invalidateQueries({ queryKey: ['controls.tasks'] });
+      void queryClient.invalidateQueries({ queryKey: ['controls.stats'] });
     };
 
     // Domain event: report validated (tenant-scoped broadcast)
     const onReportValidated = (payload: ReportValidatedPayload) => {
       const n = fromReportValidated(payload, t);
-      setNotifications((prev) => [n, ...prev]);
+      setNotifications((prev) => {
+        if (prev.some((e) => e.id === n.id)) return prev;
+        return [n, ...prev];
+      });
       setUnreadCount((prev) => prev + 1);
       showToast({ title: n.title, body: n.body, variant: 'success' });
     };
@@ -172,11 +219,37 @@ export function useNotifications(): NotificationsState {
       });
     };
 
+    // Domain event: task assigned to user or group (tenant-scoped broadcast)
+    const onTaskAssigned = (payload: TaskAssignedPayload) => {
+      const n = fromTaskAssigned(payload, t);
+      setNotifications((prev) => {
+        if (prev.some((e) => e.id === n.id)) return prev;
+        return [n, ...prev];
+      });
+      setUnreadCount((prev) => prev + 1);
+      showToast({ title: n.title, body: n.body, variant: 'info' });
+      // Invalidate task list in case the current user is the assignee
+      void queryClient.invalidateQueries({ queryKey: ['controls.tasks'] });
+    };
+
+    // Domain event: multiple tasks are overdue (tenant-scoped broadcast)
+    const onTasksOverdue = (payload: TasksOverduePayload) => {
+      showToast({
+        title: `⚠️ ${payload.count} tâche${payload.count > 1 ? 's' : ''} en retard`,
+        body:  "Des tâches planifiées n'ont pas été démarrées à temps.",
+        variant: 'warning',
+      });
+      void queryClient.invalidateQueries({ queryKey: ['controls.tasks'] });
+      void queryClient.invalidateQueries({ queryKey: ['controls.stats'] });
+    };
+
     socket.on('notification:new',              onNew);
     socket.on('notification:nc-created',       onNcCreated);
     socket.on('notification:task-completed',   onTaskCompleted);
     socket.on('notification:report-validated', onReportValidated);
     socket.on('notification:dlc-expiring-today', onDlcExpiring);
+    socket.on('notification:task-assigned',    onTaskAssigned);
+    socket.on('notification:tasks-overdue',    onTasksOverdue);
 
     return () => {
       socket.off('notification:new',              onNew);
@@ -184,9 +257,11 @@ export function useNotifications(): NotificationsState {
       socket.off('notification:task-completed',   onTaskCompleted);
       socket.off('notification:report-validated', onReportValidated);
       socket.off('notification:dlc-expiring-today', onDlcExpiring);
+      socket.off('notification:task-assigned',    onTaskAssigned);
+      socket.off('notification:tasks-overdue',    onTasksOverdue);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, t]);
+  }, [token, t, queryClient]);
 
   // ── Mark all read ─────────────────────────────────────────────────────────
   const markAllRead = useCallback(async () => {

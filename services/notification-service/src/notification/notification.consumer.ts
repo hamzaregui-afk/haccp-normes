@@ -18,6 +18,8 @@
  * Subscribed event patterns (routing keys on the haccp_notification_queue):
  *  - nonconformity.nc.created   → broadcast NC alert to tenant
  *  - control.task.completed     → broadcast task completion to tenant
+ *  - control.task.assigned      → notify assignee + broadcast to tenant managers
+ *  - control.tasks.overdue      → broadcast overdue alert to tenant + individual assignees
  *  - report.report.validated    → broadcast report validation to tenant
  *  - dlc.labels.expiring-today  → broadcast DLC expiry alert to tenant (fired daily at 07:00 UTC)
  */
@@ -65,6 +67,65 @@ export class NotificationConsumer {
       eventId:   data.eventId,
       timestamp: data.timestamp,
     });
+  }
+
+  // ─── control.task.assigned ────────────────────────────────────────────────
+
+  @EventPattern('control.task.assigned')
+  handleTaskAssigned(@Payload() data: DomainEventEnvelope): void {
+    const assigneeId = data.payload['assigneeId'] as string | null;
+    const groupId    = data.payload['groupId']    as string | null;
+    const taskId     = String(data.payload['taskId'] ?? '?');
+
+    this.logger.log(
+      `[task.assigned] tenant=${data.tenantId} taskId=${taskId} assignee=${assigneeId ?? groupId ?? '?'}`,
+    );
+
+    // Emit to the specific user's room (operator gets a personal notification)
+    if (assigneeId) {
+      this.gateway.emitToUser(assigneeId, 'notification:task-assigned', {
+        ...data.payload,
+        eventId:   data.eventId,
+        timestamp: data.timestamp,
+      });
+    }
+
+    // Also broadcast to tenant managers
+    this.gateway.emitToTenant(data.tenantId, 'notification:task-assigned', {
+      ...data.payload,
+      eventId:   data.eventId,
+      timestamp: data.timestamp,
+    });
+  }
+
+  // ─── control.tasks.overdue ────────────────────────────────────────────────
+
+  @EventPattern('control.tasks.overdue')
+  handleTasksOverdue(@Payload() data: DomainEventEnvelope): void {
+    const count       = Number(data.payload['count'] ?? 0);
+    const assigneeIds = (data.payload['assigneeIds'] as string[] | undefined) ?? [];
+
+    this.logger.log(
+      `[tasks.overdue] tenant=${data.tenantId} count=${count}`,
+    );
+
+    // Broadcast to entire tenant (managers see it)
+    this.gateway.emitToTenant(data.tenantId, 'notification:tasks-overdue', {
+      count,
+      taskIds:   data.payload['taskIds'],
+      eventId:   data.eventId,
+      timestamp: data.timestamp,
+    });
+
+    // Also alert each individual assignee
+    for (const assigneeId of assigneeIds) {
+      this.gateway.emitToUser(assigneeId, 'notification:tasks-overdue', {
+        count,
+        taskIds:   data.payload['taskIds'],
+        eventId:   data.eventId,
+        timestamp: data.timestamp,
+      });
+    }
   }
 
   // ─── report.report.validated ──────────────────────────────────────────────

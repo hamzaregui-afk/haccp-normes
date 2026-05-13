@@ -75,6 +75,7 @@ export interface TaskResult {
 
 // Tâche complète retournée par GET /tasks/:id (inclut checklistJson)
 export interface ControlTaskDetail extends Omit<ControlTask, 'template' | 'resultJson'> {
+  checklistSnapshot?: unknown;  // Frozen copy of the checklist stored at task creation time
   template?: {
     id:            string;
     name:          string;
