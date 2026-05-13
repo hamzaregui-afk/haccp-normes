@@ -80,9 +80,8 @@ for svc in $SERVICES_TO_UPDATE; do
   docker compose build "$svc"
 
   echo "   → Restart $svc..."
-  # Suppression propre du conteneur existant avant recréation
-  CONTAINER_NAME="haccp-${svc}"
-  docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
+  # Stop proprement via compose puis relance (évite les conflits de noms)
+  docker compose stop "$svc" 2>/dev/null || true
   docker compose up -d "$svc"
 
   echo "   ✅ $svc redémarré"
