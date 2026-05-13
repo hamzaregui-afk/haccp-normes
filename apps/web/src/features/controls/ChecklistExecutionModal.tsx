@@ -53,13 +53,16 @@ function parseChecklist(raw: unknown): ChecklistItem[] {
   for (const item of raw) {
     if (item === null || typeof item !== 'object') continue;
     const r = item as Record<string, unknown>;
-    // type must be a known, supported value — unknown types would crash the renderer
     if (typeof r['id'] !== 'string' || typeof r['label'] !== 'string') continue;
-    if (!VALID_ITEM_TYPES.has(String(r['type']))) continue;
+    // Legacy items (created before type field existed) default to BOOLEAN so
+    // they render as Oui/Non controls rather than being silently dropped.
+    const itemType: ChecklistItem['type'] = VALID_ITEM_TYPES.has(String(r['type']))
+      ? (r['type'] as ChecklistItem['type'])
+      : 'BOOLEAN';
     result.push({
       id:       r['id'],
       label:    r['label'],
-      type:     r['type'] as ChecklistItem['type'],
+      type:     itemType,
       unit:     typeof r['unit'] === 'string' ? r['unit'] : undefined,
       min:      typeof r['min'] === 'number' ? r['min'] : undefined,
       max:      typeof r['max'] === 'number' ? r['max'] : undefined,
