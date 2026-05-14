@@ -15,6 +15,6 @@
  *   3. Set OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318 in the container env
  *   4. Set OTEL_SDK_DISABLED=false (default when the env var is absent)
  */
-import { initTracing } from '@haccp/shared-utils/tracing';
+import { initTracing } from '@haccp/shared-utils';
 
 initTracing('control-service');

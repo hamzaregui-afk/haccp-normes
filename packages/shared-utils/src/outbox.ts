@@ -35,14 +35,15 @@
 
 /** Mirrors the Prisma OutboxEvent model — no Prisma import required here. */
 export interface OutboxEventRow {
-  id:          string;
-  eventType:   string;
-  tenantId:    string;
-  payload:     Record<string, unknown>;
-  status:      'PENDING' | 'PUBLISHED' | 'FAILED';
-  retries:     number;
-  createdAt:   Date;
-  processedAt: Date | null;
+  id:            string;
+  eventType:     string;
+  tenantId:      string;
+  payload:       Record<string, unknown>;
+  status:        'PENDING' | 'PUBLISHED' | 'FAILED';
+  retries:       number;
+  createdAt:     Date;
+  processedAt:   Date | null;
+  correlationId: string | null;
 }
 
 export interface OutboxEventCreate {
