@@ -1,4 +1,4 @@
-# â”€â”€â”€ Stage 1: builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Stage 1: builder ────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
 WORKDIR /app
 
@@ -27,29 +27,7 @@ RUN pnpm --filter @haccp/control-service exec prisma generate \
  && mkdir -p /app/node_modules/.prisma
 RUN pnpm --filter @haccp/control-service build
 
-# â”€â”€â”€ Stage 2: runner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-FROM node:20-alpine AS runner
-WORKDIR /app
-
-ENV NODE_ENV=production SERVICE_NAME=control-service
-
-RUN apk add --no-cache openssl
-
-
-COPY --from=builder /app/services/control-service/dist         ./dist
-COPY --from=builder /app/services/control-service/prisma       ./prisma
-COPY --from=builder /app/node_modules/.prisma                  ./node_modules/.prisma
-COPY --from=builder /app/node_modules/.pnpm                    ./node_modules/.pnpm
-COPY --from=builder /app/packages                              ./packages
-COPY --from=builder /app/services/control-service/node_modules ./node_modules
-
-EXPOSE 3012
-
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD wget -qO- http://localhost:3012/health || exit 1
-
-CMD ["sh", "-c", "/app/node_modules/.pnpm/node_modules/.bin/prisma migrate deploy && exec node dist/services/control-service/src/main"]
-# ─── Stage 2: runner ────────────────────────────────────────────────────────────
+# ─── Stage 2: runner ─────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 WORKDIR /app
 
@@ -66,8 +44,8 @@ COPY --from=builder /app/node_modules/.prisma                    ./node_modules/
 COPY --from=builder /app/node_modules/.pnpm                      ./node_modules/.pnpm
 COPY --from=builder /app/packages                                ./packages
 COPY --from=builder /app/services/control-service/node_modules  ./services/control-service/node_modules
-COPY --from=builder /app/services/control-service/dist           ./services/control-service/dist
-COPY --from=builder /app/services/control-service/prisma         ./services/control-service/prisma
+COPY --from=builder /app/services/control-service/dist          ./services/control-service/dist
+COPY --from=builder /app/services/control-service/prisma        ./services/control-service/prisma
 
 EXPOSE 3012
 
