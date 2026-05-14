@@ -71,6 +71,13 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      # ARCH-DECISION: Queue/DLQ declaration is handled programmatically by
+      # notification-service on startup (QueueInitService.onModuleInit).
+      # We deliberately avoid loading definitions.json via
+      # RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS because that would change the
+      # container's config hash and cause Docker to recreate the rabbitmq
+      # container on `docker compose up -d`, destroying in-flight messages.
+      # See services/notification-service/src/queue/queue-init.service.ts.
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     ports:
@@ -151,6 +158,9 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       AUDIT_SERVICE_URL: http://audit-service:3019/api/v1
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-haccp-internal-dev-secret-change-in-prod}
+      OTEL_SERVICE_NAME: auth-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
     depends_on:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
@@ -177,6 +187,9 @@ services:
       AUTH_SERVICE_URL: http://auth-service:3010
       AUDIT_SERVICE_URL: http://audit-service:3019/api/v1
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-haccp-internal-dev-secret-change-in-prod}
+      OTEL_SERVICE_NAME: user-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
     depends_on:
       postgres:     { condition: service_healthy }
       rabbitmq:     { condition: service_healthy }
@@ -202,6 +215,9 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       AUDIT_SERVICE_URL: http://audit-service:3019/api/v1
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-haccp-internal-dev-secret-change-in-prod}
+      OTEL_SERVICE_NAME: tenant-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
     depends_on:
       postgres: { condition: service_healthy }
     networks:
@@ -233,6 +249,9 @@ services:
       MINIO_PUBLIC_URL: "http://178.105.126.165:9000"
       AUDIT_SERVICE_URL: http://audit-service:3019/api/v1
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-haccp-internal-dev-secret-change-in-prod}
+      OTEL_SERVICE_NAME: control-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
     depends_on:
       postgres:  { condition: service_healthy }
       rabbitmq:  { condition: service_healthy }
@@ -266,6 +285,9 @@ services:
       MINIO_PUBLIC_URL: "http://178.105.126.165:9000"
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-haccp-internal-dev-secret-change-in-prod}
       AUDIT_SERVICE_URL: http://audit-service:3019/api/v1
+      OTEL_SERVICE_NAME: nonconformity-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
     depends_on:
       postgres:  { condition: service_healthy }
       rabbitmq:  { condition: service_healthy }
@@ -298,6 +320,9 @@ services:
       MINIO_PUBLIC_URL: "http://178.105.126.165:9000"
       AUDIT_SERVICE_URL: http://audit-service:3019/api/v1
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-haccp-internal-dev-secret-change-in-prod}
+      OTEL_SERVICE_NAME: asset-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
     depends_on:
       postgres: { condition: service_healthy }
       minio:    { condition: service_healthy }
@@ -329,6 +354,9 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-NORMES HACCP <noreply@haccp.local>}
       APP_URL: ${APP_URL:-http://localhost:3000}
+      OTEL_SERVICE_NAME: notification-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
     depends_on:
       postgres:  { condition: service_healthy }
       rabbitmq:  { condition: service_healthy }
@@ -360,6 +388,9 @@ services:
       MINIO_BUCKET_REPORTS: haccp-reports
       AUDIT_SERVICE_URL: http://audit-service:3019/api/v1
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-haccp-internal-dev-secret-change-in-prod}
+      OTEL_SERVICE_NAME: report-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
     depends_on:
       postgres:  { condition: service_healthy }
       rabbitmq:  { condition: service_healthy }
@@ -385,6 +416,9 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       AUDIT_SERVICE_URL: http://audit-service:3019/api/v1
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-haccp-internal-dev-secret-change-in-prod}
+      OTEL_SERVICE_NAME: dlc-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
     depends_on:
       postgres: { condition: service_healthy }
     networks:
@@ -410,6 +444,9 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-haccp-internal-dev-secret-change-in-prod}
+      OTEL_SERVICE_NAME: audit-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
     depends_on:
       postgres:  { condition: service_healthy }
       rabbitmq:  { condition: service_healthy }
@@ -437,6 +474,38 @@ services:
       - haccp-network
 
   # ── MONITORING ────────────────────────────────────────────────────────────────
+
+  # ── DISTRIBUTED TRACING ──────────────────────────────────────────────────────
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.56
+    container_name: haccp-jaeger
+    restart: unless-stopped
+    environment:
+      # ARCH-DECISION: In-memory storage is fine for dev/staging (traces are
+      # ephemeral). For production use SPAN_STORAGE_TYPE=elasticsearch with a
+      # proper Elasticsearch cluster to persist traces beyond the 50 000-span
+      # in-memory limit.
+      COLLECTOR_ZIPKIN_HOST_PORT: ":9411"
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "5775:5775/udp"   # Zipkin compact thrift
+      - "6831:6831/udp"   # Jaeger compact thrift (UDP)
+      - "6832:6832/udp"   # Jaeger binary thrift
+      - "5778:5778"       # Config/sampling
+      - "16686:16686"     # Jaeger UI
+      - "14268:14268"     # HTTP collector (thrift)
+      - "14250:14250"     # gRPC collector
+      - "9411:9411"       # Zipkin compatible collector
+      - "4317:4317"       # OTLP gRPC
+      - "4318:4318"       # OTLP HTTP
+    networks:
+      - haccp-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:16686/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   prometheus:
     image: prom/prometheus:latest

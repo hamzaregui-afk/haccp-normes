@@ -7,23 +7,26 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          dark:    '#1A3D2B',  // Sidebar background, H1 headings
-          medium:  '#2D6A4F',  // Buttons primary, H2 headings, active borders
-          light:   '#D8F3DC',  // Info boxes, success badges
-          lighter: '#F0FAF3',  // Sidebar hover states
+          dark:    '#0A0F3F',  // Navy — sidebar bg, page headings
+          medium:  '#5AA4C8',  // Primary blue — CTAs, active states, borders
+          light:   '#D0E0F0',  // Light blue — info boxes, badge bg, hover states
+          lighter: '#EAF4FB',  // Very light blue — card hover, subtle fills
         },
         gold: {
-          DEFAULT: '#B5833A',  // Section labels, H3, accents, warnings
-          light:   '#FFF3DC',  // Gold info boxes
+          DEFAULT: '#B5833A',  // Amber gold — warnings, highlights, premium accents
+          light:   '#F0DC90',  // Pastel yellow — gold info boxes, warning bg
         },
         surface: {
-          page:  '#F5F5F0',  // Page background
+          page:  '#F0F0F0',  // Soft white — page background
           card:  '#FFFFFF',  // Card / panel background
-          muted: '#E0E0D8',  // Dividers, muted borders
+          muted: '#D8DCE8',  // Blue-tinted — dividers, subtle borders
+        },
+        accent: {
+          purple: '#C8C8F0',  // Soft purple — optional accent fills
         },
         role: {
           superadmin: '#7C3AED', // Purple badge — platform admin
-          admin:      '#2D6A4F', // Green badge — tenant admin
+          admin:      '#5AA4C8', // Blue badge — tenant admin (matches primary-blue)
           manager:    '#D97706', // Orange badge
           operator:   '#6B7280', // Gray badge
           quality:    '#7C3AED', // Purple badge

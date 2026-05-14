@@ -3,85 +3,115 @@
  *
  * RabbitMQ domain event consumer for the notification-service.
  *
- * ARCH-DECISION: The notification-service runs as a hybrid NestJS app — it
- * serves HTTP+WebSocket traffic AND consumes RabbitMQ messages simultaneously.
- * The hybrid setup is configured in main.ts via app.connectMicroservice().
+ * ARCH-DECISION: Hybrid NestJS app — HTTP+WebSocket + AMQP consumer.
+ * See main.ts for the hybrid setup via app.connectMicroservice().
  *
- * ARCH-DECISION: Event handling broadcasts to tenant-scoped WebSocket rooms
- * (`tenant:<tenantId>`) rather than individual user rooms. This decouples the
- * notification-service from the user-service (no inter-service call needed to
- * resolve which users to notify). Online users in the tenant receive the event
- * in real-time; offline users miss it (acceptable for MVP — a persistent inbox
- * would require knowing the notification recipients, which requires user-service
- * integration planned for Phase 7).
+ * ARCH-DECISION: Events are broadcast to tenant-scoped WebSocket rooms
+ * (`tenant:<tenantId>`) instead of individual user rooms, decoupling this
+ * service from user-service lookups. Assignee-specific events also fan out
+ * to the individual user room.
  *
- * Subscribed event patterns (routing keys on the haccp_notification_queue):
- *  - nonconformity.nc.created   → broadcast NC alert to tenant
- *  - control.task.completed     → broadcast task completion to tenant
- *  - control.task.assigned      → notify assignee + broadcast to tenant managers
- *  - control.tasks.overdue      → broadcast overdue alert to tenant + individual assignees
- *  - report.report.validated    → broadcast report validation to tenant
- *  - dlc.labels.expiring-today  → broadcast DLC expiry alert to tenant (fired daily at 07:00 UTC)
+ * ARCH-DECISION: Each handler is deduplicated via IdempotencyGuard because
+ * RabbitMQ guarantees at-least-once, not exactly-once delivery. The guard
+ * uses a 10 000-entry in-memory LRU — for multi-replica deployments, swap
+ * for a Redis NX check on eventId with a 24 h TTL.
+ *
+ * Both legacy bare patterns (e.g. `control.task.completed`) and versioned
+ * patterns (`control.task.completed.v1`) are subscribed so old and new
+ * publishers coexist without a coordinated deploy.
  */
 
 import { Controller, Logger } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
+import { IdempotencyGuard } from '@haccp/shared-utils';
 import { NotificationGateway } from './notification.gateway';
 
 interface DomainEventEnvelope {
-  tenantId:  string;
-  payload:   Record<string, unknown>;
-  eventId:   string;
-  timestamp: string;
+  tenantId:      string;
+  payload:       Record<string, unknown>;
+  eventId:       string;
+  correlationId?: string;
+  timestamp:     string;
+}
+
+/** Extra fields for assignee-targeted events */
+interface AssignedEnvelope extends DomainEventEnvelope {
+  payload: DomainEventEnvelope['payload'] & {
+    assigneeId?: string | null;
+    groupId?:    string | null;
+    taskId?:     unknown;
+  };
 }
 
 @Controller()
 export class NotificationConsumer {
   private readonly logger = new Logger(NotificationConsumer.name);
+  private readonly dedup  = new IdempotencyGuard(10_000);
 
   constructor(private readonly gateway: NotificationGateway) {}
 
-  // ─── nonconformity.nc.created ─────────────────────────────────────────────
+  // ─── Generic dispatch ─────────────────────────────────────────────────────
+  // Deduplicates, logs, and broadcasts to the tenant room in one call.
+  // `logTag` is the short label used in structured log output.
 
-  @EventPattern('nonconformity.nc.created')
-  handleNcCreated(@Payload() data: DomainEventEnvelope): void {
+  private dispatch(
+    data:       DomainEventEnvelope,
+    logTag:     string,
+    socketEvent: string,
+    logExtra?:  string,
+  ): void {
+    if (this.dedup.isDuplicate(data.eventId)) return;
+
     this.logger.log(
-      `[nc.created] tenant=${data.tenantId} ncId=${String(data.payload['ncId'] ?? '?')} severity=${String(data.payload['severity'] ?? '?')}`,
+      `[${logTag}] cid=${data.correlationId ?? '-'} tenant=${data.tenantId}${logExtra ? ` ${logExtra}` : ''}`,
     );
-    this.gateway.emitToTenant(data.tenantId, 'notification:nc-created', {
+
+    this.gateway.emitToTenant(data.tenantId, socketEvent, {
       ...data.payload,
       eventId:   data.eventId,
       timestamp: data.timestamp,
     });
+  }
+
+  // ─── nonconformity.nc.created ─────────────────────────────────────────────
+
+  @EventPattern('nonconformity.nc.created')
+  @EventPattern('nonconformity.nc.created.v1')
+  handleNcCreated(@Payload() data: DomainEventEnvelope): void {
+    this.dispatch(
+      data,
+      'nc.created',
+      'notification:nc-created',
+      `ncId=${String(data.payload['ncId'] ?? '?')} severity=${String(data.payload['severity'] ?? '?')}`,
+    );
   }
 
   // ─── control.task.completed ───────────────────────────────────────────────
 
   @EventPattern('control.task.completed')
+  @EventPattern('control.task.completed.v1')
   handleTaskCompleted(@Payload() data: DomainEventEnvelope): void {
-    this.logger.log(
-      `[task.completed] tenant=${data.tenantId} taskId=${String(data.payload['taskId'] ?? '?')}`,
+    this.dispatch(
+      data,
+      'task.completed',
+      'notification:task-completed',
+      `taskId=${String(data.payload['taskId'] ?? '?')}`,
     );
-    this.gateway.emitToTenant(data.tenantId, 'notification:task-completed', {
-      ...data.payload,
-      eventId:   data.eventId,
-      timestamp: data.timestamp,
-    });
   }
 
   // ─── control.task.assigned ────────────────────────────────────────────────
 
   @EventPattern('control.task.assigned')
-  handleTaskAssigned(@Payload() data: DomainEventEnvelope): void {
-    const assigneeId = data.payload['assigneeId'] as string | null;
-    const groupId    = data.payload['groupId']    as string | null;
-    const taskId     = String(data.payload['taskId'] ?? '?');
+  @EventPattern('control.task.assigned.v1')
+  handleTaskAssigned(@Payload() data: AssignedEnvelope): void {
+    if (this.dedup.isDuplicate(data.eventId)) return;
 
+    const { assigneeId, groupId, taskId } = data.payload;
     this.logger.log(
-      `[task.assigned] tenant=${data.tenantId} taskId=${taskId} assignee=${assigneeId ?? groupId ?? '?'}`,
+      `[task.assigned] cid=${data.correlationId ?? '-'} tenant=${data.tenantId} taskId=${String(taskId ?? '?')} assignee=${String(assigneeId ?? groupId ?? '?')}`,
     );
 
-    // Emit to the specific user's room (operator gets a personal notification)
+    // Personal notification to the operator (if individually assigned)
     if (assigneeId) {
       this.gateway.emitToUser(assigneeId, 'notification:task-assigned', {
         ...data.payload,
@@ -90,7 +120,7 @@ export class NotificationConsumer {
       });
     }
 
-    // Also broadcast to tenant managers
+    // Broadcast to tenant managers
     this.gateway.emitToTenant(data.tenantId, 'notification:task-assigned', {
       ...data.payload,
       eventId:   data.eventId,
@@ -101,58 +131,47 @@ export class NotificationConsumer {
   // ─── control.tasks.overdue ────────────────────────────────────────────────
 
   @EventPattern('control.tasks.overdue')
+  @EventPattern('control.tasks.overdue.v1')
   handleTasksOverdue(@Payload() data: DomainEventEnvelope): void {
+    if (this.dedup.isDuplicate(data.eventId)) return;
+
     const count       = Number(data.payload['count'] ?? 0);
     const assigneeIds = (data.payload['assigneeIds'] as string[] | undefined) ?? [];
 
-    this.logger.log(
-      `[tasks.overdue] tenant=${data.tenantId} count=${count}`,
-    );
+    this.logger.log(`[tasks.overdue] tenant=${data.tenantId} count=${count}`);
 
-    // Broadcast to entire tenant (managers see it)
-    this.gateway.emitToTenant(data.tenantId, 'notification:tasks-overdue', {
-      count,
-      taskIds:   data.payload['taskIds'],
-      eventId:   data.eventId,
-      timestamp: data.timestamp,
-    });
+    const body = { count, taskIds: data.payload['taskIds'], eventId: data.eventId, timestamp: data.timestamp };
 
-    // Also alert each individual assignee
+    this.gateway.emitToTenant(data.tenantId, 'notification:tasks-overdue', body);
+
     for (const assigneeId of assigneeIds) {
-      this.gateway.emitToUser(assigneeId, 'notification:tasks-overdue', {
-        count,
-        taskIds:   data.payload['taskIds'],
-        eventId:   data.eventId,
-        timestamp: data.timestamp,
-      });
+      this.gateway.emitToUser(assigneeId, 'notification:tasks-overdue', body);
     }
   }
 
   // ─── report.report.validated ──────────────────────────────────────────────
 
   @EventPattern('report.report.validated')
+  @EventPattern('report.report.validated.v1')
   handleReportValidated(@Payload() data: DomainEventEnvelope): void {
-    this.logger.log(
-      `[report.validated] tenant=${data.tenantId} reportId=${String(data.payload['reportId'] ?? '?')}`,
+    this.dispatch(
+      data,
+      'report.validated',
+      'notification:report-validated',
+      `reportId=${String(data.payload['reportId'] ?? '?')}`,
     );
-    this.gateway.emitToTenant(data.tenantId, 'notification:report-validated', {
-      ...data.payload,
-      eventId:   data.eventId,
-      timestamp: data.timestamp,
-    });
   }
 
   // ─── dlc.labels.expiring-today ────────────────────────────────────────────
 
   @EventPattern('dlc.labels.expiring-today')
+  @EventPattern('dlc.labels.expiring-today.v1')
   handleDlcExpiringToday(@Payload() data: DomainEventEnvelope): void {
+    if (this.dedup.isDuplicate(data.eventId)) return;
+
     const count = Number(data.payload['count'] ?? 0);
-    this.logger.log(
-      `[dlc.expiring-today] tenant=${data.tenantId} count=${count}`,
-    );
-    // Broadcast to all connected users in this tenant's WebSocket room.
-    // The web DashboardPage and mobile DLCScreen already listen on this event
-    // via their polling queries, but the real-time push triggers immediate refresh.
+    this.logger.log(`[dlc.expiring-today] tenant=${data.tenantId} count=${count}`);
+
     this.gateway.emitToTenant(data.tenantId, 'notification:dlc-expiring-today', {
       count,
       labels:    data.payload['labels'],

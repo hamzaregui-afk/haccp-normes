@@ -3,7 +3,10 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+
 import { AllExceptionsFilter } from '@haccp/shared-errors';
+import { correlationIdMiddleware, idempotencyMiddleware, setupGracefulShutdown } from '@haccp/shared-utils';
+
 import { validateEnv } from './config/env';
 import { AppModule } from './app.module';
 
@@ -12,8 +15,8 @@ async function bootstrap() {
   const env = validateEnv();
 
   // ARCH-DECISION: Hybrid app — serves HTTP + WebSocket AND consumes RabbitMQ
-  // messages simultaneously.  connectMicroservice() registers the AMQP transport
-  // before the HTTP server starts.  startAllMicroservices() must be awaited so
+  // messages simultaneously. connectMicroservice() registers the AMQP transport
+  // before the HTTP server starts. startAllMicroservices() must be awaited so
   // the queue is consuming before any HTTP traffic arrives (avoids message loss
   // during a rolling restart where a producing service might publish before we
   // are ready to consume).
@@ -25,7 +28,16 @@ async function bootstrap() {
     options: {
       urls:         [env.RABBITMQ_URL],
       queue:        'haccp_notification_queue',
-      queueOptions: { durable: true },
+      // ARCH-DECISION: Dead Letter Queue — unprocessable messages are routed to
+      // haccp_notification_dlq after 3 retries so they don't block the main queue.
+      queueOptions: {
+        durable: true,
+        arguments: {
+          'x-dead-letter-exchange':    '',
+          'x-dead-letter-routing-key': 'haccp_notification_dlq',
+          'x-message-ttl':             60_000, // 1 min max TTL before DLQ routing
+        },
+      },
       // noAck: false ensures we acknowledge only after the handler succeeds,
       // preventing message loss if the process crashes mid-handler.
       noAck: false,
@@ -33,6 +45,8 @@ async function bootstrap() {
   });
 
   // ── HTTP / WS setup ─────────────────────────────────────────────────────────
+  app.use(correlationIdMiddleware);
+  app.use(idempotencyMiddleware);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(new AllExceptionsFilter());
   // Exclude socket.io path from the global prefix
@@ -61,6 +75,8 @@ async function bootstrap() {
 
   logger.log(`🚀 notification-service running on port ${env.PORT}`);
   logger.log(`📨 RabbitMQ consumer active on queue haccp_notification_queue`);
+
+  setupGracefulShutdown(app, logger, 'notification-service');
 }
 
 void bootstrap();

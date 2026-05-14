@@ -351,7 +351,7 @@ export default function SettingsPage() {
 
       {/* Toast notification */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 rounded-xl border border-green-200 bg-green-50 px-5 py-3 text-sm font-medium text-green-800 shadow-lg">
+        <div className="fixed bottom-6 right-6 z-50 rounded-xl border border-brand-medium/30 bg-brand-light px-5 py-3 text-sm font-medium text-brand-dark shadow-lg">
           {toast}
         </div>
       )}

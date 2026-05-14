@@ -4,6 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { AllExceptionsFilter } from '@haccp/shared-errors';
+import { correlationIdMiddleware, idempotencyMiddleware, setupGracefulShutdown } from '@haccp/shared-utils';
 
 import { validateEnv } from './config/env';
 import { AppModule } from './app.module';
@@ -13,6 +14,9 @@ async function bootstrap() {
   const env = validateEnv();
 
   const app = await NestFactory.create(AppModule);
+
+  app.use(correlationIdMiddleware);
+  app.use(idempotencyMiddleware);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(new AllExceptionsFilter());
   app.setGlobalPrefix('api/v1');
@@ -36,6 +40,8 @@ async function bootstrap() {
 
   await app.listen(env.PORT);
   logger.log(`🚀 asset-service running on port ${env.PORT}`);
+
+  setupGracefulShutdown(app, logger, 'asset-service');
 }
 
 void bootstrap();

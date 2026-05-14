@@ -4,6 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { AllExceptionsFilter } from '@haccp/shared-errors';
+import { correlationIdMiddleware, idempotencyMiddleware, setupGracefulShutdown } from '@haccp/shared-utils';
 
 import { validateEnv } from './config/env';
 import { AppModule } from './app.module';
@@ -16,7 +17,9 @@ async function bootstrap() {
     logger: ['error', 'warn', 'log', ...(env.NODE_ENV !== 'production' ? ['debug' as const] : [])],
   });
 
-  // Global validation — strip unknown fields, transform primitives
+  app.use(correlationIdMiddleware);
+  app.use(idempotencyMiddleware);
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -57,6 +60,8 @@ async function bootstrap() {
 
   await app.listen(env.PORT);
   logger.log(`🚀 auth-service running on port ${env.PORT}`);
+
+  setupGracefulShutdown(app, logger, 'auth-service');
 }
 
 void bootstrap();

@@ -7,13 +7,15 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Request } from 'express';
 import type { JwtPayload } from '@haccp/shared-types';
-import { emitAuditEvent, extractResourceId, publishDomainEvent } from '@haccp/shared-utils';
+import { emitAuditEvent, extractResourceId, CORRELATION_ID_HEADER } from '@haccp/shared-utils';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -27,6 +29,11 @@ import {
   TaskQuerySchema,
 } from './dto/control.dto';
 import { ControlService } from './control.service';
+
+// ARCH-DECISION: Domain events (task.assigned.v1, task.completed.v1) are no longer
+// published here. The service layer writes them to `outbox_events` atomically with
+// the business entity, and the OutboxWorker relays them to RabbitMQ. This eliminates
+// the dual-write race condition that existed with fire-and-forget publishDomainEvent.
 
 @Controller('controls')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -52,7 +59,10 @@ export class ControlController {
 
   @Post('templates')
   @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
-  async createTemplate(@Body() body: unknown, @CurrentUser() user: JwtPayload) {
+  async createTemplate(
+    @Body() body: unknown,
+    @CurrentUser() user: JwtPayload,
+  ) {
     const dto    = CreateTemplateDtoSchema.parse(body);
     const result = await this.controlService.createTemplate(dto, user.tenantId);
 
@@ -124,9 +134,14 @@ export class ControlController {
 
   @Post('tasks')
   @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
-  async createTask(@Body() body: unknown, @CurrentUser() user: JwtPayload) {
-    const dto    = CreateTaskDtoSchema.parse(body);
-    const result = await this.controlService.createTask(dto, user.tenantId);
+  async createTask(
+    @Body() body: unknown,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    const dto           = CreateTaskDtoSchema.parse(body);
+    const correlationId = req.headers[CORRELATION_ID_HEADER] as string | undefined;
+    const result        = await this.controlService.createTask(dto, user.tenantId, correlationId);
 
     void emitAuditEvent({
       userId:     user.sub,
@@ -142,9 +157,6 @@ export class ControlController {
       },
     });
 
-    // NOTE: control.task.assigned domain event is published by the service layer
-    // to avoid double-publishing when the service is called directly.
-
     return result;
   }
 
@@ -154,13 +166,15 @@ export class ControlController {
     @Param('id') id: string,
     @Body() body: unknown,
     @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
   ) {
-    const dto    = UpdateTaskDtoSchema.parse(body);
-    const result = await this.controlService.updateTask(id, dto, user.tenantId);
+    const dto           = UpdateTaskDtoSchema.parse(body);
+    const correlationId = req.headers[CORRELATION_ID_HEADER] as string | undefined;
+    const result        = await this.controlService.updateTask(id, dto, user.tenantId, correlationId);
 
     // ARCH-DECISION: task completion is the most audit-critical event in the
-    // HACCP workflow. We emit UPDATE for all task patches but tag status and
-    // assignment info in the payload so audit reports can filter specifically.
+    // HACCP workflow. Status and assignment are tagged in the payload so audit
+    // reports can filter specifically for completion events.
     void emitAuditEvent({
       userId:     user.sub,
       action:     'UPDATE',
@@ -173,33 +187,6 @@ export class ControlController {
         groupId:    dto.groupId,
       },
     });
-
-    // Publish domain event only when the task is explicitly completed —
-    // notification-service broadcasts to the tenant so managers see it in real-time.
-    if (dto.status === 'COMPLETED') {
-      void publishDomainEvent({
-        eventType: 'control.task.completed',
-        tenantId:  user.tenantId,
-        payload: {
-          taskId:      id,
-          completedBy: user.sub,
-          status:      'COMPLETED',
-        },
-      });
-    }
-
-    // Notify new assignee if task is being reassigned
-    if (dto.assigneeId ?? dto.groupId) {
-      void publishDomainEvent({
-        eventType: 'control.task.assigned',
-        tenantId:  user.tenantId,
-        payload: {
-          taskId:     id,
-          assigneeId: dto.assigneeId ?? null,
-          groupId:    dto.groupId    ?? null,
-        },
-      });
-    }
 
     return result;
   }

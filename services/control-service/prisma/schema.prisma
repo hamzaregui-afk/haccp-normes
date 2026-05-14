@@ -1,4 +1,4 @@
-// control-service owns: ControlTemplate, ControlTask
+// control-service owns: ControlTemplate, ControlTask, OutboxEvent
 // zoneId/assigneeId are plain Strings — resolved via internal HTTP calls when needed
 
 generator client {
@@ -11,6 +11,33 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── Outbox Pattern ──────────────────────────────────────────────────────────
+// ARCH-DECISION: OutboxEvent is written in the same DB transaction as the
+// business entity so a crash between the DB write and the RabbitMQ publish
+// can never lose an event. The OutboxWorker polls PENDING rows and publishes
+// them; at-least-once delivery — consumers must be idempotent on eventId.
+enum OutboxEventStatus {
+  PENDING
+  PUBLISHED
+  FAILED
+}
+
+model OutboxEvent {
+  id            String            @id @default(uuid())
+  eventType     String            @map("event_type")
+  tenantId      String            @map("tenant_id")
+  payload       Json
+  status        OutboxEventStatus @default(PENDING)
+  retries       Int               @default(0)
+  correlationId String?           @map("correlation_id")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  processedAt   DateTime?         @map("processed_at")
+
+  @@index([status, createdAt])
+  @@map("outbox_events")
+}
+
+// ─── Domain enums ─────────────────────────────────────────────────────────────
 enum ControlType {
   RECEPTION
   TEMPERATURE_STOCK

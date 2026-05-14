@@ -56,14 +56,14 @@ export default function LoginPage() {
           <h2 className="text-4xl font-bold leading-tight text-white">
             Gestion de la sécurité<br />alimentaire simplifiée.
           </h2>
-          <p className="mt-4 text-lg text-green-200">
+          <p className="mt-4 text-lg text-blue-200">
             Suivez vos contrôles, gérez vos non-conformités et générez vos rapports HACCP en toute conformité.
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {['Contrôles CCP', 'Non-conformités', 'Rapports', 'DLC'].map((tag) => (
-            <span key={tag} className="rounded-full border border-brand-medium px-3 py-1 text-xs text-green-300">
+            <span key={tag} className="rounded-full border border-brand-medium/60 bg-brand-medium/20 px-3 py-1 text-xs text-blue-100">
               {tag}
             </span>
           ))}

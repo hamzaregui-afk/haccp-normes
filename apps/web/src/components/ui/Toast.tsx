@@ -28,17 +28,17 @@ export function showToast(toast: Omit<Toast, 'id'>) {
 // ─── Style map ────────────────────────────────────────────────────────────────
 
 const VARIANT_STYLES: Record<ToastVariant, string> = {
-  success: 'border-l-4 border-green-500  bg-white',
-  warning: 'border-l-4 border-yellow-500 bg-white',
-  error:   'border-l-4 border-red-500    bg-white',
-  info:    'border-l-4 border-blue-500   bg-white',
+  success: 'border-l-4 border-emerald-500 bg-white',
+  warning: 'border-l-4 border-amber-400   bg-white',
+  error:   'border-l-4 border-red-500     bg-white',
+  info:    'border-l-4 border-brand-medium bg-white',
 };
 
 const VARIANT_ICONS: Record<ToastVariant, React.ReactNode> = {
-  success: <CheckCircle2 className="h-5 w-5 text-green-500" />,
-  warning: <AlertTriangle className="h-5 w-5 text-yellow-500" />,
+  success: <CheckCircle2 className="h-5 w-5 text-emerald-500" />,
+  warning: <AlertTriangle className="h-5 w-5 text-amber-400" />,
   error:   <AlertTriangle className="h-5 w-5 text-red-500" />,
-  info:    <Info           className="h-5 w-5 text-blue-500" />,
+  info:    <Info           className="h-5 w-5 text-brand-medium" />,
 };
 
 // ─── Individual toast item ────────────────────────────────────────────────────

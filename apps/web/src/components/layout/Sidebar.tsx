@@ -98,7 +98,7 @@ function SidebarContent({ onClose }: SidebarContentProps) {
         {onClose && (
           <button
             onClick={onClose}
-            className="ml-auto rounded p-1 text-green-300 hover:text-white lg:hidden"
+            className="ml-auto rounded p-1 text-blue-200 hover:text-white lg:hidden"
             aria-label="Fermer le menu"
           >
             <X className="h-5 w-5" />
@@ -116,7 +116,7 @@ function SidebarContent({ onClose }: SidebarContentProps) {
 
           return (
             <div key={section.titleKey}>
-              <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-green-400/70">
+              <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-blue-200/60">
                 {t(section.titleKey)}
               </p>
               <ul className="space-y-0.5">
@@ -130,7 +130,7 @@ function SidebarContent({ onClose }: SidebarContentProps) {
                           'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                           isActive
                             ? 'bg-brand-medium text-white'
-                            : 'text-green-100 hover:bg-brand-medium/60 hover:text-white',
+                            : 'text-blue-100 hover:bg-brand-medium/60 hover:text-white',
                         )
                       }
                     >
@@ -160,13 +160,13 @@ function SidebarContent({ onClose }: SidebarContentProps) {
             {user.name && (
               <p className="truncate text-sm font-semibold text-white">{user.name}</p>
             )}
-            <p className="truncate text-xs text-green-300">{user.email}</p>
+            <p className="truncate text-xs text-blue-200">{user.email}</p>
             <RoleBadge role={user.role} size="sm" />
           </div>
           <button
             onClick={handleLogout}
             title="Déconnexion"
-            className="rounded-lg p-1.5 text-green-300 hover:bg-brand-medium hover:text-white transition-colors"
+            className="rounded-lg p-1.5 text-blue-200 hover:bg-brand-medium hover:text-white transition-colors"
           >
             <LogOut className="h-4 w-4" />
           </button>

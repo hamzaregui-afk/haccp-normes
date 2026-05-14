@@ -6,10 +6,10 @@ import type { UserRole, UserStatus } from '@haccp/shared-types';
 const ROLE_STYLES: Record<UserRole, string> = {
   SUPER_ADMIN:     'bg-purple-100 text-purple-800 border border-purple-300',
   ADMIN:           'bg-brand-light text-brand-dark border border-brand-medium',
-  MANAGER:         'bg-orange-100 text-orange-800 border border-orange-300',
-  QUALITY_OFFICER: 'bg-purple-100 text-purple-800 border border-purple-300',
-  OPERATOR:        'bg-gray-100 text-gray-700 border border-gray-300',
-  VIEWER:          'bg-gray-100 text-gray-500 border border-gray-200',
+  MANAGER:         'bg-amber-50 text-amber-800 border border-amber-300',
+  QUALITY_OFFICER: 'bg-accent-purple/30 text-purple-800 border border-purple-300',
+  OPERATOR:        'bg-gray-100 text-gray-600 border border-gray-300',
+  VIEWER:          'bg-gray-50 text-gray-500 border border-gray-200',
 };
 
 const ROLE_LABELS: Record<UserRole, string> = {

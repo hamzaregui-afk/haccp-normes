@@ -14,7 +14,13 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as Minio from 'minio';
 import { randomUUID } from 'crypto';
 import { extname } from 'path';
+import { circuitBreakerRegistry } from '@haccp/shared-utils';
 import { env } from '../config/env';
+
+const minioCb = circuitBreakerRegistry.get('minio-nc', {
+  failureThreshold: 3,
+  timeout: 30_000,
+});
 
 @Injectable()
 export class MinioService implements OnModuleInit {
@@ -69,16 +75,22 @@ export class MinioService implements OnModuleInit {
 
   /**
    * Generate a presigned GET URL valid for 1 hour (3600 seconds).
+   * Falls back to a proxy path if MinIO circuit is open.
    */
   async presignedGetUrl(objectKey: string): Promise<string> {
-    const url = await this.client.presignedGetObject(this.bucket, objectKey, 3600);
-    // ARCH-DECISION: Replace internal Docker hostname (minio:9000) with the
-    // public URL so browsers can access presigned URLs from outside the cluster.
-    if (env.MINIO_PUBLIC_URL) {
-      const protocol = env.MINIO_USE_SSL ? 'https' : 'http';
-      const internal = protocol + '://' + env.MINIO_ENDPOINT + ':' + env.MINIO_PORT;
-      return url.replace(internal, env.MINIO_PUBLIC_URL);
-    }
-    return url;
+    return minioCb.execute(
+      async () => {
+        const url = await this.client.presignedGetObject(this.bucket, objectKey, 3600);
+        // ARCH-DECISION: Replace internal Docker hostname (minio:9000) with the
+        // public URL so browsers can access presigned URLs from outside the cluster.
+        if (env.MINIO_PUBLIC_URL) {
+          const protocol = env.MINIO_USE_SSL ? 'https' : 'http';
+          const internal = `${protocol}://${env.MINIO_ENDPOINT}:${env.MINIO_PORT}`;
+          return url.replace(internal, env.MINIO_PUBLIC_URL);
+        }
+        return url;
+      },
+      () => `/api/v1/assets/placeholder/${encodeURIComponent(objectKey)}`,
+    );
   }
 }

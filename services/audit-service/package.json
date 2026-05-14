@@ -16,6 +16,7 @@
   "dependencies": {
     "@haccp/shared-errors": "workspace:*",
     "@haccp/shared-types": "workspace:*",
+    "@haccp/shared-utils": "workspace:*",
     "@haccp/shared-validators": "workspace:*",
     "@nestjs/common": "^10.3.0",
     "@nestjs/core": "^10.3.0",
