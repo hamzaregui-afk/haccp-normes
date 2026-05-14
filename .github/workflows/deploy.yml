@@ -28,12 +28,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Compute bcrypt hash (for init-superadmin-only)
+        if: ${{ github.event.inputs.action == 'init-superadmin-only' || github.event_name == 'push' }}
+        run: |
+          npm install bcryptjs --no-save --silent
+          HASH=$(node -e "
+            const b = require('bcryptjs');
+            b.hash(process.env.SUPERADMIN_PASSWORD || 'Admin@HACCP2024!', 10).then(h => process.stdout.write(h));
+          ")
+          echo "SUPERADMIN_HASH=$HASH" >> $GITHUB_ENV
+        env:
+          SUPERADMIN_PASSWORD: ${{ secrets.SUPERADMIN_PASSWORD }}
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          SUPERADMIN_HASH: ${{ env.SUPERADMIN_HASH }}
+          SUPERADMIN_EMAIL: ${{ secrets.SUPERADMIN_EMAIL || 'superadmin@haccp.com' }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: root
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: SUPERADMIN_HASH,SUPERADMIN_EMAIL
           script_stop: true
           timeout: 60m
           script: |
@@ -46,15 +62,31 @@ jobs:
             df -h / | tail -1
 
             if [ "$ACTION" = "init-superadmin-only" ]; then
-              echo "=== Creating SUPER_ADMIN only (no full build) ==="
-              cd /opt/haccp
-              git pull origin main
-              docker cp infrastructure/scripts/create-superadmin.js haccp-auth:/tmp/create-superadmin.js
-              docker exec \
-                -e SUPERADMIN_EMAIL="${{ secrets.SUPERADMIN_EMAIL || 'superadmin@haccp.com' }}" \
-                -e SUPERADMIN_PASSWORD="${{ secrets.SUPERADMIN_PASSWORD || 'Admin@HACCP2024!' }}" \
-                haccp-auth node /tmp/create-superadmin.js
-              echo "=== SUPER_ADMIN created ==="
+              echo "=== Inserting SUPER_ADMIN via psql (no module deps) ==="
+              ADMIN_ID="clx_superadmin_platform_01"
+              ADMIN_EMAIL="${SUPERADMIN_EMAIL:-superadmin@haccp.com}"
+              ADMIN_HASH="$SUPERADMIN_HASH"
+
+              docker exec -e PGPASSWORD=postgres haccp-postgres psql \
+                -U postgres -d haccp_auth \
+                -v id="$ADMIN_ID" -v email="$ADMIN_EMAIL" -v hash="$ADMIN_HASH" \
+                -c "INSERT INTO users (id,email,name,password_hash,role,status,tenant_id,updated_at)
+                    VALUES (:'id',:'email','Super Administrateur',:'hash',
+                            'SUPER_ADMIN'::\"UserRole\",'ACTIVE'::\"UserStatus\",'platform',NOW())
+                    ON CONFLICT (email) DO UPDATE
+                      SET password_hash=EXCLUDED.password_hash, updated_at=NOW();"
+              echo "=== haccp_auth: SUPER_ADMIN OK ==="
+
+              docker exec -e PGPASSWORD=postgres haccp-postgres psql \
+                -U postgres -d haccp_users \
+                -v id="$ADMIN_ID" -v email="$ADMIN_EMAIL" \
+                -c "INSERT INTO users (id,email,name,role,status,tenant_id,updated_at)
+                    VALUES (:'id',:'email','Super Administrateur',
+                            'SUPER_ADMIN'::\"UserRole\",'ACTIVE'::\"UserStatus\",'platform',NOW())
+                    ON CONFLICT (id) DO UPDATE
+                      SET name=EXCLUDED.name, role=EXCLUDED.role,
+                          status=EXCLUDED.status, updated_at=NOW();" || true
+              echo "=== haccp_users: SUPER_ADMIN OK ==="
               exit 0
             fi
 
@@ -66,34 +98,34 @@ jobs:
               sleep 20
               docker cp infrastructure/scripts/create-superadmin.js haccp-auth:/tmp/create-superadmin.js
               docker exec \
-                -e SUPERADMIN_EMAIL="${{ secrets.SUPERADMIN_EMAIL || 'superadmin@haccp.com' }}" \
+                -e SUPERADMIN_EMAIL="${SUPERADMIN_EMAIL:-superadmin@haccp.com}" \
                 -e SUPERADMIN_PASSWORD="${{ secrets.SUPERADMIN_PASSWORD || 'Admin@HACCP2024!' }}" \
-                haccp-auth node /tmp/create-superadmin.js || echo "SUPER_ADMIN init skipped (non-fatal)"
+                haccp-auth node /tmp/create-superadmin.js || true
               echo "=== Services restarted ==="
               exit 0
             fi
 
-            echo "=== Pulling latest code ==="
+            echo "=== Full deploy ==="
             cd /opt/haccp
             git pull origin main
 
-            echo "=== Rebuilding changed images ==="
             DOCKER_BUILDKIT=1 docker compose build --parallel
 
-            echo "=== Restarting services ==="
             docker compose up -d --remove-orphans
 
-            echo "=== Verifying health ==="
             sleep 20
             docker compose ps --format "table {{.Name}}\t{{.Status}}" | head -20
 
-            echo "=== Ensuring SUPER_ADMIN exists ==="
-            docker cp infrastructure/scripts/create-superadmin.js haccp-auth:/tmp/create-superadmin.js
-            docker exec \
-              -e SUPERADMIN_EMAIL="${{ secrets.SUPERADMIN_EMAIL || 'superadmin@haccp.com' }}" \
-              -e SUPERADMIN_PASSWORD="${{ secrets.SUPERADMIN_PASSWORD || 'Admin@HACCP2024!' }}" \
-              haccp-auth node /tmp/create-superadmin.js || echo "SUPER_ADMIN init skipped (non-fatal)"
+            ADMIN_ID="clx_superadmin_platform_01"
+            ADMIN_HASH="$SUPERADMIN_HASH"
+            docker exec -e PGPASSWORD=postgres haccp-postgres psql \
+              -U postgres -d haccp_auth \
+              -v id="$ADMIN_ID" -v email="${SUPERADMIN_EMAIL:-superadmin@haccp.com}" -v hash="$ADMIN_HASH" \
+              -c "INSERT INTO users (id,email,name,password_hash,role,status,tenant_id,updated_at)
+                  VALUES (:'id',:'email','Super Administrateur',:'hash',
+                          'SUPER_ADMIN'::\"UserRole\",'ACTIVE'::\"UserStatus\",'platform',NOW())
+                  ON CONFLICT (email) DO UPDATE
+                    SET password_hash=EXCLUDED.password_hash, updated_at=NOW();" || true
 
-            echo "=== Gateway smoke test ==="
             curl -sf http://localhost/health | grep '"status":"ok"'
             echo "=== Deploy successful ==="
