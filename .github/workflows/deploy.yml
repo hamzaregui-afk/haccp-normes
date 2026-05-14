@@ -3,6 +3,17 @@ name: Deploy
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: false
+        default: 'init-superadmin-only'
+        type: choice
+        options:
+          - full-deploy
+          - restart-only
+          - init-superadmin-only
 
 concurrency:
   group: deploy-production
@@ -27,9 +38,38 @@ jobs:
           timeout: 60m
           script: |
             set -e
+            ACTION="${{ github.event.inputs.action || 'full-deploy' }}"
+            echo "=== Action: $ACTION ==="
+
+            cd /opt/haccp
+
+            if [ "$ACTION" = "init-superadmin-only" ]; then
+              echo "=== Creating SUPER_ADMIN only (no build) ==="
+              git pull origin main
+              docker cp infrastructure/scripts/create-superadmin.js haccp-auth:/tmp/create-superadmin.js
+              docker exec \
+                -e SUPERADMIN_EMAIL="${{ secrets.SUPERADMIN_EMAIL || 'superadmin@haccp.com' }}" \
+                -e SUPERADMIN_PASSWORD="${{ secrets.SUPERADMIN_PASSWORD || 'Admin@HACCP2024!' }}" \
+                haccp-auth node /tmp/create-superadmin.js
+              echo "✅ SUPER_ADMIN created"
+              exit 0
+            fi
+
+            if [ "$ACTION" = "restart-only" ]; then
+              echo "=== Restarting services (no build) ==="
+              git pull origin main
+              docker compose up -d --remove-orphans
+              sleep 20
+              docker cp infrastructure/scripts/create-superadmin.js haccp-auth:/tmp/create-superadmin.js
+              docker exec \
+                -e SUPERADMIN_EMAIL="${{ secrets.SUPERADMIN_EMAIL || 'superadmin@haccp.com' }}" \
+                -e SUPERADMIN_PASSWORD="${{ secrets.SUPERADMIN_PASSWORD || 'Admin@HACCP2024!' }}" \
+                haccp-auth node /tmp/create-superadmin.js || echo "⚠️  SUPER_ADMIN init skipped (non-fatal)"
+              echo "✅ Services restarted"
+              exit 0
+            fi
 
             echo "=== Pulling latest code ==="
-            cd /opt/haccp
             git pull origin main
 
             echo "=== Rebuilding changed images ==="
