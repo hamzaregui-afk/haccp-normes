@@ -44,6 +44,8 @@ jobs:
             cd /opt/haccp
 
             if [ "$ACTION" = "init-superadmin-only" ]; then
+              echo "=== Freeing Docker build cache first ==="
+              docker builder prune -f 2>/dev/null || true
               echo "=== Creating SUPER_ADMIN only (no build, no git pull) ==="
               # Write script inline — avoids git pull (disk may be full)
               cat > /tmp/create-superadmin.js << 'SCRIPTEOF'
