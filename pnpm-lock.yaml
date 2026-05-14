@@ -705,6 +705,9 @@ importers:
       '@testcontainers/postgresql':
         specifier: ^10.7.2
         version: 10.28.0
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.25
       '@types/multer':
         specifier: ^1.4.11
         version: 1.4.13
