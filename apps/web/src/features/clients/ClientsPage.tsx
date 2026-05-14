@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 import { Building2, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -11,6 +12,18 @@ import { Pagination } from '@/components/ui/Pagination';
 import { showToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
 import type { ApiResponse, Tenant } from '@haccp/shared-types';
+
+// ─── Error helper ─────────────────────────────────────────────────────────────
+
+function extractApiError(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const msg = (err.response?.data as { message?: string } | undefined)?.message;
+    if (msg) return msg;
+    if (err.response?.status === 409) return 'Ce slug est déjà utilisé par un autre client.';
+    if (err.response?.status === 403) return 'Accès refusé — rôle SUPER_ADMIN requis.';
+  }
+  return 'Une erreur est survenue. Veuillez réessayer.';
+}
 
 // ─── Style constants ──────────────────────────────────────────────────────────
 
@@ -72,7 +85,7 @@ function TenantModal({ tenant, onClose }: TenantModalProps) {
       showToast({ title: isEdit ? 'Client modifié' : 'Client créé', variant: 'success' });
       onClose();
     },
-    onError: () => showToast({ title: 'Erreur — vérifiez que le slug est unique', variant: 'error' }),
+    onError: (err) => showToast({ title: extractApiError(err), variant: 'error' }),
   });
 
   return (

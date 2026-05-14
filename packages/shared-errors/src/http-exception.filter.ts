@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { ZodError } from 'zod';
 
 export interface ApiError {
   statusCode: number;
@@ -44,6 +45,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
           : String(resObj['message'] ?? message);
         error = String(resObj['error'] ?? error);
       }
+    } else if (exception instanceof ZodError) {
+      // ARCH-DECISION: Zod validation errors in service controllers are NOT
+      // HttpExceptions — they surface as 400 Bad Request with field details.
+      // Without this branch they fall through to the generic 500 handler, hiding
+      // validation failures from the client and making debugging impossible.
+      statusCode = HttpStatus.BAD_REQUEST;
+      error      = 'Bad Request';
+      message    = exception.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ');
+      this.logger.warn(`Zod validation failed: ${message}`);
     } else if (exception instanceof Error) {
       // Log internal errors but do NOT expose message to client
       this.logger.error(`Unhandled exception: ${exception.message}`, exception.stack);
