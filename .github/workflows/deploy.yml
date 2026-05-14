@@ -44,12 +44,65 @@ jobs:
             cd /opt/haccp
 
             if [ "$ACTION" = "init-superadmin-only" ]; then
-              echo "=== Creating SUPER_ADMIN only (no build) ==="
-              git pull origin main
-              docker cp infrastructure/scripts/create-superadmin.js haccp-auth:/tmp/create-superadmin.js
+              echo "=== Creating SUPER_ADMIN only (no build, no git pull) ==="
+              # Write script inline — avoids git pull (disk may be full)
+              cat > /tmp/create-superadmin.js << 'SCRIPTEOF'
+'use strict';
+const bcrypt = require('/app/services/auth-service/node_modules/bcrypt');
+const { Client } = require('/app/services/auth-service/node_modules/pg');
+const ADMIN_EMAIL    = process.env.SUPERADMIN_EMAIL    || 'superadmin@haccp.com';
+const ADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD || 'Admin@HACCP2024!';
+const ADMIN_NAME     = 'Super Administrateur';
+const ADMIN_ID       = 'clx_superadmin_platform_01';
+const TENANT_ID      = 'platform';
+function buildConnectionString(dbName) {
+  const base = process.env.DATABASE_URL;
+  if (!base) throw new Error('DATABASE_URL is not set');
+  return base.replace(/\/[^/]+$/, '/' + dbName);
+}
+async function connectDB(dbName) {
+  const client = new Client({ connectionString: buildConnectionString(dbName) });
+  await client.connect();
+  return client;
+}
+async function main() {
+  console.log('Generating bcrypt hash...');
+  const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+  const authDb = await connectDB('haccp_auth');
+  try {
+    await authDb.query(
+      `INSERT INTO users (id, email, name, password_hash, role, status, tenant_id, updated_at)
+       VALUES ($1,$2,$3,$4,$5::"UserRole",$6::"UserStatus",$7,NOW())
+       ON CONFLICT (email) DO UPDATE
+         SET name=EXCLUDED.name, password_hash=EXCLUDED.password_hash,
+             role=EXCLUDED.role, status=EXCLUDED.status,
+             tenant_id=EXCLUDED.tenant_id, updated_at=NOW()`,
+      [ADMIN_ID, ADMIN_EMAIL, ADMIN_NAME, passwordHash, 'SUPER_ADMIN', 'ACTIVE', TENANT_ID]
+    );
+    console.log('haccp_auth OK');
+  } finally { await authDb.end(); }
+  const usersDb = await connectDB('haccp_users');
+  try {
+    await usersDb.query(
+      `INSERT INTO users (id, email, name, role, status, tenant_id, updated_at)
+       VALUES ($1,$2,$3,$4::"UserRole",$5::"UserStatus",$6,NOW())
+       ON CONFLICT (id) DO UPDATE
+         SET name=EXCLUDED.name, role=EXCLUDED.role,
+             status=EXCLUDED.status, tenant_id=EXCLUDED.tenant_id, updated_at=NOW()`,
+      [ADMIN_ID, ADMIN_EMAIL, ADMIN_NAME, 'SUPER_ADMIN', 'ACTIVE', TENANT_ID]
+    );
+    console.log('haccp_users OK');
+  } catch(e) { console.warn('haccp_users warning:', e.message); }
+  finally { await usersDb.end(); }
+  console.log('SUPER_ADMIN ready:', ADMIN_EMAIL);
+}
+main().catch(e => { console.error('Failed:', e.message); process.exit(1); });
+SCRIPTEOF
+              docker cp /tmp/create-superadmin.js haccp-auth:/tmp/create-superadmin.js
               docker exec \
                 -e SUPERADMIN_EMAIL="${{ secrets.SUPERADMIN_EMAIL || 'superadmin@haccp.com' }}" \
                 -e SUPERADMIN_PASSWORD="${{ secrets.SUPERADMIN_PASSWORD || 'Admin@HACCP2024!' }}" \
+                -e DATABASE_URL="postgresql://postgres:postgres@postgres:5432/haccp_auth" \
                 haccp-auth node /tmp/create-superadmin.js
               echo "✅ SUPER_ADMIN created"
               exit 0
@@ -57,7 +110,10 @@ jobs:
 
             if [ "$ACTION" = "restart-only" ]; then
               echo "=== Restarting services (no build) ==="
-              git pull origin main
+              # Free Docker build cache to reclaim disk space first
+              docker builder prune -f || true
+              cd /opt/haccp
+              git pull origin main || echo "git pull failed (disk?), continuing with existing code"
               docker compose up -d --remove-orphans
               sleep 20
               docker cp infrastructure/scripts/create-superadmin.js haccp-auth:/tmp/create-superadmin.js
