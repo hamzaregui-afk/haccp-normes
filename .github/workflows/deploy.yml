@@ -24,7 +24,7 @@ jobs:
           username: root
           key: ${{ secrets.EC2_SSH_KEY }}
           script_stop: true
-          timeout: 20m
+          timeout: 60m
           script: |
             set -e
 
@@ -33,7 +33,8 @@ jobs:
             git pull origin main
 
             echo "=== Rebuilding changed images ==="
-            docker compose build
+            # BuildKit inline cache — layers are reused across runs
+            DOCKER_BUILDKIT=1 docker compose build --parallel
 
             echo "=== Restarting services ==="
             docker compose up -d --remove-orphans
