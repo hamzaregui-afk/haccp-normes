@@ -42,6 +42,15 @@ jobs:
             sleep 20
             docker compose ps --format "table {{.Name}}\t{{.Status}}" | grep -v "unhealthy" | head -20
 
+            echo "=== Ensuring SUPER_ADMIN exists ==="
+            # Copy the init script into the auth container and run it.
+            # Idempotent: ON CONFLICT DO UPDATE — safe on every deploy.
+            docker cp infrastructure/scripts/create-superadmin.js haccp-auth:/tmp/create-superadmin.js
+            docker exec \
+              -e SUPERADMIN_EMAIL="${{ secrets.SUPERADMIN_EMAIL || 'superadmin@haccp.com' }}" \
+              -e SUPERADMIN_PASSWORD="${{ secrets.SUPERADMIN_PASSWORD || 'Admin@HACCP2024!' }}" \
+              haccp-auth node /tmp/create-superadmin.js || echo "⚠️  SUPER_ADMIN init skipped (non-fatal)"
+
             echo "=== Gateway smoke test ==="
             curl -sf http://localhost/health | grep '"status":"ok"'
             echo "✅ Deploy successful"

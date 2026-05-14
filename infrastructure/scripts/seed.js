@@ -131,6 +131,9 @@ async function seedAuth(passwordHash) {
     console.log('  → auth users (with bcrypt hash)…');
 
     const users = [
+      // SUPER_ADMIN — platform level (no tenant scope)
+      ['clx_superadmin_platform_01', 'superadmin@haccp.com', 'Super Administrateur', 'SUPER_ADMIN', 'ACTIVE', 'platform'],
+      // Demo tenant users
       [IDS.users.admin,    'admin@demo.com',    'Alice Admin',     'ADMIN',           'ACTIVE', IDS.tenant],
       [IDS.users.manager,  'manager@demo.com',  'Bob Manager',     'MANAGER',         'ACTIVE', IDS.tenant],
       [IDS.users.quality,  'quality@demo.com',  'Claire Qualité',  'QUALITY_OFFICER', 'ACTIVE', IDS.tenant],
@@ -159,6 +162,7 @@ async function seedUsers() {
     console.log('  → user profiles…');
 
     const users = [
+      ['clx_superadmin_platform_01', 'superadmin@haccp.com', 'Super Administrateur', 'SUPER_ADMIN', 'ACTIVE', 'platform'],
       [IDS.users.admin,    'admin@demo.com',    'Alice Admin',     'ADMIN',           'ACTIVE', IDS.tenant],
       [IDS.users.manager,  'manager@demo.com',  'Bob Manager',     'MANAGER',         'ACTIVE', IDS.tenant],
       [IDS.users.quality,  'quality@demo.com',  'Claire Qualité',  'QUALITY_OFFICER', 'ACTIVE', IDS.tenant],
@@ -195,10 +199,11 @@ async function main() {
 
   console.log('\n✅  Seed complete!');
   console.log('\nDemo accounts (password: Password1!):');
-  console.log('  admin@demo.com    — ADMIN');
-  console.log('  manager@demo.com  — MANAGER');
-  console.log('  quality@demo.com  — QUALITY_OFFICER');
-  console.log('  operator@demo.com — OPERATOR');
+  console.log('  superadmin@haccp.com — SUPER_ADMIN  ← platform admin');
+  console.log('  admin@demo.com       — ADMIN');
+  console.log('  manager@demo.com     — MANAGER');
+  console.log('  quality@demo.com     — QUALITY_OFFICER');
+  console.log('  operator@demo.com    — OPERATOR');
 }
 
 main().catch((err) => {
