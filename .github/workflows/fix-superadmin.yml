@@ -1,0 +1,89 @@
+name: Fix SuperAdmin
+
+on:
+  workflow_dispatch:
+
+jobs:
+  init:
+    name: Create SUPER_ADMIN in production
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Write script and run via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: root
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          timeout: 5m
+          script: |
+            set -e
+            echo "=== Freeing Docker build cache ==="
+            docker builder prune -f || true
+
+            echo "=== Writing create-superadmin.js to /tmp ==="
+            cat > /tmp/create-superadmin.js << 'SCRIPTEOF'
+'use strict';
+const bcrypt = require('/app/services/auth-service/node_modules/bcrypt');
+const { Client } = require('/app/services/auth-service/node_modules/pg');
+const ADMIN_EMAIL    = process.env.SUPERADMIN_EMAIL    || 'superadmin@haccp.com';
+const ADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD || 'Admin@HACCP2024!';
+const ADMIN_NAME     = 'Super Administrateur';
+const ADMIN_ID       = 'clx_superadmin_platform_01';
+const TENANT_ID      = 'platform';
+function buildCS(db) {
+  const base = process.env.DATABASE_URL;
+  if (!base) throw new Error('DATABASE_URL not set');
+  return base.replace(/\/[^/]+$/, '/' + db);
+}
+async function connect(db) {
+  const c = new Client({ connectionString: buildCS(db) });
+  await c.connect();
+  return c;
+}
+async function main() {
+  console.log('Hashing password...');
+  const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+  const auth = await connect('haccp_auth');
+  try {
+    await auth.query(
+      `INSERT INTO users (id,email,name,password_hash,role,status,tenant_id,updated_at)
+       VALUES ($1,$2,$3,$4,$5::"UserRole",$6::"UserStatus",$7,NOW())
+       ON CONFLICT (email) DO UPDATE
+         SET name=EXCLUDED.name,password_hash=EXCLUDED.password_hash,
+             role=EXCLUDED.role,status=EXCLUDED.status,
+             tenant_id=EXCLUDED.tenant_id,updated_at=NOW()`,
+      [ADMIN_ID, ADMIN_EMAIL, ADMIN_NAME, hash, 'SUPER_ADMIN', 'ACTIVE', TENANT_ID]
+    );
+    console.log('haccp_auth: OK');
+  } finally { await auth.end(); }
+  const users = await connect('haccp_users');
+  try {
+    await users.query(
+      `INSERT INTO users (id,email,name,role,status,tenant_id,updated_at)
+       VALUES ($1,$2,$3,$4::"UserRole",$5::"UserStatus",$6,NOW())
+       ON CONFLICT (id) DO UPDATE
+         SET name=EXCLUDED.name,role=EXCLUDED.role,
+             status=EXCLUDED.status,tenant_id=EXCLUDED.tenant_id,updated_at=NOW()`,
+      [ADMIN_ID, ADMIN_EMAIL, ADMIN_NAME, 'SUPER_ADMIN', 'ACTIVE', TENANT_ID]
+    );
+    console.log('haccp_users: OK');
+  } catch(e) { console.warn('haccp_users (non-fatal):', e.message); }
+  finally { await users.end(); }
+  console.log('Done! Email:', ADMIN_EMAIL);
+}
+main().catch(e => { console.error(e.message); process.exit(1); });
+SCRIPTEOF
+
+            echo "=== Copying script into auth container ==="
+            docker cp /tmp/create-superadmin.js haccp-auth:/tmp/create-superadmin.js
+
+            echo "=== Running script ==="
+            docker exec \
+              -e SUPERADMIN_EMAIL="superadmin@haccp.com" \
+              -e SUPERADMIN_PASSWORD="Admin@HACCP2024!" \
+              haccp-auth node /tmp/create-superadmin.js
+
+            echo "✅ SUPER_ADMIN created successfully"
