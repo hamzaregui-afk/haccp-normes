@@ -30,7 +30,7 @@
  *   enum OutboxEventStatus { PENDING PUBLISHED FAILED }
  *
  * The concrete OutboxWorker is instantiated per service (it needs the
- * service's own PrismaClient). See services/*/src/outbox/outbox.worker.ts.
+ * service's own PrismaClient). See services/{name}/src/outbox/outbox.worker.ts.
  */
 
 /** Mirrors the Prisma OutboxEvent model — no Prisma import required here. */
