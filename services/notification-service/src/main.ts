@@ -28,15 +28,19 @@ async function bootstrap() {
     options: {
       urls:         [env.RABBITMQ_URL],
       queue:        'haccp_notification_queue',
-      // ARCH-DECISION: Dead Letter Queue — unprocessable messages are routed to
-      // haccp_notification_dlq after 3 retries so they don't block the main queue.
+      // ARCH-DECISION: No x-dead-letter-* arguments here.
+      // RabbitMQ raises PRECONDITION_FAILED (406) if assertQueue() is called with
+      // arguments that differ from those of the already-existing queue. Since the
+      // queue was created before the DLQ feature was added, adding the arguments
+      // here would crash every startup until the queue is manually deleted and
+      // recreated.
+      // The DLQ queue itself (haccp_notification_dlq) is declared by
+      // QueueInitService.onModuleInit(). DLQ routing can be enabled later via:
+      //   - RabbitMQ Management UI: Queues → haccp_notification_queue → Arguments
+      //     (add x-dead-letter-exchange="" and x-dead-letter-routing-key="haccp_notification_dlq")
+      //   - Or delete the queue and redeploy during a maintenance window.
       queueOptions: {
         durable: true,
-        arguments: {
-          'x-dead-letter-exchange':    '',
-          'x-dead-letter-routing-key': 'haccp_notification_dlq',
-          'x-message-ttl':             60_000, // 1 min max TTL before DLQ routing
-        },
       },
       // noAck: false ensures we acknowledge only after the handler succeeds,
       // preventing message loss if the process crashes mid-handler.
