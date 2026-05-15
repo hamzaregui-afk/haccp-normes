@@ -67,8 +67,13 @@ jobs:
               ADMIN_EMAIL="${SUPERADMIN_EMAIL:-superadmin@haccp.com}"
               ADMIN_HASH="$SUPERADMIN_HASH"
 
-              docker exec -e PGPASSWORD=postgres haccp-postgres psql \
-                -U postgres -d haccp_auth \
+              # Read actual PG credentials from the running container env
+              PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER)
+              PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD)
+              echo "=== Using DB user: $PGUSER ==="
+
+              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql \
+                -U "$PGUSER" -d haccp_auth \
                 -v id="$ADMIN_ID" -v email="$ADMIN_EMAIL" -v hash="$ADMIN_HASH" \
                 -c "INSERT INTO users (id,email,name,password_hash,role,status,tenant_id,updated_at)
                     VALUES (:'id',:'email','Super Administrateur',:'hash',
@@ -77,8 +82,8 @@ jobs:
                       SET password_hash=EXCLUDED.password_hash, updated_at=NOW();"
               echo "=== haccp_auth: SUPER_ADMIN OK ==="
 
-              docker exec -e PGPASSWORD=postgres haccp-postgres psql \
-                -U postgres -d haccp_users \
+              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql \
+                -U "$PGUSER" -d haccp_users \
                 -v id="$ADMIN_ID" -v email="$ADMIN_EMAIL" \
                 -c "INSERT INTO users (id,email,name,role,status,tenant_id,updated_at)
                     VALUES (:'id',:'email','Super Administrateur',
