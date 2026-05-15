@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Compute bcrypt hash (for init-superadmin-only)
-        if: ${{ github.event.inputs.action == 'init-superadmin-only' || github.event_name == 'push' }}
+        if: ${{ github.event.inputs.action == 'init-superadmin-only' || github.event.inputs.action == 'free-space-and-recover' || github.event_name == 'push' }}
         run: |
           npm install bcryptjs --no-save --silent
           HASH=$(node -e "
@@ -87,43 +87,67 @@ jobs:
               echo "=== Disk BEFORE cleanup ==="
               df -h /
 
-              echo "=== Removing unused Docker images (safe — running containers keep their images) ==="
+              echo "=== Top space consumers ==="
+              du -sh /var/lib/docker/containers 2>/dev/null | head -5 || true
+              du -sh /var/lib/docker/overlay2 2>/dev/null | head -5 || true
+              du -sh /opt/haccp 2>/dev/null | head -5 || true
+              du -sh /var/log 2>/dev/null | head -5 || true
+
+              echo "=== BIGGEST WIN: Truncating all container log files (safe, no data loss) ==="
+              find /var/lib/docker/containers -name "*-json.log" -exec truncate -s 0 {} \; 2>/dev/null || true
+              echo "=== Logs truncated ==="
+
+              echo "=== Truncating system journal to 50MB ==="
+              journalctl --vacuum-size=50M 2>/dev/null || true
+
+              echo "=== Removing unused Docker images ==="
               docker image prune -a -f 2>/dev/null || true
 
               echo "=== Removing stopped containers ==="
               docker container prune -f 2>/dev/null || true
 
-              echo "=== Removing unused networks ==="
-              docker network prune -f 2>/dev/null || true
-
-              echo "=== Truncating journal logs to 100MB ==="
-              journalctl --vacuum-size=100M 2>/dev/null || true
-
               echo "=== Clearing /tmp ==="
               rm -rf /tmp/* 2>/dev/null || true
+
+              echo "=== Removing host node_modules if present (containers have their own copies) ==="
+              rm -rf /opt/haccp/node_modules 2>/dev/null || true
+              find /opt/haccp/services -maxdepth 2 -name node_modules -type d -exec rm -rf {} + 2>/dev/null || true
+              find /opt/haccp/apps -maxdepth 2 -name node_modules -type d -exec rm -rf {} + 2>/dev/null || true
 
               echo "=== Disk AFTER cleanup ==="
               df -h /
 
               echo "=== Restarting postgres container to exit recovery mode ==="
-              docker restart haccp-postgres
-              sleep 15
-
-              echo "=== Postgres status ==="
-              docker inspect haccp-postgres --format "{{.State.Health.Status}}" 2>/dev/null || true
-
-              PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER) || true
-              PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD) || true
-              echo "=== Testing psql connection ==="
-              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_auth -c "SELECT 'OK' as status;" || echo "DB STILL NOT READY"
-
-              echo "=== Restarting all services to reconnect to recovered postgres ==="
-              cd /opt/haccp
-              docker compose up -d --remove-orphans
+              docker stop haccp-postgres 2>/dev/null || true
+              sleep 3
+              docker start haccp-postgres
               sleep 20
 
+              echo "=== Postgres status ==="
+              docker inspect haccp-postgres --format "{{.State.Status}} {{.State.Health.Status}}" 2>/dev/null || true
+
+              PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER 2>/dev/null) || true
+              PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD 2>/dev/null) || true
+              echo "=== Testing psql connection ==="
+              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_auth -c "SELECT 'DB_OK' as status;" 2>&1 || echo "DB STILL NOT READY"
+
+              echo "=== Re-inserting superadmin (in case data was lost) ==="
+              ADMIN_ID="clx_superadmin_platform_01"
+              ADMIN_EMAIL="${SUPERADMIN_EMAIL:-superadmin@haccp.com}"
+              ADMIN_HASH="$SUPERADMIN_HASH"
+              SQL_AUTH=$(printf "INSERT INTO users (id,email,name,password_hash,role,status,tenant_id,updated_at) VALUES ('%s','%s','Super Administrateur','%s','SUPER_ADMIN'::\"UserRole\",'ACTIVE'::\"UserStatus\",'platform',NOW()) ON CONFLICT (email) DO UPDATE SET password_hash=EXCLUDED.password_hash,updated_at=NOW();" "$ADMIN_ID" "$ADMIN_EMAIL" "$ADMIN_HASH")
+              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_auth -c "$SQL_AUTH" 2>&1 || true
+
+              echo "=== Restarting all services ==="
+              cd /opt/haccp
+              docker compose up -d --remove-orphans 2>&1 | tail -20
+              sleep 25
+
               echo "=== Final container status ==="
-              docker ps --format "table {{.Names}}\t{{.Status}}" | grep haccp
+              docker ps --format "table {{.Names}}\t{{.Status}}" | grep haccp || true
+
+              echo "=== Login test ==="
+              curl -s -X POST http://localhost/api/v1/auth/login -H "Content-Type: application/json" -d "{\"email\":\"${SUPERADMIN_EMAIL:-superadmin@haccp.com}\",\"password\":\"Admin@HACCP2024!\"}" | head -c 500
 
               exit 0
             fi
