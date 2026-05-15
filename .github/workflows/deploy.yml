@@ -197,24 +197,26 @@ jobs:
               echo "=== Auth service health ==="
               docker exec haccp-auth wget -qO- http://localhost:3010/health 2>/dev/null || echo "HEALTH CHECK FAILED"
 
-              echo "=== Login test with secret password ==="
-              LOGIN_RESULT=$(curl -s -X POST http://localhost/api/v1/auth/login \
+              PASS="${SUPERADMIN_PASSWORD:-Admin@HACCP2024!}"
+              EMAIL="${SUPERADMIN_EMAIL:-superadmin@haccp.com}"
+
+              echo "=== Test 1: Direct gateway (port 80) ==="
+              R1=$(curl -s -X POST http://localhost:80/api/v1/auth/login \
                 -H "Content-Type: application/json" \
-                -d "{\"email\":\"${SUPERADMIN_EMAIL:-superadmin@haccp.com}\",\"password\":\"${SUPERADMIN_PASSWORD:-Admin@HACCP2024!}\"}")
-              echo "Login result (truncated): $(echo "$LOGIN_RESULT" | cut -c1-80)"
-              if echo "$LOGIN_RESULT" | grep -q "accessToken"; then
-                echo "=== LOGIN OK with secret password ==="
-              else
-                echo "=== LOGIN FAILED with secret password — trying fallback Admin@HACCP2024! ==="
-                FALLBACK=$(curl -s -X POST http://localhost/api/v1/auth/login \
-                  -H "Content-Type: application/json" \
-                  -d '{"email":"superadmin@haccp.com","password":"Admin@HACCP2024!"}')
-                if echo "$FALLBACK" | grep -q "accessToken"; then
-                  echo "=== FALLBACK LOGIN OK — password IS Admin@HACCP2024! ==="
-                else
-                  echo "=== BOTH FAILED — hash mismatch ==="
-                fi
-              fi
+                -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}")
+              echo "Port 80: $(echo "$R1" | cut -c1-60)"
+
+              echo "=== Test 2: Via web container (port 3001 = browser path) ==="
+              R2=$(curl -s -X POST http://localhost:3001/api/v1/auth/login \
+                -H "Content-Type: application/json" \
+                -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}")
+              echo "Port 3001: $(echo "$R2" | cut -c1-100)"
+
+              echo "=== Test 3: Auth service direct (port 3010) ==="
+              R3=$(curl -s -X POST http://localhost:3010/auth/login \
+                -H "Content-Type: application/json" \
+                -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}")
+              echo "Port 3010: $(echo "$R3" | cut -c1-100)"
 
               echo "=== Disk usage ==="
               df -h /
