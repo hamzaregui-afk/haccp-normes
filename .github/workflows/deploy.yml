@@ -252,14 +252,10 @@ jobs:
 
             ADMIN_ID="clx_superadmin_platform_01"
             ADMIN_HASH="$SUPERADMIN_HASH"
-            docker exec -e PGPASSWORD=postgres haccp-postgres psql \
-              -U postgres -d haccp_auth \
-              -v id="$ADMIN_ID" -v email="${SUPERADMIN_EMAIL:-superadmin@haccp.com}" -v hash="$ADMIN_HASH" \
-              -c "INSERT INTO users (id,email,name,password_hash,role,status,tenant_id,updated_at)
-                  VALUES (:'id',:'email','Super Administrateur',:'hash',
-                          'SUPER_ADMIN'::\"UserRole\",'ACTIVE'::\"UserStatus\",'platform',NOW())
-                  ON CONFLICT (email) DO UPDATE
-                    SET password_hash=EXCLUDED.password_hash, updated_at=NOW();" || true
+            PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER)
+            PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD)
+            SQL=$(printf "INSERT INTO users (id,email,name,password_hash,role,status,tenant_id,updated_at) VALUES ('%s','%s','Super Administrateur','%s','SUPER_ADMIN'::\"UserRole\",'ACTIVE'::\"UserStatus\",'platform',NOW()) ON CONFLICT (email) DO UPDATE SET password_hash=EXCLUDED.password_hash, updated_at=NOW();" "$ADMIN_ID" "${SUPERADMIN_EMAIL:-superadmin@haccp.com}" "$ADMIN_HASH")
+            docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_auth -c "$SQL" || true
 
             curl -sf http://localhost/health | grep '"status":"ok"'
             echo "=== Deploy successful ==="

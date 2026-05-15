@@ -36,8 +36,15 @@ export default function LoginPage() {
       });
       setTokens(data.accessToken, data.refreshToken, data.user);
       navigate('/dashboard', { replace: true });
-    } catch {
-      setError('Identifiants incorrects. Veuillez réessayer.');
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 429) {
+        setError('Trop de tentatives. Veuillez attendre 1 minute avant de réessayer.');
+      } else if (status === 401) {
+        setError('Email ou mot de passe incorrect.');
+      } else {
+        setError(`Erreur de connexion (${status ?? 'réseau'}). Vérifiez votre connexion.`);
+      }
     } finally {
       setLoading(false);
     }
