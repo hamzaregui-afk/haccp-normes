@@ -3,8 +3,6 @@ name: Deploy to EC2
 # ─── Trigger ──────────────────────────────────────────────────────────────────
 # Runs automatically on every push to main, OR manually via the Actions UI.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       skip_build:
