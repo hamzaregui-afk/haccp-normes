@@ -15,6 +15,7 @@ on:
           - restart-only
           - init-superadmin-only
           - diagnose
+          - free-space-and-recover
 
 concurrency:
   group: deploy-production
@@ -79,6 +80,51 @@ jobs:
               SQL_USERS=$(printf "INSERT INTO users (id,email,name,role,status,tenant_id,updated_at) VALUES ('%s','%s','Super Administrateur','SUPER_ADMIN'::\"UserRole\",'ACTIVE'::\"UserStatus\",'platform',NOW()) ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name,role=EXCLUDED.role,status=EXCLUDED.status,updated_at=NOW();" "$ADMIN_ID" "$ADMIN_EMAIL")
               docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_users -c "$SQL_USERS" || true
               echo "=== haccp_users OK ==="
+              exit 0
+            fi
+
+            if [ "$ACTION" = "free-space-and-recover" ]; then
+              echo "=== Disk BEFORE cleanup ==="
+              df -h /
+
+              echo "=== Removing unused Docker images (safe — running containers keep their images) ==="
+              docker image prune -a -f 2>/dev/null || true
+
+              echo "=== Removing stopped containers ==="
+              docker container prune -f 2>/dev/null || true
+
+              echo "=== Removing unused networks ==="
+              docker network prune -f 2>/dev/null || true
+
+              echo "=== Truncating journal logs to 100MB ==="
+              journalctl --vacuum-size=100M 2>/dev/null || true
+
+              echo "=== Clearing /tmp ==="
+              rm -rf /tmp/* 2>/dev/null || true
+
+              echo "=== Disk AFTER cleanup ==="
+              df -h /
+
+              echo "=== Restarting postgres container to exit recovery mode ==="
+              docker restart haccp-postgres
+              sleep 15
+
+              echo "=== Postgres status ==="
+              docker inspect haccp-postgres --format "{{.State.Health.Status}}" 2>/dev/null || true
+
+              PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER) || true
+              PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD) || true
+              echo "=== Testing psql connection ==="
+              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_auth -c "SELECT 'OK' as status;" || echo "DB STILL NOT READY"
+
+              echo "=== Restarting all services to reconnect to recovered postgres ==="
+              cd /opt/haccp
+              docker compose up -d --remove-orphans
+              sleep 20
+
+              echo "=== Final container status ==="
+              docker ps --format "table {{.Names}}\t{{.Status}}" | grep haccp
+
               exit 0
             fi
 
