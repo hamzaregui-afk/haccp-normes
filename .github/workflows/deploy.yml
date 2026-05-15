@@ -14,6 +14,7 @@ on:
           - full-deploy
           - restart-only
           - init-superadmin-only
+          - diagnose
 
 concurrency:
   group: deploy-production
@@ -78,6 +79,32 @@ jobs:
               SQL_USERS=$(printf "INSERT INTO users (id,email,name,role,status,tenant_id,updated_at) VALUES ('%s','%s','Super Administrateur','SUPER_ADMIN'::\"UserRole\",'ACTIVE'::\"UserStatus\",'platform',NOW()) ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name,role=EXCLUDED.role,status=EXCLUDED.status,updated_at=NOW();" "$ADMIN_ID" "$ADMIN_EMAIL")
               docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_users -c "$SQL_USERS" || true
               echo "=== haccp_users OK ==="
+              exit 0
+            fi
+
+            if [ "$ACTION" = "diagnose" ]; then
+              echo "=== Container status ==="
+              docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "haccp|NAME"
+
+              PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER)
+              PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD)
+              echo "=== DB user: $PGUSER ==="
+
+              echo "=== SuperAdmin row in haccp_auth ==="
+              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_auth -c "SELECT id, email, role, status, tenant_id, LEFT(password_hash,7) as hash_prefix, updated_at FROM users WHERE email='superadmin@haccp.com';"
+
+              echo "=== SuperAdmin row in haccp_users ==="
+              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_users -c "SELECT id, email, role, status FROM users WHERE email='superadmin@haccp.com';" || true
+
+              echo "=== Auth service health ==="
+              docker exec haccp-auth wget -qO- http://localhost:3010/health 2>/dev/null || echo "HEALTH CHECK FAILED"
+
+              echo "=== Auth service last 30 log lines ==="
+              docker logs --tail=30 haccp-auth 2>&1 || true
+
+              echo "=== Disk usage ==="
+              df -h /
+
               exit 0
             fi
 
