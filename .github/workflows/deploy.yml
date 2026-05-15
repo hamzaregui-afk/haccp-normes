@@ -47,11 +47,12 @@ jobs:
         env:
           SUPERADMIN_HASH: ${{ env.SUPERADMIN_HASH }}
           SUPERADMIN_EMAIL: ${{ secrets.SUPERADMIN_EMAIL || 'superadmin@haccp.com' }}
+          SUPERADMIN_PASSWORD: ${{ secrets.SUPERADMIN_PASSWORD || 'Admin@HACCP2024!' }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: root
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: SUPERADMIN_HASH,SUPERADMIN_EMAIL
+          envs: SUPERADMIN_HASH,SUPERADMIN_EMAIL,SUPERADMIN_PASSWORD
           script_stop: true
           timeout: 60m
           script: |
@@ -169,8 +170,24 @@ jobs:
               echo "=== Auth service health ==="
               docker exec haccp-auth wget -qO- http://localhost:3010/health 2>/dev/null || echo "HEALTH CHECK FAILED"
 
-              echo "=== Auth service last 30 log lines ==="
-              docker logs --tail=30 haccp-auth 2>&1 || true
+              echo "=== Login test with secret password ==="
+              LOGIN_RESULT=$(curl -s -X POST http://localhost/api/v1/auth/login \
+                -H "Content-Type: application/json" \
+                -d "{\"email\":\"${SUPERADMIN_EMAIL:-superadmin@haccp.com}\",\"password\":\"${SUPERADMIN_PASSWORD:-Admin@HACCP2024!}\"}")
+              echo "Login result (truncated): $(echo "$LOGIN_RESULT" | cut -c1-80)"
+              if echo "$LOGIN_RESULT" | grep -q "accessToken"; then
+                echo "=== LOGIN OK with secret password ==="
+              else
+                echo "=== LOGIN FAILED with secret password — trying fallback Admin@HACCP2024! ==="
+                FALLBACK=$(curl -s -X POST http://localhost/api/v1/auth/login \
+                  -H "Content-Type: application/json" \
+                  -d '{"email":"superadmin@haccp.com","password":"Admin@HACCP2024!"}')
+                if echo "$FALLBACK" | grep -q "accessToken"; then
+                  echo "=== FALLBACK LOGIN OK — password IS Admin@HACCP2024! ==="
+                else
+                  echo "=== BOTH FAILED — hash mismatch ==="
+                fi
+              fi
 
               echo "=== Disk usage ==="
               df -h /
