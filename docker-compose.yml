@@ -510,15 +510,12 @@ services:
     # inside the Docker network (api-gateway proxies to it via location /).
     # Exposing it directly would allow bypassing the gateway's rate limiting and
     # CORS handling.
+    # ARCH-DECISION: No healthcheck override here — apps/web/Dockerfile already
+    # declares HEALTHCHECK (wget 127.0.0.1:80 — uses IP not hostname to avoid
+    # Alpine IPv6/localhost resolution issues). docker-compose condition:service_healthy
+    # on api-gateway picks up that Dockerfile healthcheck automatically.
     networks:
       - haccp-network
-    healthcheck:
-      # nginx serves a static SPA — a 200 on / means the bundle is ready.
-      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
 
   # ── MONITORING ────────────────────────────────────────────────────────────────
 
