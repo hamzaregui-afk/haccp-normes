@@ -293,7 +293,10 @@ jobs:
             cd /opt/haccp
             git pull origin main
 
-            echo "=== Fixing web .env (VITE_API_URL must be empty for relative URLs) ==="
+            echo "=== Git commit on server after pull ==="
+            git log --oneline -3
+
+            echo "=== Fixing web .env (VITE_API_URL must be EMPTY for relative URLs) ==="
             printf 'VITE_API_URL=\nVITE_WS_URL=\n' > apps/web/.env
             echo "apps/web/.env written: $(cat apps/web/.env)"
 
@@ -301,18 +304,52 @@ jobs:
 
             docker compose up -d --remove-orphans
 
-            echo "=== Reloading api-gateway nginx (picks up nginx.conf changes) ==="
-            docker exec haccp-gateway nginx -s reload || true
+            echo "=== Waiting 30s for services to start ==="
+            sleep 30
 
-            sleep 20
+            echo "=== Container status ==="
             docker compose ps --format "table {{.Name}}\t{{.Status}}" | head -20
 
+            echo "=== Port bindings (3001 must point to haccp-gateway) ==="
+            ss -tlnp | grep -E "3001|:80 " || true
+
+            # ── Seed superadmin in BOTH databases ────────────────────────────────
             ADMIN_ID="clx_superadmin_platform_01"
             ADMIN_HASH="$SUPERADMIN_HASH"
+            ADMIN_EMAIL="${SUPERADMIN_EMAIL:-superadmin@haccp.com}"
             PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER)
             PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD)
-            SQL=$(printf "INSERT INTO users (id,email,name,password_hash,role,status,tenant_id,updated_at) VALUES ('%s','%s','Super Administrateur','%s','SUPER_ADMIN'::\"UserRole\",'ACTIVE'::\"UserStatus\",'platform',NOW()) ON CONFLICT (email) DO UPDATE SET password_hash=EXCLUDED.password_hash, updated_at=NOW();" "$ADMIN_ID" "${SUPERADMIN_EMAIL:-superadmin@haccp.com}" "$ADMIN_HASH")
-            docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_auth -c "$SQL" || true
 
+            echo "=== Seeding superadmin into haccp_auth ==="
+            SQL_AUTH=$(printf "INSERT INTO users (id,email,name,password_hash,role,status,tenant_id,updated_at) VALUES ('%s','%s','Super Administrateur','%s','SUPER_ADMIN'::\"UserRole\",'ACTIVE'::\"UserStatus\",'platform',NOW()) ON CONFLICT (email) DO UPDATE SET password_hash=EXCLUDED.password_hash, updated_at=NOW();" "$ADMIN_ID" "$ADMIN_EMAIL" "$ADMIN_HASH")
+            docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_auth -c "$SQL_AUTH" || true
+
+            echo "=== Seeding superadmin into haccp_users (profile DB) ==="
+            SQL_USERS=$(printf "INSERT INTO users (id,email,name,role,status,tenant_id,updated_at) VALUES ('%s','%s','Super Administrateur','SUPER_ADMIN'::\"UserRole\",'ACTIVE'::\"UserStatus\",'platform',NOW()) ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name,role=EXCLUDED.role,status=EXCLUDED.status,updated_at=NOW();" "$ADMIN_ID" "$ADMIN_EMAIL")
+            docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_users -c "$SQL_USERS" || true
+
+            # ── Self-verification ─────────────────────────────────────────────────
+            echo "=== VERIFICATION: VITE_API_URL in JS bundle ==="
+            docker exec haccp-web sh -c \
+              'grep -r "178\.105\|VITE_API_URL" /usr/share/nginx/html/assets/*.js 2>/dev/null | head -3 || echo "OK: no hardcoded URL (relative URLs = correct)"'
+
+            echo "=== VERIFICATION: Login test on port 80 ==="
+            PASS="${SUPERADMIN_PASSWORD:-Admin@HACCP2024!}"
+            R80=$(curl -s -X POST http://localhost:80/api/v1/auth/login \
+              -H "Content-Type: application/json" \
+              -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$PASS\"}")
+            echo "Port 80: $(echo "$R80" | cut -c1-60)"
+
+            echo "=== VERIFICATION: Login test on port 3001 (browser path) ==="
+            R3001=$(curl -s -X POST http://localhost:3001/api/v1/auth/login \
+              -H "Content-Type: application/json" \
+              -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$PASS\"}")
+            echo "Port 3001: $(echo "$R3001" | cut -c1-60)"
+
+            echo "=== VERIFICATION: Gateway health ==="
             curl -sf http://localhost/health | grep '"status":"ok"'
-            echo "=== Deploy successful ==="
+
+            echo ""
+            echo "=========================================="
+            echo "=== DEPLOY COMPLETE — CHECK RESULTS ABOVE"
+            echo "=========================================="
