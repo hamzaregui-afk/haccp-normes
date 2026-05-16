@@ -20,8 +20,12 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(new AllExceptionsFilter());
   app.setGlobalPrefix('api/v1');
+  // ARCH-DECISION: origin:true reflects the actual request Origin back in
+  // Access-Control-Allow-Origin. Microservices are internal to the Docker
+  // network — only nginx (port 80/3001) is reachable from the internet.
+  // nginx is the authoritative CORS gate; service-level CORS is a fallback.
   app.enableCors({
-    origin: env.ALLOWED_ORIGINS?.split(',') ?? ['http://localhost:3000'],
+    origin: true,
     credentials: true,
   });
 

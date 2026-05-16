@@ -37,8 +37,12 @@ async function bootstrap() {
   // api-gateway layer so they are never reachable from outside the cluster.
   app.setGlobalPrefix('api/v1', { exclude: ['internal/(.*)'] });
 
+  // ARCH-DECISION: origin:true reflects the actual request Origin back in
+  // Access-Control-Allow-Origin. Microservices are internal to the Docker
+  // network — only nginx (port 80/3001) is reachable from the internet.
+  // nginx is the authoritative CORS gate; service-level CORS is a fallback.
   app.enableCors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') ?? ['http://localhost:3000'],
+    origin: true,
     credentials: true,
   });
 
