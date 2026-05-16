@@ -13,6 +13,7 @@ on:
         options:
           - full-deploy
           - restart-only
+          - reload-gateway
           - init-superadmin-only
           - diagnose
           - free-space-and-recover
@@ -64,6 +65,15 @@ jobs:
             echo "=== Freeing Docker build cache ==="
             docker builder prune -f 2>/dev/null || true
             df -h / | tail -1
+
+            if [ "$ACTION" = "reload-gateway" ]; then
+              echo "=== Reloading api-gateway nginx config (no rebuild needed) ==="
+              cd /opt/haccp
+              git pull origin main
+              docker exec haccp-gateway nginx -s reload
+              echo "=== Gateway reloaded — CORS and routing changes are now active ==="
+              exit 0
+            fi
 
             if [ "$ACTION" = "init-superadmin-only" ]; then
               echo "=== Inserting SUPER_ADMIN via psql (no module deps) ==="
@@ -260,6 +270,9 @@ jobs:
             DOCKER_BUILDKIT=1 docker compose build --parallel
 
             docker compose up -d --remove-orphans
+
+            echo "=== Reloading api-gateway nginx (picks up nginx.conf changes) ==="
+            docker exec haccp-gateway nginx -s reload || true
 
             sleep 20
             docker compose ps --format "table {{.Name}}\t{{.Status}}" | head -20
