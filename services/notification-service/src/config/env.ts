@@ -6,9 +6,11 @@ const envSchema = z.object({
   DATABASE_URL:    z.string().url(),
   JWT_SECRET:      z.string().min(32),
   ALLOWED_ORIGINS: z.string().optional(),
-  REDIS_URL:       z.string().optional().default('redis://localhost:6379'),
+  REDIS_URL:       z.string().default('redis://localhost:6379'),
   // RabbitMQ — consumer of haccp_notification_queue
-  RABBITMQ_URL:    z.string().optional().default('amqp://guest:guest@localhost:5672'),
+  RABBITMQ_URL:    z.string().default('amqp://guest:guest@localhost:5672'),
+  // FCM — optional (Firebase Cloud Messaging for mobile push notifications)
+  FCM_SERVER_KEY:  z.string().optional(),
   // SMTP — optional in development (Ethereal test account used as fallback)
   SMTP_HOST:       z.string().optional(),
   SMTP_PORT:       z.coerce.number().optional().default(587),

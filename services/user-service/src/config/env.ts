@@ -5,10 +5,11 @@ const envSchema = z.object({
   PORT:            z.coerce.number().default(3011),
   DATABASE_URL:    z.string().url(),
   JWT_SECRET:      z.string().min(32),
-  RABBITMQ_URL:    z.string().url().optional(),
+  RABBITMQ_URL:    z.string().default('amqp://guest:guest@localhost:5672'),
   ALLOWED_ORIGINS: z.string().optional(),
-  AUTH_SERVICE_URL:        z.string().url().optional().default('http://localhost:3010'),
-  INTERNAL_SERVICE_SECRET: z.string().min(8).default('haccp-internal-dev-secret-change-in-prod'),
+  AUTH_SERVICE_URL:        z.string().url().default('http://localhost:3010'),
+  AUDIT_SERVICE_URL:       z.string().url(),
+  INTERNAL_SERVICE_SECRET: z.string().min(16),
 });
 
 export type Env = z.infer<typeof envSchema>;

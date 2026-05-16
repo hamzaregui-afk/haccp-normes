@@ -12,7 +12,10 @@ const envSchema = z.object({
   MINIO_SECRET_KEY: z.string().default('minioadmin'),
   MINIO_BUCKET:    z.string().default('haccp-documents'),
   MINIO_USE_SSL:   z.preprocess(v => v === 'true' || v === '1', z.boolean()).default(false),
-  MINIO_PUBLIC_URL: z.string().url().optional(),  // Public URL to replace internal minio hostname in presigned URLs
+  // Public URL to replace internal minio hostname in presigned URLs served to browsers
+  MINIO_PUBLIC_URL: z.string().url().optional(),
+  AUDIT_SERVICE_URL:       z.string().url(),
+  INTERNAL_SERVICE_SECRET: z.string().min(16),
 });
 
 export type Env = z.infer<typeof envSchema>;

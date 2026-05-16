@@ -127,18 +127,23 @@ services:
       # origin — zero CORS overhead. The React SPA is served via location / in
       # nginx.conf which proxies to the web container internally.
       - "3001:80"
+    # ARCH-DECISION: condition: service_healthy prevents nginx from starting before
+    # microservices are ready. Without this, nginx boots in ~1s and immediately
+    # returns 502 for all upstream requests until services finish their DB migrations
+    # and port-binding (~10–20s). The healthcheck on each service is a lightweight
+    # GET /health that returns 200 only once the service is fully initialised.
     depends_on:
-      - auth-service
-      - user-service
-      - tenant-service
-      - control-service
-      - nonconformity-service
-      - asset-service
-      - notification-service
-      - report-service
-      - dlc-service
-      - audit-service
-      - web
+      auth-service:          { condition: service_healthy }
+      user-service:          { condition: service_healthy }
+      tenant-service:        { condition: service_healthy }
+      control-service:       { condition: service_healthy }
+      nonconformity-service: { condition: service_healthy }
+      asset-service:         { condition: service_healthy }
+      notification-service:  { condition: service_healthy }
+      report-service:        { condition: service_healthy }
+      dlc-service:           { condition: service_healthy }
+      audit-service:         { condition: service_healthy }
+      web:                   { condition: service_healthy }
     networks:
       - haccp-network
     healthcheck:
@@ -392,6 +397,8 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET_REPORTS: haccp-reports
+      MINIO_USE_SSL: "false"
+      MINIO_PUBLIC_URL: "http://${SERVER_IP:-178.105.126.165}:9000"
       AUDIT_SERVICE_URL: http://audit-service:3019/api/v1
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-haccp-internal-dev-secret-change-in-prod}
       OTEL_SERVICE_NAME: report-service
@@ -485,6 +492,13 @@ services:
     # CORS handling.
     networks:
       - haccp-network
+    healthcheck:
+      # nginx serves a static SPA — a 200 on / means the bundle is ready.
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   # ── MONITORING ────────────────────────────────────────────────────────────────
 

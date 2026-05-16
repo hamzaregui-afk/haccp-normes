@@ -6,6 +6,8 @@ const envSchema = z.object({
   DATABASE_URL:    z.string().url(),
   JWT_SECRET:      z.string().min(32),
   ALLOWED_ORIGINS: z.string().optional(),
+  AUDIT_SERVICE_URL:       z.string().url(),
+  INTERNAL_SERVICE_SECRET: z.string().min(16),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -6,11 +6,14 @@ const envSchema = z.object({
   DATABASE_URL:            z.string().url(),
   JWT_SECRET:              z.string().min(32),
   ALLOWED_ORIGINS:         z.string().optional(),
+  // RabbitMQ — audit-service consumes domain events for asynchronous audit recording
+  RABBITMQ_URL:            z.string().default('amqp://guest:guest@localhost:5672'),
   // ARCH-DECISION: Service-to-service audit calls use a shared secret instead of JWT.
   // The internal endpoint is NOT exposed via api-gateway, only accessible inside
   // the Docker network. This avoids a circular dependency where audit-service would
   // need to verify JWTs issued by auth-service.
-  INTERNAL_SERVICE_SECRET: z.string().min(16).default('haccp-internal-dev-secret-change-in-prod'),
+  // No hardcoded default — docker-compose supplies it via ${INTERNAL_SERVICE_SECRET}.
+  INTERNAL_SERVICE_SECRET: z.string().min(16),
 });
 
 export type Env = z.infer<typeof envSchema>;
