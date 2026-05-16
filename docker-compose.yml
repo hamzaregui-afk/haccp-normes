@@ -464,6 +464,12 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        # Force empty VITE_API_URL so the SPA always uses relative URLs
+        # (web nginx proxies /api/ to the api-gateway). This overrides any
+        # value that might be in apps/web/.env on the server.
+        VITE_API_URL: ""
+        VITE_WS_URL: ""
     container_name: haccp-web
     restart: unless-stopped
     volumes:

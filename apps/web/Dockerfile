@@ -25,6 +25,14 @@ RUN pnpm --filter @haccp/shared-types build \
  && pnpm --filter @haccp/shared-errors build \
  && pnpm --filter @haccp/shared-utils build
 
+# Accept build args so docker-compose can override .env values.
+# These are declared AFTER pnpm install so changing the URL does not
+# bust the expensive dependency install cache layer.
+ARG VITE_API_URL=""
+ARG VITE_WS_URL=""
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_WS_URL=$VITE_WS_URL
+
 RUN pnpm --filter @haccp/web build
 
 # â”€â”€â”€ Stage 2: runner (nginx) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
