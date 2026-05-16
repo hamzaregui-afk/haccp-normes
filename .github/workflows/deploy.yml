@@ -243,6 +243,10 @@ jobs:
             cd /opt/haccp
             git pull origin main
 
+            echo "=== Fixing web .env (VITE_API_URL must be empty for relative URLs) ==="
+            printf 'VITE_API_URL=\nVITE_WS_URL=\n' > apps/web/.env
+            echo "apps/web/.env written: $(cat apps/web/.env)"
+
             DOCKER_BUILDKIT=1 docker compose build --parallel
 
             docker compose up -d --remove-orphans
