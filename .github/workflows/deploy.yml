@@ -218,6 +218,16 @@ jobs:
                 -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}")
               echo "Port 3010: $(echo "$R3" | cut -c1-100)"
 
+              echo "=== VITE_API_URL baked into web bundle ==="
+              docker exec haccp-web grep -r "178\.105\|localhost\|VITE_API_URL" /usr/share/nginx/html/assets/*.js 2>/dev/null | head -3 || echo "no hardcoded URL found (relative URLs = correct)"
+              echo "=== Server apps/web/.env ==="
+              cat /opt/haccp/apps/web/.env 2>/dev/null || echo "file not found"
+
+              echo "=== CORS headers from port 80 ==="
+              curl -s -I -X OPTIONS http://localhost:80/api/v1/auth/login \
+                -H "Origin: http://178.105.126.165:3001" \
+                -H "Access-Control-Request-Method: POST" | grep -i "access-control" || echo "no CORS headers"
+
               echo "=== Disk usage ==="
               df -h /
 
