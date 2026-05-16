@@ -191,54 +191,84 @@ jobs:
             fi
 
             if [ "$ACTION" = "diagnose" ]; then
-              echo "=== Container status ==="
-              docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "haccp|NAME"
+              echo "========================================"
+              echo "=== GIT COMMIT ON SERVER ==="
+              echo "========================================"
+              cd /opt/haccp
+              git log --oneline -3
 
-              PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER)
-              PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD)
-              echo "=== DB user: $PGUSER ==="
+              echo "========================================"
+              echo "=== CONTAINER STATUS + PORTS ==="
+              echo "========================================"
+              docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "haccp|NAME" || true
 
-              echo "=== SuperAdmin row in haccp_auth ==="
-              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_auth -c "SELECT id, email, role, status, tenant_id, LEFT(password_hash,7) as hash_prefix, updated_at FROM users WHERE email='superadmin@haccp.com';"
+              echo "========================================"
+              echo "=== PORT BINDINGS (who owns 3001?) ==="
+              echo "========================================"
+              ss -tlnp | grep -E "3001|:80 " || netstat -tlnp 2>/dev/null | grep -E "3001|:80 " || true
 
-              echo "=== SuperAdmin row in haccp_users ==="
-              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_users -c "SELECT id, email, role, status FROM users WHERE email='superadmin@haccp.com';" || true
+              echo "========================================"
+              echo "=== AUTH SERVICE LOGS (last 30 lines) ==="
+              echo "========================================"
+              docker logs haccp-auth --tail=30 2>&1 || echo "cannot get auth logs"
 
-              echo "=== Auth service health ==="
-              docker exec haccp-auth wget -qO- http://localhost:3010/health 2>/dev/null || echo "HEALTH CHECK FAILED"
+              echo "========================================"
+              echo "=== API-GATEWAY LOGS (last 20 lines) ==="
+              echo "========================================"
+              docker logs haccp-gateway --tail=20 2>&1 || echo "cannot get gateway logs"
 
+              echo "========================================"
+              echo "=== WEB CONTAINER LOGS (last 20 lines) ==="
+              echo "========================================"
+              docker logs haccp-web --tail=20 2>&1 || echo "cannot get web logs"
+
+              echo "========================================"
+              echo "=== VITE_API_URL IN JS BUNDLE ==="
+              echo "========================================"
+              docker exec haccp-web sh -c 'grep -r "178\.105\|VITE_API_URL\|baseURL" /usr/share/nginx/html/assets/*.js 2>/dev/null | head -5' || echo "no hardcoded URL found (empty baseURL = correct)"
+
+              echo "========================================"
+              echo "=== SERVER apps/web/.env ==="
+              echo "========================================"
+              cat /opt/haccp/apps/web/.env 2>/dev/null || echo "file not found"
+
+              echo "========================================"
+              echo "=== LOGIN TEST port 80 ==="
+              echo "========================================"
               PASS="${SUPERADMIN_PASSWORD:-Admin@HACCP2024!}"
               EMAIL="${SUPERADMIN_EMAIL:-superadmin@haccp.com}"
-
-              echo "=== Test 1: Direct gateway (port 80) ==="
               R1=$(curl -s -X POST http://localhost:80/api/v1/auth/login \
                 -H "Content-Type: application/json" \
                 -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}")
-              echo "Port 80: $(echo "$R1" | cut -c1-60)"
+              echo "Port 80 result (first 80 chars): $(echo "$R1" | cut -c1-80)"
 
-              echo "=== Test 2: Via web container (port 3001 = browser path) ==="
+              echo "========================================"
+              echo "=== LOGIN TEST port 3001 ==="
+              echo "========================================"
               R2=$(curl -s -X POST http://localhost:3001/api/v1/auth/login \
                 -H "Content-Type: application/json" \
                 -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}")
-              echo "Port 3001: $(echo "$R2" | cut -c1-100)"
+              echo "Port 3001 result (first 80 chars): $(echo "$R2" | cut -c1-80)"
 
-              echo "=== Test 3: Auth service direct (port 3010) ==="
-              R3=$(curl -s -X POST http://localhost:3010/auth/login \
-                -H "Content-Type: application/json" \
-                -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}")
-              echo "Port 3010: $(echo "$R3" | cut -c1-100)"
-
-              echo "=== VITE_API_URL baked into web bundle ==="
-              docker exec haccp-web grep -r "178\.105\|localhost\|VITE_API_URL" /usr/share/nginx/html/assets/*.js 2>/dev/null | head -3 || echo "no hardcoded URL found (relative URLs = correct)"
-              echo "=== Server apps/web/.env ==="
-              cat /opt/haccp/apps/web/.env 2>/dev/null || echo "file not found"
-
-              echo "=== CORS headers from port 80 ==="
+              echo "========================================"
+              echo "=== CORS PREFLIGHT TEST (as browser from :3001) ==="
+              echo "========================================"
               curl -s -I -X OPTIONS http://localhost:80/api/v1/auth/login \
                 -H "Origin: http://178.105.126.165:3001" \
-                -H "Access-Control-Request-Method: POST" | grep -i "access-control" || echo "no CORS headers"
+                -H "Access-Control-Request-Method: POST" \
+                -H "Access-Control-Request-Headers: Content-Type" | grep -i "access-control\|HTTP/" || echo "no CORS headers"
 
-              echo "=== Disk usage ==="
+              echo "========================================"
+              echo "=== DB: superadmin row ==="
+              echo "========================================"
+              PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER)
+              PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD)
+              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_auth \
+                -c "SELECT email, role, status, LEFT(password_hash,10) as hash_prefix FROM users WHERE email='superadmin@haccp.com';" 2>&1 || echo "DB query failed"
+
+              echo "========================================"
+              echo "=== DISK USAGE ==="
+              echo "========================================"
               df -h /
 
               exit 0
