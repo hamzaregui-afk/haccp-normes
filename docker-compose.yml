@@ -182,6 +182,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      # Give the service 60s to run Prisma migrations before counting failures
+      start_period: 60s
 
   user-service:
     build:
@@ -212,6 +214,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      # Give the service 60s to run Prisma migrations before counting failures
+      start_period: 60s
 
   tenant-service:
     build:
@@ -238,6 +242,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      # Give the service 60s to run Prisma migrations before counting failures
+      start_period: 60s
 
   control-service:
     build:
@@ -274,6 +280,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      # Give the service 60s to run Prisma migrations before counting failures
+      start_period: 60s
 
   nonconformity-service:
     build:
@@ -310,6 +318,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      # Give the service 60s to run Prisma migrations before counting failures
+      start_period: 60s
 
   asset-service:
     build:
@@ -344,6 +354,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      # Give the service 60s to run Prisma migrations before counting failures
+      start_period: 60s
 
   notification-service:
     build:
@@ -379,6 +391,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      # Give the service 60s to run Prisma migrations before counting failures
+      start_period: 60s
 
   report-service:
     build:
@@ -415,6 +429,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      # Give the service 60s to run Prisma migrations before counting failures
+      start_period: 60s
 
   dlc-service:
     build:
@@ -441,6 +457,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      # Give the service 60s to run Prisma migrations before counting failures
+      start_period: 60s
 
   audit-service:
     # ARCH-DECISION: audit-service is append-only by law.
@@ -470,6 +488,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      # Give the service 60s to run Prisma migrations before counting failures
+      start_period: 60s
 
   # ── FRONTEND ──────────────────────────────────────────────────────────────────
 
