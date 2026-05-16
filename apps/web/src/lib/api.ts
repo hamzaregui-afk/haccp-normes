@@ -98,7 +98,12 @@ api.interceptors.response.use(
     const status          = error.response?.status;
     const originalRequest = error.config;
 
-    if (status === 401 && originalRequest && !originalRequest._retry) {
+    // ARCH-DECISION: Skip refresh on auth endpoints — login/refresh/logout
+    // returning 401 means wrong credentials or expired token, not a mid-session
+    // expiry. Attempting refresh here would cause a recursive call chain.
+    const isAuthEndpoint = originalRequest?.url?.includes('/auth/');
+
+    if (status === 401 && originalRequest && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
 
       try {
