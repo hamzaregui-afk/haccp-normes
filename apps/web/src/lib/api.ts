@@ -43,10 +43,12 @@ declare module 'axios' {
 
 // ─── Axios instance ───────────────────────────────────────────────────────────
 export const api = axios.create({
-  // ARCH-DECISION: Empty baseURL means all requests use the current origin
-  // (localhost:3000 in dev, served via nginx proxy). VITE_API_URL can override
-  // for standalone API deployments.
-  baseURL: import.meta.env.VITE_API_URL ?? '',
+  // ARCH-DECISION: In production the SPA is always served by the same nginx
+  // that proxies /api/* — so the baseURL must be empty (relative URLs) to
+  // guarantee same-origin requests and avoid CORS entirely.
+  // In development, VITE_API_URL can point to a local API server; Vite's
+  // built-in proxy (vite.config.ts server.proxy) is preferred instead.
+  baseURL: import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? ''),
   headers: { 'Content-Type': 'application/json' },
   timeout: DEFAULT_TIMEOUT,
 });
