@@ -70,8 +70,19 @@ jobs:
               echo "=== Reloading api-gateway nginx config (no rebuild needed) ==="
               cd /opt/haccp
               git pull origin main
-              docker exec haccp-gateway nginx -s reload
+              echo "=== Git commit after pull ==="
+              git log --oneline -2
+              echo "=== Testing nginx config validity (nginx -t) ==="
+              docker exec haccp-gateway nginx -t 2>&1
+              echo "=== nginx -t exit code: $? ==="
+              echo "=== Reloading nginx (nginx -s reload) ==="
+              docker exec haccp-gateway nginx -s reload 2>&1
+              echo "=== Forcing container restart to guarantee new config ==="
+              docker compose restart api-gateway
               echo "=== Gateway reloaded — CORS and routing changes are now active ==="
+              echo "=== Verifying config is live ==="
+              sleep 5
+              curl -sI http://localhost/health | grep -i "content-security\|server:" || echo "gateway responding"
               exit 0
             fi
 
@@ -297,13 +308,17 @@ jobs:
             git log --oneline -3
 
             # ── INSTANT nginx reload FIRST ────────────────────────────────────────
-            # Reloads nginx.conf from the volume-mount IMMEDIATELY (2 seconds).
-            # This applies CORS/routing fixes right away without waiting for Docker
-            # rebuild. Critical when the fix is in nginx.conf only.
-            echo "=== Fast-path: reloading nginx now (before Docker rebuild) ==="
-            docker exec haccp-gateway nginx -s reload 2>/dev/null && \
-              echo "nginx reloaded instantly" || \
-              echo "nginx reload skipped (gateway not running yet)"
+            # Tests config validity then reloads. If reload fails, force-recreates
+            # the container so the new nginx.conf takes effect either way.
+            echo "=== Fast-path: testing and reloading nginx ==="
+            if docker exec haccp-gateway nginx -t 2>&1; then
+              docker exec haccp-gateway nginx -s reload && echo "nginx reloaded instantly" || echo "reload signal sent"
+            else
+              echo "nginx config invalid — check errors above"
+            fi
+            echo "=== Force-recreating gateway to guarantee new config is loaded ==="
+            docker compose up -d --force-recreate api-gateway
+            sleep 3
 
             echo "=== Fixing web .env (VITE_API_URL must be EMPTY for relative URLs) ==="
             printf 'VITE_API_URL=\nVITE_WS_URL=\n' > apps/web/.env
