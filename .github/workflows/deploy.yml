@@ -296,6 +296,15 @@ jobs:
             echo "=== Git commit on server after pull ==="
             git log --oneline -3
 
+            # ── INSTANT nginx reload FIRST ────────────────────────────────────────
+            # Reloads nginx.conf from the volume-mount IMMEDIATELY (2 seconds).
+            # This applies CORS/routing fixes right away without waiting for Docker
+            # rebuild. Critical when the fix is in nginx.conf only.
+            echo "=== Fast-path: reloading nginx now (before Docker rebuild) ==="
+            docker exec haccp-gateway nginx -s reload 2>/dev/null && \
+              echo "nginx reloaded instantly" || \
+              echo "nginx reload skipped (gateway not running yet)"
+
             echo "=== Fixing web .env (VITE_API_URL must be EMPTY for relative URLs) ==="
             printf 'VITE_API_URL=\nVITE_WS_URL=\n' > apps/web/.env
             echo "apps/web/.env written: $(cat apps/web/.env)"
