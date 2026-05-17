@@ -153,7 +153,13 @@ export class AuthService implements OnModuleInit {
       const tokens = await this.login(user);
       return { ...tokens, user };
     } catch {
-      throw new UnauthorizedError('AUTH_002');
+      // ARCH-DECISION: Throw NestJS UnauthorizedException (an HttpException) rather
+      // than the custom UnauthorizedError (an AppError extending Error). The catch
+      // block catches EVERY thrown value including the UnauthorizedException thrown
+      // by inner steps — re-wrapping as AppError would produce HTTP 500 before the
+      // AllExceptionsFilter fix was applied, and is still semantically wrong.
+      // NestJS UnauthorizedException maps directly to HTTP 401.
+      throw new UnauthorizedException('Invalid or expired refresh token');
     }
   }
 

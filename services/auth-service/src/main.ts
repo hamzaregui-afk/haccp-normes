@@ -17,6 +17,12 @@ async function bootstrap() {
     logger: ['error', 'warn', 'log', ...(env.NODE_ENV !== 'production' ? ['debug' as const] : [])],
   });
 
+  // ARCH-DECISION: Trust the first hop in the X-Forwarded-For chain (nginx).
+  // Without this, Express uses the Docker-internal nginx IP (172.x.x.x) as
+  // req.ip for ALL requests, so every client shares the same throttler bucket
+  // and a single user's retry storm can lock out the entire platform.
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   app.use(correlationIdMiddleware);
   app.use(idempotencyMiddleware);
 

@@ -282,6 +282,49 @@ jobs:
               echo "========================================"
               df -h /
 
+              echo "========================================"
+              echo "=== CONTAINER MEMORY USAGE ==="
+              echo "========================================"
+              docker stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}" | grep -E "haccp|NAME" || true
+
+              echo "========================================"
+              echo "=== LOGIN TEST WITH BROWSER HEADERS (port 3001) ==="
+              echo "=== (simulates exact Axios request from Chrome) ==="
+              echo "========================================"
+              CORR_ID=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || echo "test-corr-id")
+              IDEM_KEY=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || echo "test-idem-key")
+              R3=$(curl -sv -X POST "http://localhost:3001/api/v1/auth/login" \
+                -H "Content-Type: application/json" \
+                -H "Accept: application/json, text/plain, */*" \
+                -H "X-Correlation-ID: $CORR_ID" \
+                -H "Idempotency-Key: $IDEM_KEY" \
+                -H "Origin: http://178.105.126.165:3001" \
+                -H "Referer: http://178.105.126.165:3001/login" \
+                -H "Connection: keep-alive" \
+                -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}" 2>&1)
+              echo "Browser-headers test full output:"
+              echo "$R3" | tail -30
+              if echo "$R3" | grep -q "accessToken"; then
+                echo "=== BROWSER-HEADERS TEST: OK ==="
+              else
+                echo "=== BROWSER-HEADERS TEST: FAILED ==="
+                echo "=== Auth service logs (last 50 lines) ==="
+                docker logs haccp-auth --tail=50 2>&1 || true
+                echo "=== Gateway error log ==="
+                docker logs haccp-gateway --tail=30 2>&1 || true
+              fi
+
+              echo "========================================"
+              echo "=== THROTTLER STATE: Auth service rate limit check ==="
+              echo "========================================"
+              for i in 1 2 3 4 5 6; do
+                STATUS=$(curl -so /dev/null -w "%{http_code}" -X POST "http://localhost/api/v1/auth/login" \
+                  -H "Content-Type: application/json" \
+                  -d '{"email":"wrong@test.com","password":"wrong"}')
+                echo "Attempt $i: HTTP $STATUS"
+              done
+              echo "=== (HTTP 429 = throttled, 401 = correct, 500 = AppError bug) ==="
+
               exit 0
             fi
 

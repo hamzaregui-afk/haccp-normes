@@ -9,6 +9,8 @@ import {
 import type { Request, Response } from 'express';
 import { ZodError } from 'zod';
 
+import { AppError } from './app.errors';
+
 export interface ApiError {
   statusCode: number;
   error: string;
@@ -54,6 +56,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
       error      = 'Bad Request';
       message    = exception.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ');
       this.logger.warn(`Zod validation failed: ${message}`);
+    } else if (exception instanceof AppError) {
+      // ARCH-DECISION: AppError extends native Error (not NestJS HttpException)
+      // so it must be checked BEFORE the generic `instanceof Error` branch.
+      // AppError carries httpStatus (401, 403, 404, 409, 422) and a structured
+      // toResponse() payload — without this branch every domain error returns 500.
+      statusCode = exception.httpStatus;
+      const appRes = exception.toResponse();
+      message    = appRes.message;
+      error      = exception.code;
+      this.logger.warn(`AppError [${statusCode}] ${exception.code}: ${exception.message}`);
     } else if (exception instanceof Error) {
       // Log internal errors but do NOT expose message to client
       this.logger.error(`Unhandled exception: ${exception.message}`, exception.stack);
