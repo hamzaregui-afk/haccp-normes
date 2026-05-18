@@ -16,7 +16,7 @@ import axios from 'axios';
 import {
   ArrowLeft, Building2, CheckCircle2, ChevronRight, Cog,
   CreditCard, History, LayoutDashboard, Loader2, MapPin,
-  Package, Plus, RotateCcw, ScrollText, Shield, Toggle,
+  Package, Plus, RotateCcw, ScrollText, Shield, ToggleLeft,
   Trash2, User2, Users, XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -76,7 +76,7 @@ const MODULE_META: Record<TenantModuleKey, { label: string; description: string;
   DASHBOARD:       { label: 'Tableau de bord',    description: 'KPIs, graphiques et vue d\'ensemble',       icon: LayoutDashboard },
   HACCP_CONTROLS:  { label: 'Contrôles HACCP',    description: 'Planification et exécution des contrôles', icon: Shield },
   NONCONFORMITIES: { label: 'Non-conformités',    description: 'Gestion et clôture des NCs',               icon: XCircle },
-  DLC:             { label: 'DLC',                description: 'Dates limites de consommation',             icon: Toggle },
+  DLC:             { label: 'DLC',                description: 'Dates limites de consommation',             icon: ToggleLeft },
   REPORTS:         { label: 'Rapports',           description: 'Génération et validation PDF',              icon: ScrollText },
   EQUIPMENTS:      { label: 'Équipements',        description: 'Référentiel équipements',                  icon: Cog },
   PRODUCTS:        { label: 'Produits',           description: 'Catalogue produits',                        icon: Package },
@@ -97,7 +97,7 @@ const MODULE_META: Record<TenantModuleKey, { label: string; description: string;
 const TABS = [
   { id: 'info',         label: 'Informations',    icon: Building2  },
   { id: 'admin',        label: 'Admin principal', icon: User2       },
-  { id: 'modules',      label: 'Modules',         icon: Toggle      },
+  { id: 'modules',      label: 'Modules',         icon: ToggleLeft  },
   { id: 'subscription', label: 'Abonnement',      icon: CreditCard  },
   { id: 'sites',        label: 'Sites & Zones',   icon: MapPin      },
   { id: 'users',        label: 'Utilisateurs',    icon: Users       },
