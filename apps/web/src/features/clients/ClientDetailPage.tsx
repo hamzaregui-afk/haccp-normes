@@ -1,0 +1,989 @@
+/**
+ * ClientDetailPage — Full SaaS tenant management panel
+ * Accessible via /clients/:id — SUPER_ADMIN only
+ *
+ * Tabs:
+ *  1. Informations     — name, slug, contacts, status, sector
+ *  2. Admin principal  — create/view the tenant's ADMIN user
+ *  3. Modules          — feature flag toggles (17 modules)
+ *  4. Abonnement       — plan, limits, trial dates
+ *  5. Sites & Zones    — hierarchical reference data
+ *  6. Utilisateurs     — tenant user list (read-only from SA view)
+ *  7. Historique       — placeholder (audit trail)
+ */
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
+import {
+  ArrowLeft, Building2, CheckCircle2, ChevronRight, Cog,
+  CreditCard, History, LayoutDashboard, Loader2, MapPin,
+  Package, Plus, RotateCcw, ScrollText, Shield, Toggle,
+  Trash2, User2, Users, XCircle,
+} from 'lucide-react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Link, useParams } from 'react-router-dom';
+
+import { Header } from '@/components/layout/Header';
+import { PageWrapper } from '@/components/layout/AppLayout';
+import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
+import { showToast } from '@/components/ui/Toast';
+import { api } from '@/lib/api';
+import type {
+  ApiResponse, Tenant, TenantModule, TenantModuleKey,
+  TenantSubscription,
+} from '@haccp/shared-types';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function extractApiError(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const msg = (err.response?.data as { message?: string } | undefined)?.message;
+    if (msg) return msg;
+  }
+  return 'Une erreur est survenue. Veuillez réessayer.';
+}
+
+// ─── Style maps ───────────────────────────────────────────────────────────────
+
+const STATUS_STYLES: Record<string, string> = {
+  ACTIVE:    'bg-green-100 text-green-800',
+  ARCHIVED:  'bg-gray-100  text-gray-600',
+  SUSPENDED: 'bg-red-100   text-red-700',
+};
+const STATUS_LABELS: Record<string, string> = {
+  ACTIVE: 'Actif', ARCHIVED: 'Archivé', SUSPENDED: 'Suspendu',
+};
+
+const PLAN_LABELS: Record<string, string> = {
+  trial: 'Essai', standard: 'Standard', premium: 'Premium',
+};
+
+const SUB_STATUS_STYLES: Record<string, string> = {
+  TRIAL:     'bg-amber-100 text-amber-800',
+  ACTIVE:    'bg-green-100 text-green-800',
+  SUSPENDED: 'bg-red-100   text-red-700',
+  CANCELLED: 'bg-gray-100  text-gray-600',
+  EXPIRED:   'bg-gray-100  text-gray-500',
+};
+const SUB_STATUS_LABELS: Record<string, string> = {
+  TRIAL: 'Essai', ACTIVE: 'Actif', SUSPENDED: 'Suspendu', CANCELLED: 'Annulé', EXPIRED: 'Expiré',
+};
+
+// ─── Module metadata ──────────────────────────────────────────────────────────
+
+const MODULE_META: Record<TenantModuleKey, { label: string; description: string; icon: React.FC<{ className?: string }> }> = {
+  DASHBOARD:       { label: 'Tableau de bord',    description: 'KPIs, graphiques et vue d\'ensemble',       icon: LayoutDashboard },
+  HACCP_CONTROLS:  { label: 'Contrôles HACCP',    description: 'Planification et exécution des contrôles', icon: Shield },
+  NONCONFORMITIES: { label: 'Non-conformités',    description: 'Gestion et clôture des NCs',               icon: XCircle },
+  DLC:             { label: 'DLC',                description: 'Dates limites de consommation',             icon: Toggle },
+  REPORTS:         { label: 'Rapports',           description: 'Génération et validation PDF',              icon: ScrollText },
+  EQUIPMENTS:      { label: 'Équipements',        description: 'Référentiel équipements',                  icon: Cog },
+  PRODUCTS:        { label: 'Produits',           description: 'Catalogue produits',                        icon: Package },
+  SUPPLIERS:       { label: 'Fournisseurs',       description: 'Gestion des fournisseurs',                 icon: Building2 },
+  GED:             { label: 'GED',                description: 'Gestion électronique documents',           icon: ScrollText },
+  NOTIFICATIONS:   { label: 'Notifications',      description: 'Alertes e-mail et push',                   icon: CheckCircle2 },
+  AUDIT:           { label: 'Journal d\'audit',   description: 'Registre immuable des actions',            icon: History },
+  PLANNING:        { label: 'Planning',           description: 'Planification avancée',                    icon: LayoutDashboard },
+  TEMPERATURES:    { label: 'Températures',       description: 'Suivi relevés de température',             icon: Shield },
+  RECEPTIONS:      { label: 'Réceptions',         description: 'Contrôle réceptions fournisseurs',         icon: Package },
+  HYGIENE:         { label: 'Hygiène',            description: 'Contrôles hygiène et nettoyage',           icon: Shield },
+  ANALYTICS:       { label: 'Analytics',          description: 'Rapports avancés et statistiques',         icon: ChevronRight },
+  MOBILE_ACCESS:   { label: 'Accès mobile',       description: 'Application mobile opérateurs',            icon: Users },
+};
+
+// ─── Tab definition ───────────────────────────────────────────────────────────
+
+const TABS = [
+  { id: 'info',         label: 'Informations',    icon: Building2  },
+  { id: 'admin',        label: 'Admin principal', icon: User2       },
+  { id: 'modules',      label: 'Modules',         icon: Toggle      },
+  { id: 'subscription', label: 'Abonnement',      icon: CreditCard  },
+  { id: 'sites',        label: 'Sites & Zones',   icon: MapPin      },
+  { id: 'users',        label: 'Utilisateurs',    icon: Users       },
+  { id: 'history',      label: 'Historique',      icon: History     },
+] as const;
+
+type TabId = (typeof TABS)[number]['id'];
+
+// ─── Data hooks ───────────────────────────────────────────────────────────────
+
+function useTenant(id: string) {
+  return useQuery({
+    queryKey: ['tenant', id],
+    queryFn:  async () => {
+      const { data } = await api.get<ApiResponse<Tenant>>(`/api/v1/tenants/${id}`);
+      return data.data;
+    },
+    enabled: !!id,
+  });
+}
+
+function useTenantModules(id: string) {
+  return useQuery({
+    queryKey: ['tenant-modules', id],
+    queryFn:  async () => {
+      const { data } = await api.get<ApiResponse<TenantModule[]>>(`/api/v1/tenants/${id}/modules`);
+      return data.data;
+    },
+    enabled: !!id,
+  });
+}
+
+function useTenantSubscription(id: string) {
+  return useQuery({
+    queryKey: ['tenant-subscription', id],
+    queryFn:  async () => {
+      const { data } = await api.get<ApiResponse<TenantSubscription | null>>(`/api/v1/tenants/${id}/subscription`);
+      return data.data;
+    },
+    enabled: !!id,
+  });
+}
+
+function useTenantSites(id: string) {
+  return useQuery({
+    queryKey: ['tenant-sites', id],
+    queryFn:  async () => {
+      type SiteWithZones = { id: string; name: string; address?: string | null; zones: { id: string; name: string }[] };
+      const { data } = await api.get<ApiResponse<SiteWithZones[]>>(`/api/v1/tenants/${id}/sites`);
+      return data.data;
+    },
+    enabled: !!id,
+  });
+}
+
+// ─── Tab: Informations ────────────────────────────────────────────────────────
+
+function InfoTab({ tenant, tenantId }: { tenant: Tenant; tenantId: string }) {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+
+  const { register, handleSubmit, reset } = useForm({
+    defaultValues: {
+      name:    tenant.name,
+      email:   tenant.email   ?? '',
+      phone:   tenant.phone   ?? '',
+      siret:   tenant.siret   ?? '',
+      address: tenant.address ?? '',
+      sector:  tenant.sector  ?? '',
+      status:  tenant.status,
+    },
+  });
+
+  const mutation = useMutation({
+    mutationFn: (v: Record<string, string>) => api.patch(`/api/v1/tenants/${tenantId}`, v),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tenant', tenantId] });
+      qc.invalidateQueries({ queryKey: ['tenants'] });
+      showToast({ title: 'Informations mises à jour', variant: 'success' });
+      setEditing(false);
+    },
+    onError: (err) => showToast({ title: extractApiError(err), variant: 'error' }),
+  });
+
+  if (!editing) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-gray-900">Informations générales</h3>
+          <Button size="sm" variant="secondary" onClick={() => { reset(); setEditing(true); }}>
+            Modifier
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          {[
+            { label: 'Nom',           value: tenant.name },
+            { label: 'Slug',          value: `/${tenant.slug}`, mono: true },
+            { label: 'Email',         value: tenant.email },
+            { label: 'Téléphone',     value: tenant.phone },
+            { label: 'SIRET',         value: tenant.siret },
+            { label: 'Secteur',       value: tenant.sector },
+            { label: 'Statut',        value: STATUS_LABELS[tenant.status] ?? tenant.status },
+            { label: 'Plan',          value: PLAN_LABELS[tenant.plan] ?? tenant.plan },
+            { label: 'Créé le',       value: new Date(tenant.createdAt).toLocaleDateString('fr-FR', { dateStyle: 'long' }) },
+          ].map(({ label, value, mono }) => (
+            <div key={label}>
+              <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">{label}</dt>
+              <dd className={`mt-1 text-sm text-gray-900 ${mono ? 'font-mono' : ''}`}>
+                {value ?? <span className="text-gray-300">—</span>}
+              </dd>
+            </div>
+          ))}
+        </div>
+
+        {tenant.address && (
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Adresse</dt>
+            <dd className="mt-1 text-sm text-gray-900 whitespace-pre-line">{tenant.address}</dd>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+      <h3 className="text-base font-semibold text-gray-900">Modifier les informations</h3>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {[
+          { key: 'name',   label: 'Nom *',       type: 'text',  placeholder: 'Boulangerie Dupont' },
+          { key: 'email',  label: 'Email',        type: 'email', placeholder: 'contact@client.com' },
+          { key: 'phone',  label: 'Téléphone',    type: 'tel',   placeholder: '+33 1 23 45 67 89' },
+          { key: 'siret',  label: 'SIRET',        type: 'text',  placeholder: '12345678901234' },
+        ].map(({ key, label, type, placeholder }) => (
+          <div key={key} className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">{label}</label>
+            <input
+              {...register(key as 'name' | 'email' | 'phone' | 'siret')}
+              type={type}
+              placeholder={placeholder}
+              className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-medium text-gray-700">Secteur d'activité</label>
+        <select
+          {...register('sector')}
+          className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
+        >
+          <option value="">— Sélectionner —</option>
+          {['RESTAURATION', 'INDUSTRIE_ALIMENTAIRE', 'GRANDE_DISTRIBUTION', 'TRAITEUR', 'AUTRE'].map((s) => (
+            <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-medium text-gray-700">Adresse</label>
+        <textarea
+          {...register('address')}
+          rows={3}
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
+          placeholder="12 rue des Boulangers, 75001 Paris"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-medium text-gray-700">Statut</label>
+        <select
+          {...register('status')}
+          className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
+        >
+          <option value="ACTIVE">Actif</option>
+          <option value="SUSPENDED">Suspendu</option>
+          <option value="ARCHIVED">Archivé</option>
+        </select>
+      </div>
+
+      <div className="flex gap-2 pt-2">
+        <Button type="submit" loading={mutation.isPending}>Enregistrer</Button>
+        <Button type="button" variant="secondary" onClick={() => setEditing(false)}>Annuler</Button>
+      </div>
+    </form>
+  );
+}
+
+// ─── Tab: Admin principal ─────────────────────────────────────────────────────
+
+interface AdminTabProps { tenant: Tenant; tenantId: string; }
+
+function AdminTab({ tenant, tenantId }: AdminTabProps) {
+  const qc = useQueryClient();
+  const [showCreate, setShowCreate] = useState(false);
+
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<{
+    name: string; email: string; password: string;
+  }>();
+
+  const createMutation = useMutation({
+    mutationFn: (v: { name: string; email: string; password: string }) =>
+      api.post('/api/v1/users', { ...v, role: 'ADMIN' }),
+    onSuccess: (res) => {
+      const userId = (res.data as ApiResponse<{ id: string }>).data?.id;
+      if (userId) {
+        // Store primaryAdminId on the tenant
+        void api.patch(`/api/v1/tenants/${tenantId}`, { primaryAdminId: userId });
+        qc.invalidateQueries({ queryKey: ['tenant', tenantId] });
+      }
+      showToast({ title: 'Admin créé avec succès', variant: 'success' });
+      setShowCreate(false);
+      reset();
+    },
+    onError: (err) => showToast({ title: extractApiError(err), variant: 'error' }),
+  });
+
+  const hasAdmin = !!tenant.primaryAdminId;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-semibold text-gray-900">Admin principal</h3>
+        {!hasAdmin && (
+          <Button size="sm" onClick={() => setShowCreate(true)}>
+            <Plus className="mr-1.5 h-4 w-4" /> Créer l'admin
+          </Button>
+        )}
+      </div>
+
+      {hasAdmin ? (
+        <div className="rounded-xl border border-green-100 bg-green-50 p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-200">
+              <User2 className="h-5 w-5 text-green-700" />
+            </div>
+            <div>
+              <p className="font-medium text-green-900">Admin assigné</p>
+              <p className="text-xs text-green-600 font-mono">{tenant.primaryAdminId}</p>
+            </div>
+            <span className="ml-auto rounded-full bg-green-200 px-2.5 py-0.5 text-xs font-medium text-green-800">
+              ADMIN
+            </span>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                showToast({ title: 'Lien de réinitialisation envoyé (fonctionnalité à venir)', variant: 'info' });
+              }}
+            >
+              <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Réinitialiser MDP
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
+          <User2 className="mx-auto mb-3 h-10 w-10 text-gray-300" />
+          <p className="font-medium text-gray-500">Aucun admin assigné</p>
+          <p className="mt-1 text-xs text-gray-400">
+            Créez un utilisateur ADMIN pour permettre au client de gérer son instance.
+          </p>
+          <Button className="mt-4" size="sm" onClick={() => setShowCreate(true)}>
+            <Plus className="mr-1.5 h-4 w-4" /> Créer l'admin
+          </Button>
+        </div>
+      )}
+
+      <div className="rounded-xl border border-blue-50 bg-blue-50/60 p-4 text-sm text-blue-800">
+        <p className="font-medium mb-1">Règles admin tenant :</p>
+        <ul className="space-y-0.5 text-xs list-disc list-inside text-blue-700">
+          <li>Appartient automatiquement au tenant <strong>{tenant.name}</strong></li>
+          <li>Reçoit le rôle <strong>ADMIN</strong> — accès à son tenant uniquement</li>
+          <li>Peut gérer les utilisateurs et le référentiel de son instance</li>
+          <li>Ne peut pas voir les autres tenants de la plateforme</li>
+        </ul>
+      </div>
+
+      {showCreate && (
+        <Modal open title="Créer l'administrateur" onClose={() => setShowCreate(false)}>
+          <form onSubmit={handleSubmit((v) => createMutation.mutate(v))} className="flex flex-col gap-4">
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+              Cet admin sera créé dans le tenant <strong>{tenant.name}</strong> avec le rôle ADMIN.
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-700">Nom complet *</label>
+              <input
+                {...register('name', { required: 'Obligatoire' })}
+                type="text"
+                placeholder="Jean Dupont"
+                className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
+              />
+              {errors.name && <p className="text-xs text-red-600">{errors.name.message}</p>}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-700">Email *</label>
+              <input
+                {...register('email', { required: 'Obligatoire' })}
+                type="email"
+                placeholder="admin@client.com"
+                className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
+              />
+              {errors.email && <p className="text-xs text-red-600">{errors.email.message}</p>}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-700">Mot de passe *</label>
+              <input
+                {...register('password', { required: 'Obligatoire', minLength: { value: 8, message: '8 caractères minimum' } })}
+                type="password"
+                placeholder="Min. 8 caractères"
+                className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
+              />
+              {errors.password && <p className="text-xs text-red-600">{errors.password.message}</p>}
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button type="button" variant="secondary" onClick={() => setShowCreate(false)}>Annuler</Button>
+              <Button type="submit" loading={createMutation.isPending}>Créer l'admin</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ─── Tab: Modules ─────────────────────────────────────────────────────────────
+
+function ModulesTab({ tenantId }: { tenantId: string }) {
+  const qc = useQueryClient();
+  const { data: modules, isLoading } = useTenantModules(tenantId);
+  const [localState, setLocalState] = useState<Record<string, boolean>>({});
+  const [dirty, setDirty] = useState(false);
+
+  const mutation = useMutation({
+    mutationFn: (mods: { moduleKey: string; enabled: boolean }[]) =>
+      api.put(`/api/v1/tenants/${tenantId}/modules`, { modules: mods }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tenant-modules', tenantId] });
+      qc.invalidateQueries({ queryKey: ['tenant', tenantId] });
+      qc.invalidateQueries({ queryKey: ['tenants'] });
+      showToast({ title: 'Modules mis à jour', variant: 'success' });
+      setDirty(false);
+      setLocalState({});
+    },
+    onError: (err) => showToast({ title: extractApiError(err), variant: 'error' }),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-brand-medium" />
+      </div>
+    );
+  }
+
+  const effectiveState = (key: TenantModuleKey): boolean => {
+    if (key in localState) return localState[key] ?? false;
+    return modules?.find((m) => m.moduleKey === key)?.enabled ?? false;
+  };
+
+  const toggle = (key: TenantModuleKey) => {
+    setLocalState((prev) => ({ ...prev, [key]: !effectiveState(key) }));
+    setDirty(true);
+  };
+
+  const enabledCount = (Object.keys(MODULE_META) as TenantModuleKey[]).filter((k) => effectiveState(k)).length;
+
+  const handleSave = () => {
+    const changes = (Object.keys(MODULE_META) as TenantModuleKey[]).map((key) => ({
+      moduleKey: key,
+      enabled:   effectiveState(key),
+    }));
+    mutation.mutate(changes);
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-semibold text-gray-900">Modules activés</h3>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {enabledCount} / 17 modules actifs
+          </p>
+        </div>
+        {dirty && (
+          <Button onClick={handleSave} loading={mutation.isPending} size="sm">
+            Enregistrer les modifications
+          </Button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {(Object.entries(MODULE_META) as [TenantModuleKey, (typeof MODULE_META)[TenantModuleKey]][]).map(
+          ([key, meta]) => {
+            const enabled = effectiveState(key);
+            const Icon    = meta.icon;
+
+            return (
+              <button
+                key={key}
+                onClick={() => toggle(key)}
+                className={`group flex items-start gap-3 rounded-xl border p-4 text-left transition-all ${
+                  enabled
+                    ? 'border-brand-medium/30 bg-brand-lighter/60 shadow-sm'
+                    : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                  enabled ? 'bg-brand-medium text-white' : 'bg-gray-100 text-gray-400'
+                }`}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`text-sm font-medium ${enabled ? 'text-brand-dark' : 'text-gray-600'}`}>
+                      {meta.label}
+                    </span>
+                    {/* Toggle pill */}
+                    <div className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+                      enabled ? 'bg-brand-medium' : 'bg-gray-200'
+                    }`}>
+                      <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                        enabled ? 'translate-x-4' : 'translate-x-0.5'
+                      }`} />
+                    </div>
+                  </div>
+                  <p className="mt-0.5 text-xs text-gray-400 leading-tight">{meta.description}</p>
+                </div>
+              </button>
+            );
+          },
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Tab: Abonnement ──────────────────────────────────────────────────────────
+
+function SubscriptionTab({ tenantId, tenant }: { tenantId: string; tenant: Tenant }) {
+  const qc = useQueryClient();
+  const { data: sub, isLoading } = useTenantSubscription(tenantId);
+  const [editing, setEditing] = useState(false);
+
+  const { register, handleSubmit, reset } = useForm({
+    defaultValues: {
+      plan:        sub?.plan        ?? tenant.plan ?? 'standard',
+      status:      sub?.status      ?? 'ACTIVE',
+      maxUsers:    sub?.maxUsers    ?? 10,
+      maxSites:    sub?.maxSites    ?? 3,
+      trialEndsAt: sub?.trialEndsAt ? new Date(sub.trialEndsAt).toISOString().slice(0, 10) : '',
+      notes:       sub?.notes       ?? '',
+    },
+  });
+
+  const mutation = useMutation({
+    mutationFn: (v: Record<string, unknown>) => api.patch(`/api/v1/tenants/${tenantId}/subscription`, v),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tenant-subscription', tenantId] });
+      qc.invalidateQueries({ queryKey: ['tenant', tenantId] });
+      qc.invalidateQueries({ queryKey: ['tenants'] });
+      showToast({ title: 'Abonnement mis à jour', variant: 'success' });
+      setEditing(false);
+    },
+    onError: (err) => showToast({ title: extractApiError(err), variant: 'error' }),
+  });
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-brand-medium" /></div>;
+  }
+
+  const trialDays = sub?.trialEndsAt
+    ? Math.max(0, Math.ceil((new Date(sub.trialEndsAt).getTime() - Date.now()) / 86_400_000))
+    : null;
+
+  if (!editing) {
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-gray-900">Abonnement</h3>
+          <Button size="sm" variant="secondary" onClick={() => { reset(); setEditing(true); }}>
+            Modifier
+          </Button>
+        </div>
+
+        {!sub ? (
+          <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
+            <CreditCard className="mx-auto mb-3 h-10 w-10 text-gray-300" />
+            <p className="font-medium text-gray-500">Aucun abonnement configuré</p>
+            <Button className="mt-4" size="sm" onClick={() => setEditing(true)}>
+              <Plus className="mr-1.5 h-4 w-4" /> Configurer l'abonnement
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              { label: 'Plan',    value: PLAN_LABELS[sub.plan] ?? sub.plan },
+              {
+                label: 'Statut',
+                value: (
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${SUB_STATUS_STYLES[sub.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                    {SUB_STATUS_LABELS[sub.status] ?? sub.status}
+                  </span>
+                ),
+              },
+              { label: 'Utilisateurs max', value: sub.maxUsers },
+              { label: 'Sites max',        value: sub.maxSites },
+              {
+                label: 'Fin d\'essai',
+                value: sub.trialEndsAt
+                  ? `${new Date(sub.trialEndsAt).toLocaleDateString('fr-FR')} (${trialDays}j restants)`
+                  : '—',
+              },
+              {
+                label: 'Début',
+                value: new Date(sub.startedAt).toLocaleDateString('fr-FR', { dateStyle: 'long' }),
+              },
+            ].map(({ label, value }) => (
+              <div key={label} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+                <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">{label}</dt>
+                <dd className="mt-2 text-sm font-semibold text-gray-900">
+                  {typeof value === 'string' || typeof value === 'number' ? value : value}
+                </dd>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {sub?.notes && (
+          <div className="rounded-lg bg-gray-50 border border-gray-100 p-4 text-sm text-gray-700">
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Notes</p>
+            {sub.notes}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+      <h3 className="text-base font-semibold text-gray-900">Modifier l'abonnement</h3>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-gray-700">Plan</label>
+          <select {...register('plan')} className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium">
+            <option value="trial">Essai (14 jours)</option>
+            <option value="standard">Standard</option>
+            <option value="premium">Premium</option>
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-gray-700">Statut</label>
+          <select {...register('status')} className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium">
+            <option value="TRIAL">Essai</option>
+            <option value="ACTIVE">Actif</option>
+            <option value="SUSPENDED">Suspendu</option>
+            <option value="CANCELLED">Annulé</option>
+            <option value="EXPIRED">Expiré</option>
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-gray-700">Utilisateurs max</label>
+          <input {...register('maxUsers', { valueAsNumber: true })} type="number" min={1} className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-gray-700">Sites max</label>
+          <input {...register('maxSites', { valueAsNumber: true })} type="number" min={1} className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-gray-700">Fin d'essai</label>
+          <input {...register('trialEndsAt')} type="date" className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium" />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-medium text-gray-700">Notes internes</label>
+        <textarea {...register('notes')} rows={3} className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium" placeholder="Notes sur cet abonnement…" />
+      </div>
+
+      <div className="flex gap-2 pt-1">
+        <Button type="submit" loading={mutation.isPending}>Enregistrer</Button>
+        <Button type="button" variant="secondary" onClick={() => setEditing(false)}>Annuler</Button>
+      </div>
+    </form>
+  );
+}
+
+// ─── Tab: Sites & Zones ───────────────────────────────────────────────────────
+
+function SitesTab({ tenantId }: { tenantId: string }) {
+  const qc = useQueryClient();
+  const { data: sites, isLoading } = useTenantSites(tenantId);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newSiteName, setNewSiteName] = useState('');
+  const [newSiteAddr, setNewSiteAddr] = useState('');
+
+  const addMutation = useMutation({
+    mutationFn: () => api.post(`/api/v1/tenants/${tenantId}/sites`, { name: newSiteName, address: newSiteAddr || undefined }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tenant-sites', tenantId] });
+      qc.invalidateQueries({ queryKey: ['tenant', tenantId] });
+      showToast({ title: 'Site créé', variant: 'success' });
+      setShowAdd(false);
+      setNewSiteName('');
+      setNewSiteAddr('');
+    },
+    onError: (err) => showToast({ title: extractApiError(err), variant: 'error' }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (siteId: string) => api.delete(`/api/v1/tenants/${tenantId}/sites/${siteId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tenant-sites', tenantId] });
+      qc.invalidateQueries({ queryKey: ['tenant', tenantId] });
+      showToast({ title: 'Site supprimé', variant: 'success' });
+    },
+    onError: (err) => showToast({ title: extractApiError(err), variant: 'error' }),
+  });
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-semibold text-gray-900">Sites & Zones</h3>
+        <Button size="sm" onClick={() => setShowAdd(true)}>
+          <Plus className="mr-1.5 h-4 w-4" /> Ajouter un site
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-16 animate-pulse rounded-xl bg-gray-100" />
+          ))}
+        </div>
+      ) : (sites ?? []).length === 0 ? (
+        <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
+          <MapPin className="mx-auto mb-3 h-10 w-10 text-gray-300" />
+          <p className="font-medium text-gray-500">Aucun site</p>
+          <Button className="mt-4" size="sm" onClick={() => setShowAdd(true)}>
+            <Plus className="mr-1.5 h-4 w-4" /> Ajouter un site
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {(sites ?? []).map((site) => (
+            <div key={site.id} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-lighter">
+                    <MapPin className="h-4 w-4 text-brand-dark" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">{site.name}</p>
+                    {site.address && <p className="text-xs text-gray-400">{site.address}</p>}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Supprimer le site « ${site.name} » et toutes ses zones ?`))
+                      deleteMutation.mutate(site.id);
+                  }}
+                  className="rounded p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+
+              {(site.zones ?? []).length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2 pl-11">
+                  {site.zones.map((z) => (
+                    <span key={z.id} className="rounded-full border border-gray-100 bg-gray-50 px-2.5 py-0.5 text-xs text-gray-600">
+                      {z.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showAdd && (
+        <Modal open title="Nouveau site" onClose={() => setShowAdd(false)}>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-700">Nom du site *</label>
+              <input
+                value={newSiteName}
+                onChange={(e) => setNewSiteName(e.target.value)}
+                type="text"
+                placeholder="Cuisine principale"
+                className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-700">Adresse</label>
+              <input
+                value={newSiteAddr}
+                onChange={(e) => setNewSiteAddr(e.target.value)}
+                type="text"
+                placeholder="12 rue des Boulangers, Paris"
+                className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => setShowAdd(false)}>Annuler</Button>
+              <Button
+                onClick={() => newSiteName.trim() && addMutation.mutate()}
+                loading={addMutation.isPending}
+                disabled={!newSiteName.trim()}
+              >
+                Créer le site
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ─── Tab: Utilisateurs ────────────────────────────────────────────────────────
+
+function UsersTab({ tenant }: { tenant: Tenant }) {
+  return (
+    <div className="space-y-5">
+      <h3 className="text-base font-semibold text-gray-900">Utilisateurs du tenant</h3>
+      <div className="rounded-xl border border-blue-50 bg-blue-50/60 p-5 text-sm text-blue-800">
+        <p className="font-medium mb-2">Gestion des utilisateurs du tenant</p>
+        <p className="text-xs text-blue-700 mb-3">
+          Les utilisateurs du tenant <strong>{tenant.name}</strong> sont gérés via le module Utilisateurs
+          accessible à l'ADMIN de ce tenant. En tant que SUPER_ADMIN, vous pouvez voir la liste via l'API.
+        </p>
+        <div className="rounded-lg bg-white/80 border border-blue-100 p-3 font-mono text-xs text-blue-600">
+          GET /api/v1/users  <span className="text-gray-400">→ scoped to JWT tenantId</span>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-700">Admin principal</span>
+          <span className="font-mono text-xs text-gray-400">
+            {tenant.primaryAdminId ?? '—'}
+          </span>
+        </div>
+        <div className="mt-3 flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-700">Limite utilisateurs</span>
+          <span className="text-sm font-semibold text-gray-900">
+            {(tenant.subscription as TenantSubscription | null | undefined)?.maxUsers ?? '—'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tab: Historique ──────────────────────────────────────────────────────────
+
+function HistoryTab({ tenantId }: { tenantId: string }) {
+  return (
+    <div className="space-y-4">
+      <h3 className="text-base font-semibold text-gray-900">Historique d'audit</h3>
+      <div className="rounded-xl border border-gray-100 bg-gray-50 p-8 text-center">
+        <History className="mx-auto mb-3 h-10 w-10 text-gray-300" />
+        <p className="font-medium text-gray-500">Journal d'audit du tenant</p>
+        <p className="mt-1 text-xs text-gray-400">
+          Les événements liés à ce tenant (id: <span className="font-mono">{tenantId}</span>)
+          sont disponibles dans le journal d'audit global.
+        </p>
+        <Link
+          to="/audit"
+          className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-brand-medium px-3 py-2 text-sm font-medium text-white hover:bg-brand-dark transition-colors"
+        >
+          <ScrollText className="h-4 w-4" /> Voir le journal d'audit
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function ClientDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const [activeTab, setActiveTab] = useState<TabId>('info');
+
+  const { data: tenant, isLoading, error } = useTenant(id ?? '');
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-brand-medium" />
+      </div>
+    );
+  }
+
+  if (error || !tenant) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3">
+        <XCircle className="h-12 w-12 text-red-300" />
+        <p className="font-medium text-gray-500">Client introuvable</p>
+        <Link to="/clients" className="text-sm text-brand-medium hover:underline">
+          ← Retour à la liste
+        </Link>
+      </div>
+    );
+  }
+
+  const statusCfg = { classes: STATUS_STYLES[tenant.status] ?? 'bg-gray-100 text-gray-600', label: STATUS_LABELS[tenant.status] ?? tenant.status };
+
+  return (
+    <>
+      <Header
+        title={tenant.name}
+        subtitle={`/${tenant.slug} · ${PLAN_LABELS[tenant.plan] ?? tenant.plan}`}
+        icon={Building2}
+        iconColor="bg-brand-light text-brand-dark"
+        extra={
+          <Link
+            to="/clients"
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" /> Retour
+          </Link>
+        }
+      />
+
+      <PageWrapper>
+        {/* Summary bar */}
+        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-surface-muted bg-white p-4 shadow-sm">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-lighter">
+            <Building2 className="h-6 w-6 text-brand-dark" />
+          </div>
+          <div className="flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-semibold text-gray-900 text-lg">{tenant.name}</p>
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusCfg.classes}`}>
+                {statusCfg.label}
+              </span>
+              <span className="rounded-full bg-brand-lighter px-2.5 py-0.5 text-xs font-medium text-brand-dark">
+                {PLAN_LABELS[tenant.plan] ?? tenant.plan}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-4 mt-1 text-xs text-gray-400">
+              {tenant.email && <span>{tenant.email}</span>}
+              {tenant.phone && <span>{tenant.phone}</span>}
+              <span>{tenant._count?.sites ?? 0} site(s)</span>
+              <span>Créé le {new Date(tenant.createdAt).toLocaleDateString('fr-FR')}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 overflow-x-auto rounded-xl border border-surface-muted bg-white p-1 shadow-sm mb-5">
+          {TABS.map(({ id: tabId, label, icon: Icon }) => (
+            <button
+              key={tabId}
+              onClick={() => setActiveTab(tabId)}
+              className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                activeTab === tabId
+                  ? 'bg-brand-dark text-white shadow-sm'
+                  : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              <span className="hidden sm:inline">{label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        <div className="rounded-xl border border-surface-muted bg-white p-5 shadow-sm">
+          {activeTab === 'info'         && <InfoTab         tenant={tenant} tenantId={id!} />}
+          {activeTab === 'admin'        && <AdminTab        tenant={tenant} tenantId={id!} />}
+          {activeTab === 'modules'      && <ModulesTab      tenantId={id!} />}
+          {activeTab === 'subscription' && <SubscriptionTab tenantId={id!} tenant={tenant} />}
+          {activeTab === 'sites'        && <SitesTab        tenantId={id!} />}
+          {activeTab === 'users'        && <UsersTab        tenant={tenant} />}
+          {activeTab === 'history'      && <HistoryTab      tenantId={id!} />}
+        </div>
+      </PageWrapper>
+    </>
+  );
+}

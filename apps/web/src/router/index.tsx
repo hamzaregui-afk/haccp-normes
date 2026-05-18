@@ -10,6 +10,7 @@ const LoginPage           = lazy(() => import('@/features/auth/LoginPage'));
 const DashboardPage       = lazy(() => import('@/features/dashboard/DashboardPage'));
 const UsersPage           = lazy(() => import('@/features/users/UsersPage'));
 const ClientsPage         = lazy(() => import('@/features/clients/ClientsPage'));
+const ClientDetailPage    = lazy(() => import('@/features/clients/ClientDetailPage'));
 const ControlsPage           = lazy(() => import('@/features/controls/ControlsPage'));
 const ChecklistEditorPage    = lazy(() => import('@/features/controls/ChecklistEditorPage'));
 const NonconformitiesPage = lazy(() => import('@/features/nonconformities/NonconformitiesPage'));
@@ -198,6 +199,15 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
         element: (
           <RequireRole roles={['ADMIN', 'SUPER_ADMIN']}>
             {S(ClientsPage)}
+          </RequireRole>
+        ),
+      },
+      // Client detail — SUPER_ADMIN only (full tenant management panel)
+      {
+        path: 'clients/:id',
+        element: (
+          <RequireRole roles={['SUPER_ADMIN']}>
+            {S(ClientDetailPage)}
           </RequireRole>
         ),
       },

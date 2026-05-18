@@ -7,8 +7,13 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { CreateTenantDtoSchema, UpdateTenantDtoSchema } from './dto/tenant.dto';
 import { TenantService } from './tenant.service';
+import { z } from 'zod';
 
-// All tenant endpoints are SUPER_ADMIN only
+const CreateSiteForTenantDtoSchema = z.object({
+  name:    z.string().min(1).max(200),
+  address: z.string().max(500).optional(),
+});
+
 @Controller('tenants')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('SUPER_ADMIN')
@@ -17,8 +22,8 @@ export class TenantController {
 
   @Get()
   findAll(
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Query('page')   page?:   string,
+    @Query('limit')  limit?:  string,
     @Query('search') search?: string,
   ) {
     return this.tenantService.findAll(Number(page ?? 1), Number(limit ?? 20), search);
@@ -106,6 +111,52 @@ export class TenantController {
       action:     'DELETE',
       resource:   'tenants',
       resourceId: id,
+      tenantId:   actor.tenantId,
+    });
+
+    return result;
+  }
+
+  // ── Sites management for a specific tenant (SUPER_ADMIN cross-tenant) ──────────
+  @Get(':id/sites')
+  findSites(@Param('id') id: string) {
+    return this.tenantService.findSitesForTenant(id);
+  }
+
+  @Post(':id/sites')
+  async createSite(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @CurrentUser() actor: JwtPayload,
+  ) {
+    const dto    = CreateSiteForTenantDtoSchema.parse(body);
+    const result = await this.tenantService.createSiteForTenant(id, dto.name, dto.address);
+
+    void emitAuditEvent({
+      userId:     actor.sub,
+      action:     'CREATE',
+      resource:   'sites',
+      resourceId: id,
+      tenantId:   actor.tenantId,
+      payload:    { siteName: dto.name },
+    });
+
+    return result;
+  }
+
+  @Delete(':id/sites/:siteId')
+  async deleteSite(
+    @Param('id')     id:     string,
+    @Param('siteId') siteId: string,
+    @CurrentUser()   actor:  JwtPayload,
+  ) {
+    const result = await this.tenantService.deleteSiteForTenant(id, siteId);
+
+    void emitAuditEvent({
+      userId:     actor.sub,
+      action:     'DELETE',
+      resource:   'sites',
+      resourceId: siteId,
       tenantId:   actor.tenantId,
     });
 

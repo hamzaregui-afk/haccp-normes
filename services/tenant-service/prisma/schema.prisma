@@ -1,4 +1,4 @@
-// tenant-service owns: Tenant, Site, Zone
+// tenant-service owns: Tenant, Site, Zone, TenantModule, TenantSubscription
 
 generator client {
   provider      = "prisma-client-js"
@@ -16,12 +16,51 @@ enum TenantStatus {
   SUSPENDED
 }
 
+// ── Module keys ───────────────────────────────────────────────────────────────
+// Represents every feature that can be enabled/disabled per tenant.
+// Adding a new feature = add a value here + a new migration.
+enum TenantModuleKey {
+  DASHBOARD
+  HACCP_CONTROLS
+  NONCONFORMITIES
+  DLC
+  REPORTS
+  EQUIPMENTS
+  PRODUCTS
+  SUPPLIERS
+  GED
+  NOTIFICATIONS
+  AUDIT
+  PLANNING
+  TEMPERATURES
+  RECEPTIONS
+  HYGIENE
+  ANALYTICS
+  MOBILE_ACCESS
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+  EXPIRED
+}
+
 model Tenant {
   id        String       @id @default(cuid())
   name      String
   slug      String       @unique
   status    TenantStatus @default(ACTIVE)
   plan      String       @default("standard")
+
+  // Contact / branding
+  email     String?
+  phone     String?
+  logo      String?
+
+  // Primary admin tracking — userId in user-service (cross-service reference)
+  primaryAdminId String? @map("primary_admin_id")
 
   // Business / settings fields — populated via SettingsPage PATCH /tenants/me
   siret                   String?  @map("siret")
@@ -34,9 +73,52 @@ model Tenant {
   createdAt DateTime     @default(now()) @map("created_at")
   updatedAt DateTime     @updatedAt @map("updated_at")
 
-  sites Site[]
+  sites        Site[]
+  modules      TenantModule[]
+  subscription TenantSubscription?
 
   @@map("tenants")
+}
+
+// ── Per-tenant module activation table ────────────────────────────────────────
+// Each row represents a feature toggle for a specific tenant.
+// ARCH-DECISION: Separate table (not a JSON column on Tenant) so we can:
+//   - index on moduleKey for feature-flag queries
+//   - enforce uniqueness per (tenant, module) at DB level
+//   - add metadata (enabledAt, enabledBy) later without schema changes
+model TenantModule {
+  id        String          @id @default(cuid())
+  tenantId  String          @map("tenant_id")
+  moduleKey TenantModuleKey @map("module_key")
+  enabled   Boolean         @default(true)
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, moduleKey])
+  @@index([tenantId])
+  @@map("tenant_modules")
+}
+
+// ── Subscription record per tenant ────────────────────────────────────────────
+model TenantSubscription {
+  id          String             @id @default(cuid())
+  tenantId    String             @unique @map("tenant_id")
+  plan        String             @default("standard")
+  status      SubscriptionStatus @default(TRIAL)
+  trialEndsAt DateTime?          @map("trial_ends_at")
+  startedAt   DateTime           @default(now()) @map("started_at")
+  expiresAt   DateTime?          @map("expires_at")
+  maxUsers    Int                @default(10) @map("max_users")
+  maxSites    Int                @default(3) @map("max_sites")
+  notes       String?
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_subscriptions")
 }
 
 model Site {

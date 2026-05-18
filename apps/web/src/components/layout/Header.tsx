@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import { Globe } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { NotificationBell } from '@/components/notifications';
 import { setLanguage, SUPPORTED_LANGUAGES, type LangCode } from '@/i18n';
@@ -12,9 +12,11 @@ interface HeaderProps {
   icon?:     LucideIcon;
   /** Tailwind bg + text classes for the icon badge, e.g. "bg-brand-light text-brand-dark" */
   iconColor?: string;
+  /** Extra content rendered to the left of notification bell (e.g. back link) */
+  extra?:    ReactNode;
 }
 
-export function Header({ title, subtitle, icon: Icon, iconColor = 'bg-brand-light text-brand-dark' }: HeaderProps) {
+export function Header({ title, subtitle, icon: Icon, iconColor = 'bg-brand-light text-brand-dark', extra }: HeaderProps) {
   const [currentLang, setCurrentLang] = useState<LangCode>(
     (localStorage.getItem('haccp_lang') as LangCode) ?? 'fr',
   );
@@ -41,6 +43,7 @@ export function Header({ title, subtitle, icon: Icon, iconColor = 'bg-brand-ligh
 
       {/* Right controls */}
       <div className="flex items-center gap-3">
+        {extra}
         {/* Real-time notification bell */}
         <NotificationBell />
 

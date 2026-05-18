@@ -15,6 +15,7 @@ on:
           - setup-https
           - restart-only
           - reload-gateway
+          - run-migrations
           - init-superadmin-only
           - diagnose
           - free-space-and-recover
@@ -305,6 +306,25 @@ jobs:
               echo "=== Login test ==="
               curl -s -X POST http://localhost/api/v1/auth/login -H "Content-Type: application/json" -d "{\"email\":\"${SUPERADMIN_EMAIL:-superadmin@haccp.com}\",\"password\":\"Admin@HACCP2024!\"}" | head -c 500
 
+              exit 0
+            fi
+
+            if [ "$ACTION" = "run-migrations" ]; then
+              echo "=== Running Prisma migrations for all services ==="
+              cd /opt/haccp
+              git fetch origin && git checkout main-sync 2>/dev/null || true && git pull origin main-sync
+              echo "=== tenant-service migration ==="
+              docker exec haccp-tenant npx prisma migrate deploy --schema=/app/prisma/schema.prisma 2>&1 || echo "tenant migration error (see above)"
+              echo "=== auth-service migration ==="
+              docker exec haccp-auth npx prisma migrate deploy --schema=/app/prisma/schema.prisma 2>&1 || echo "auth migration error"
+              echo "=== user-service migration ==="
+              docker exec haccp-users npx prisma migrate deploy --schema=/app/prisma/schema.prisma 2>&1 || echo "user migration error"
+              echo "=== Verifying new tables exist in haccp_tenants DB ==="
+              PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER)
+              PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD)
+              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_tenants \
+                -c "\dt" 2>&1 | grep -E "tenant_modules|tenant_subscriptions|sites|zones" || echo "Tables not found yet"
+              echo "=== Migrations complete ==="
               exit 0
             fi
 
