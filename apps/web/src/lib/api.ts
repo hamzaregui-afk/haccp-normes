@@ -43,12 +43,16 @@ declare module 'axios' {
 
 // ─── Axios instance ───────────────────────────────────────────────────────────
 export const api = axios.create({
-  // ARCH-DECISION: In production the SPA is always served by the same nginx
-  // that proxies /api/* — so the baseURL must be empty (relative URLs) to
-  // guarantee same-origin requests and avoid CORS entirely.
-  // In development, VITE_API_URL can point to a local API server; Vite's
-  // built-in proxy (vite.config.ts server.proxy) is preferred instead.
-  baseURL: import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? ''),
+  // ARCH-DECISION: VITE_API_URL is now respected in production as well as dev.
+  // When empty (default): relative URLs → same-origin, no CORS.
+  // When set to an absolute URL (e.g. http://IP): all API calls go to that
+  // origin regardless of which port the browser opened the page on.
+  // This is required when the app is accessed on a non-standard port (e.g. 3001)
+  // that carriers/ISPs block for POST requests — the API URL can be pinned to
+  // the standard port 80 so POSTs always succeed even if the page came from :3001.
+  // NestJS uses origin:true (reflects any request Origin) so CORS works for
+  // cross-port requests without any additional configuration.
+  baseURL: import.meta.env.VITE_API_URL ?? '',
   headers: { 'Content-Type': 'application/json' },
   timeout: DEFAULT_TIMEOUT,
 });

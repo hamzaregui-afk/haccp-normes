@@ -476,8 +476,15 @@ jobs:
             docker compose up -d --force-recreate api-gateway
             sleep 3
 
-            echo "=== Fixing web .env (VITE_API_URL must be EMPTY for relative URLs) ==="
-            printf 'VITE_API_URL=\nVITE_WS_URL=\n' > apps/web/.env
+            echo "=== Fixing web .env (VITE_API_URL pinned to port 80 to bypass ISP POST blocking) ==="
+            # ARCH-DECISION: Pin VITE_API_URL to http://IP (port 80) explicitly.
+            # The SPA is accessible on port 3001 (redirect) and port 80. When the
+            # browser loads the SPA from port 3001, relative API URLs also go to
+            # port 3001 — which Tunisian ISPs block for POST (login, forms).
+            # Pinning to port 80 forces ALL API calls to port 80 regardless of
+            # which port the browser opened the app on. NestJS uses origin:true
+            # so CORS cross-port requests are accepted.
+            printf 'VITE_API_URL=http://178.105.126.165\nVITE_WS_URL=\n' > apps/web/.env
             echo "apps/web/.env written: $(cat apps/web/.env)"
 
             DOCKER_BUILDKIT=1 docker compose build --parallel
@@ -509,9 +516,9 @@ jobs:
             docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_users -c "$SQL_USERS" || true
 
             # ── Self-verification ─────────────────────────────────────────────────
-            echo "=== VERIFICATION: VITE_API_URL in JS bundle ==="
+            echo "=== VERIFICATION: VITE_API_URL (http://178.105.126.165) in JS bundle ==="
             docker exec haccp-web sh -c \
-              'grep -r "178\.105\|VITE_API_URL" /usr/share/nginx/html/assets/*.js 2>/dev/null | head -3 || echo "OK: no hardcoded URL (relative URLs = correct)"'
+              'grep -r "178\.105\.126\.165" /usr/share/nginx/html/assets/*.js 2>/dev/null | head -3 && echo "OK: port-80 URL baked in" || echo "WARNING: URL not found in bundle"'
 
             echo "=== VERIFICATION: Login test on port 80 ==="
             PASS="${SUPERADMIN_PASSWORD:-Admin@HACCP2024!}"
