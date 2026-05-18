@@ -129,7 +129,7 @@ jobs:
             if [ "$ACTION" = "reload-gateway" ]; then
               echo "=== Reloading api-gateway nginx config ==="
               cd /opt/haccp
-              git pull origin main
+              git fetch origin && git checkout main-sync 2>/dev/null || true && git pull origin main-sync
               echo "=== Git commit after pull ==="
               git log --oneline -2
               echo "=== Testing nginx config validity (nginx -t inside container) ==="
@@ -444,7 +444,7 @@ jobs:
             if [ "$ACTION" = "restart-only" ]; then
               echo "=== Restarting services (no build) ==="
               cd /opt/haccp
-              git pull origin main
+              git fetch origin && git checkout main-sync 2>/dev/null || true && git pull origin main-sync
               docker compose up -d --remove-orphans
               sleep 20
               docker cp infrastructure/scripts/create-superadmin.js haccp-auth:/tmp/create-superadmin.js
@@ -458,7 +458,7 @@ jobs:
 
             echo "=== Full deploy ==="
             cd /opt/haccp
-            git pull origin main
+            git fetch origin && git checkout main-sync 2>/dev/null || true && git pull origin main-sync
 
             echo "=== Git commit on server after pull ==="
             git log --oneline -3
