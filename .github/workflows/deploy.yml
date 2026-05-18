@@ -24,6 +24,66 @@ concurrency:
   cancel-in-progress: false  # Never cancel an in-flight deploy
 
 jobs:
+  # ── External connectivity probe (runs on GitHub Actions runner, NOT on server)
+  # ── Only runs for the 'diagnose' action — provides an external-IP perspective
+  external-probe:
+    name: External connectivity probe
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.action == 'diagnose' }}
+    steps:
+      - name: Probe server from GitHub Actions runner (external IP)
+        run: |
+          SERVER="http://178.105.126.165"
+          echo "========================================"
+          echo "=== EXTERNAL PROBE from GitHub Actions runner ==="
+          echo "=== Runner IP: $(curl -s https://api.ipify.org || echo unknown) ==="
+          echo "========================================"
+
+          echo "--- GET /health on port 80 ---"
+          curl -sv --max-time 10 "$SERVER/health" 2>&1 | tail -20 || echo "FAILED: GET port 80"
+
+          echo "--- GET /health on port 3001 ---"
+          curl -sv --max-time 10 "$SERVER:3001/health" 2>&1 | tail -20 || echo "FAILED: GET port 3001"
+
+          echo "--- POST /api/v1/auth/login on port 80 ---"
+          HTTP80=$(curl -sv --max-time 15 -X POST "$SERVER/api/v1/auth/login" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json, text/plain, */*" \
+            -H "Origin: $SERVER:3001" \
+            -H "Referer: $SERVER:3001/login" \
+            -d '{"email":"probe@test.com","password":"ProbeTest123!"}' 2>&1)
+          echo "$HTTP80" | tail -25
+          echo "--- HTTP 401 = server reachable, HTTP 000/empty = blocked ---"
+
+          echo "--- POST /api/v1/auth/login on port 3001 ---"
+          HTTP3001=$(curl -sv --max-time 15 -X POST "$SERVER:3001/api/v1/auth/login" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json, text/plain, */*" \
+            -H "Origin: $SERVER:3001" \
+            -H "Referer: $SERVER:3001/login" \
+            -d '{"email":"probe@test.com","password":"ProbeTest123!"}' 2>&1)
+          echo "$HTTP3001" | tail -25
+          echo "--- HTTP 401 = server reachable, HTTP 000/empty = blocked ---"
+
+          echo "========================================"
+          echo "=== SUMMARY ==="
+          GET80=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "$SERVER/health" 2>/dev/null || echo "ERR")
+          GET3001=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "$SERVER:3001/health" 2>/dev/null || echo "ERR")
+          POST80=$(curl -so /dev/null -w "%{http_code}" --max-time 15 -X POST "$SERVER/api/v1/auth/login" \
+            -H "Content-Type: application/json" -d '{"email":"x","password":"x"}' 2>/dev/null || echo "ERR")
+          POST3001=$(curl -so /dev/null -w "%{http_code}" --max-time 15 -X POST "$SERVER:3001/api/v1/auth/login" \
+            -H "Content-Type: application/json" -d '{"email":"x","password":"x"}' 2>/dev/null || echo "ERR")
+          echo "GET  port 80:   HTTP $GET80"
+          echo "GET  port 3001: HTTP $GET3001"
+          echo "POST port 80:   HTTP $POST80"
+          echo "POST port 3001: HTTP $POST3001"
+          echo ""
+          echo "Expected: all should be HTTP 200 or 401 (means server is reachable)"
+          echo "If POST shows ERR/000: port 3001 POST is blocked at network level"
+          echo "If GET works but POST fails: ISP/firewall blocks POST on non-standard port"
+          echo "Solution: use port 80 (no :3001 in URL) or add HTTPS + domain"
+          echo "========================================"
+
   deploy:
     name: Deploy to Hetzner
     runs-on: ubuntu-latest
@@ -214,9 +274,50 @@ jobs:
               docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "haccp|NAME" || true
 
               echo "========================================"
-              echo "=== PORT BINDINGS (who owns 3001?) ==="
+              echo "=== PORT BINDINGS (who owns 3001 and 80?) ==="
               echo "========================================"
               ss -tlnp | grep -E "3001|:80 " || netstat -tlnp 2>/dev/null | grep -E "3001|:80 " || true
+
+              echo "========================================"
+              echo "=== FIREWALL: UFW STATUS ==="
+              echo "========================================"
+              ufw status verbose 2>/dev/null || echo "ufw not active or not installed"
+
+              echo "========================================"
+              echo "=== FIREWALL: iptables INPUT chain ==="
+              echo "========================================"
+              iptables -L INPUT -n --line-numbers 2>/dev/null | head -40 || echo "cannot read iptables"
+
+              echo "========================================"
+              echo "=== FIREWALL: iptables DOCKER-USER chain ==="
+              echo "========================================"
+              iptables -L DOCKER-USER -n 2>/dev/null || echo "DOCKER-USER chain not found"
+
+              echo "========================================"
+              echo "=== CONNTRACK: connection tracking table size ==="
+              echo "========================================"
+              CONNTRACK_COUNT=$(conntrack -C 2>/dev/null || cat /proc/sys/net/netfilter/nf_conntrack_count 2>/dev/null || echo "N/A")
+              CONNTRACK_MAX=$(cat /proc/sys/net/netfilter/nf_conntrack_max 2>/dev/null || echo "N/A")
+              echo "Current tracked connections: $CONNTRACK_COUNT / $CONNTRACK_MAX"
+              if [ "$CONNTRACK_COUNT" != "N/A" ] && [ "$CONNTRACK_MAX" != "N/A" ]; then
+                PCT=$(( CONNTRACK_COUNT * 100 / CONNTRACK_MAX ))
+                echo "Usage: $PCT%"
+                if [ "$PCT" -gt 80 ]; then
+                  echo "WARNING: conntrack table >80% full — connection drops likely!"
+                fi
+              fi
+
+              echo "========================================"
+              echo "=== NGINX ACCESS LOG: last 50 lines (POST /auth) ==="
+              echo "========================================"
+              docker exec haccp-gateway sh -c \
+                'tail -100 /var/log/nginx/access.log 2>/dev/null | grep -i "auth\|login\|POST" || tail -50 /var/log/nginx/access.log 2>/dev/null || echo "no access log"'
+
+              echo "========================================"
+              echo "=== NGINX ACCESS LOG: all POST requests in last 200 lines ==="
+              echo "========================================"
+              docker exec haccp-gateway sh -c \
+                'tail -200 /var/log/nginx/access.log 2>/dev/null | grep "\"POST" || echo "no POST entries found in last 200 lines"'
 
               echo "========================================"
               echo "=== AUTH SERVICE LOGS (last 30 lines) ==="
