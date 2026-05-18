@@ -12,8 +12,11 @@ on:
         type: choice
         options:
           - full-deploy
+          - setup-https
           - restart-only
           - reload-gateway
+          - run-migrations
+          - init-tenant-modules
           - init-superadmin-only
           - diagnose
           - free-space-and-recover
@@ -24,6 +27,66 @@ concurrency:
   cancel-in-progress: false  # Never cancel an in-flight deploy
 
 jobs:
+  # ── External connectivity probe (runs on GitHub Actions runner, NOT on server)
+  # ── Only runs for the 'diagnose' action — provides an external-IP perspective
+  external-probe:
+    name: External connectivity probe
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.action == 'diagnose' }}
+    steps:
+      - name: Probe server from GitHub Actions runner (external IP)
+        run: |
+          SERVER="http://178.105.126.165"
+          echo "========================================"
+          echo "=== EXTERNAL PROBE from GitHub Actions runner ==="
+          echo "=== Runner IP: $(curl -s https://api.ipify.org || echo unknown) ==="
+          echo "========================================"
+
+          echo "--- GET /health on port 80 ---"
+          curl -sv --max-time 10 "$SERVER/health" 2>&1 | tail -20 || echo "FAILED: GET port 80"
+
+          echo "--- GET /health on port 3001 ---"
+          curl -sv --max-time 10 "$SERVER:3001/health" 2>&1 | tail -20 || echo "FAILED: GET port 3001"
+
+          echo "--- POST /api/v1/auth/login on port 80 ---"
+          HTTP80=$(curl -sv --max-time 15 -X POST "$SERVER/api/v1/auth/login" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json, text/plain, */*" \
+            -H "Origin: $SERVER:3001" \
+            -H "Referer: $SERVER:3001/login" \
+            -d '{"email":"probe@test.com","password":"ProbeTest123!"}' 2>&1)
+          echo "$HTTP80" | tail -25
+          echo "--- HTTP 401 = server reachable, HTTP 000/empty = blocked ---"
+
+          echo "--- POST /api/v1/auth/login on port 3001 ---"
+          HTTP3001=$(curl -sv --max-time 15 -X POST "$SERVER:3001/api/v1/auth/login" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json, text/plain, */*" \
+            -H "Origin: $SERVER:3001" \
+            -H "Referer: $SERVER:3001/login" \
+            -d '{"email":"probe@test.com","password":"ProbeTest123!"}' 2>&1)
+          echo "$HTTP3001" | tail -25
+          echo "--- HTTP 401 = server reachable, HTTP 000/empty = blocked ---"
+
+          echo "========================================"
+          echo "=== SUMMARY ==="
+          GET80=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "$SERVER/health" 2>/dev/null || echo "ERR")
+          GET3001=$(curl -so /dev/null -w "%{http_code}" --max-time 10 "$SERVER:3001/health" 2>/dev/null || echo "ERR")
+          POST80=$(curl -so /dev/null -w "%{http_code}" --max-time 15 -X POST "$SERVER/api/v1/auth/login" \
+            -H "Content-Type: application/json" -d '{"email":"x","password":"x"}' 2>/dev/null || echo "ERR")
+          POST3001=$(curl -so /dev/null -w "%{http_code}" --max-time 15 -X POST "$SERVER:3001/api/v1/auth/login" \
+            -H "Content-Type: application/json" -d '{"email":"x","password":"x"}' 2>/dev/null || echo "ERR")
+          echo "GET  port 80:   HTTP $GET80"
+          echo "GET  port 3001: HTTP $GET3001"
+          echo "POST port 80:   HTTP $POST80"
+          echo "POST port 3001: HTTP $POST3001"
+          echo ""
+          echo "Expected: all should be HTTP 200 or 401 (means server is reachable)"
+          echo "If POST shows ERR/000: port 3001 POST is blocked at network level"
+          echo "If GET works but POST fails: ISP/firewall blocks POST on non-standard port"
+          echo "Solution: use port 80 (no :3001 in URL) or add HTTPS + domain"
+          echo "========================================"
+
   deploy:
     name: Deploy to Hetzner
     runs-on: ubuntu-latest
@@ -66,23 +129,69 @@ jobs:
             docker builder prune -f 2>/dev/null || true
             df -h / | tail -1
 
-            if [ "$ACTION" = "reload-gateway" ]; then
-              echo "=== Reloading api-gateway nginx config (no rebuild needed) ==="
+            if [ "$ACTION" = "setup-https" ]; then
+              echo "=== Generating self-signed SSL certificate ==="
+              mkdir -p /opt/haccp/ssl
+              openssl req -x509 -newkey rsa:2048 -days 3650 -nodes \
+                -keyout /opt/haccp/ssl/key.pem \
+                -out /opt/haccp/ssl/cert.pem \
+                -subj "/C=TN/ST=Tunis/L=Tunis/O=HACCP/CN=178.105.126.165" \
+                -addext "subjectAltName=IP:178.105.126.165"
+              chmod 644 /opt/haccp/ssl/cert.pem
+              chmod 600 /opt/haccp/ssl/key.pem
+              echo "=== Certificate generated ==="
+              openssl x509 -in /opt/haccp/ssl/cert.pem -noout -subject -dates
+              echo "=== Pulling latest code ==="
               cd /opt/haccp
-              git pull origin main
+              git fetch origin && git checkout main-sync 2>/dev/null || true && git pull origin main-sync
+              echo "=== Setting VITE_API_URL to HTTPS ==="
+              printf 'VITE_API_URL=https://178.105.126.165\nVITE_WS_URL=\n' > apps/web/.env
+              cat apps/web/.env
+              echo "=== Rebuilding web app with HTTPS URL ==="
+              DOCKER_BUILDKIT=1 docker compose build --parallel web
+              echo "=== Recreating gateway with HTTPS config ==="
+              docker compose up -d --force-recreate api-gateway web
+              sleep 8
+              echo "=== Verifying HTTPS ==="
+              curl -sk https://localhost:443/health && echo "HTTPS port 443: OK" || echo "HTTPS port 443: FAILED"
+              curl -sk https://localhost:443/api/v1/auth/login -X POST \
+                -H "Content-Type: application/json" \
+                -d "{\"email\":\"${SUPERADMIN_EMAIL:-superadmin@haccp.com}\",\"password\":\"${SUPERADMIN_PASSWORD:-Admin@HACCP2024!}\"}" | cut -c1-80
+              echo "=== HTTPS setup complete ==="
+              echo "=== Access the app at: https://178.105.126.165 ==="
+              echo "=== Browser will show a security warning — click Advanced > Proceed ==="
+              exit 0
+            fi
+
+            if [ "$ACTION" = "reload-gateway" ]; then
+              echo "=== Reloading api-gateway nginx config ==="
+              cd /opt/haccp
+              git fetch origin && git checkout main-sync 2>/dev/null || true && git pull origin main-sync
               echo "=== Git commit after pull ==="
               git log --oneline -2
-              echo "=== Testing nginx config validity (nginx -t) ==="
-              docker exec haccp-gateway nginx -t 2>&1
-              echo "=== nginx -t exit code: $? ==="
-              echo "=== Reloading nginx (nginx -s reload) ==="
-              docker exec haccp-gateway nginx -s reload 2>&1
-              echo "=== Forcing container restart to guarantee new config ==="
-              docker compose restart api-gateway
-              echo "=== Gateway reloaded — CORS and routing changes are now active ==="
-              echo "=== Verifying config is live ==="
+              echo "=== Testing nginx config validity (nginx -t inside container) ==="
+              docker exec haccp-gateway nginx -t 2>&1 || true
+              # ARCH-DECISION: Use force-recreate (not restart) so that port binding
+              # changes in docker-compose.yml are applied. `docker compose restart`
+              # keeps the same container spec — it does NOT re-read port mappings.
+              # `--force-recreate` stops + removes + creates a new container from the
+              # current compose definition, picking up port and volume changes.
+              echo "=== Force-recreating api-gateway (applies port binding + config changes) ==="
+              docker compose up -d --force-recreate api-gateway
+              echo "=== Gateway recreated — waiting 5s for nginx to bind ports ==="
               sleep 5
-              curl -sI http://localhost/health | grep -i "content-security\|server:" || echo "gateway responding"
+              echo "=== Verifying port 80 health ==="
+              curl -sf http://localhost:80/health && echo "Port 80: OK" || echo "Port 80: FAILED"
+              echo "=== Verifying port 3001 redirect (expect HTTP 301) ==="
+              HTTP_CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 5 http://localhost:3001/ || echo "ERR")
+              echo "Port 3001 response: HTTP $HTTP_CODE (expect 301)"
+              if [ "$HTTP_CODE" = "301" ]; then
+                echo "=== PORT 3001 REDIRECT: ACTIVE — ISP POST blocking bypassed ==="
+              else
+                echo "=== PORT 3001 REDIRECT: not active yet (got $HTTP_CODE) ==="
+              fi
+              LOCATION=$(curl -sI --max-time 5 http://localhost:3001/ | grep -i "^location:" || echo "no Location header")
+              echo "Redirect target: $LOCATION"
               exit 0
             fi
 
@@ -201,137 +310,143 @@ jobs:
               exit 0
             fi
 
-            if [ "$ACTION" = "diagnose" ]; then
-              echo "========================================"
-              echo "=== GIT COMMIT ON SERVER ==="
-              echo "========================================"
+            if [ "$ACTION" = "run-migrations" ]; then
+              echo "=== Running Prisma migrations for all services ==="
               cd /opt/haccp
-              git log --oneline -3
-
-              echo "========================================"
-              echo "=== CONTAINER STATUS + PORTS ==="
-              echo "========================================"
-              docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "haccp|NAME" || true
-
-              echo "========================================"
-              echo "=== PORT BINDINGS (who owns 3001?) ==="
-              echo "========================================"
-              ss -tlnp | grep -E "3001|:80 " || netstat -tlnp 2>/dev/null | grep -E "3001|:80 " || true
-
-              echo "========================================"
-              echo "=== AUTH SERVICE LOGS (last 30 lines) ==="
-              echo "========================================"
-              docker logs haccp-auth --tail=30 2>&1 || echo "cannot get auth logs"
-
-              echo "========================================"
-              echo "=== API-GATEWAY LOGS (last 20 lines) ==="
-              echo "========================================"
-              docker logs haccp-gateway --tail=20 2>&1 || echo "cannot get gateway logs"
-
-              echo "========================================"
-              echo "=== WEB CONTAINER LOGS (last 20 lines) ==="
-              echo "========================================"
-              docker logs haccp-web --tail=20 2>&1 || echo "cannot get web logs"
-
-              echo "========================================"
-              echo "=== VITE_API_URL IN JS BUNDLE ==="
-              echo "========================================"
-              docker exec haccp-web sh -c 'grep -r "178\.105\|VITE_API_URL\|baseURL" /usr/share/nginx/html/assets/*.js 2>/dev/null | head -5' || echo "no hardcoded URL found (empty baseURL = correct)"
-
-              echo "========================================"
-              echo "=== SERVER apps/web/.env ==="
-              echo "========================================"
-              cat /opt/haccp/apps/web/.env 2>/dev/null || echo "file not found"
-
-              echo "========================================"
-              echo "=== LOGIN TEST port 80 ==="
-              echo "========================================"
-              PASS="${SUPERADMIN_PASSWORD:-Admin@HACCP2024!}"
-              EMAIL="${SUPERADMIN_EMAIL:-superadmin@haccp.com}"
-              R1=$(curl -s -X POST http://localhost:80/api/v1/auth/login \
-                -H "Content-Type: application/json" \
-                -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}")
-              echo "Port 80 result (first 80 chars): $(echo "$R1" | cut -c1-80)"
-
-              echo "========================================"
-              echo "=== LOGIN TEST port 3001 ==="
-              echo "========================================"
-              R2=$(curl -s -X POST http://localhost:3001/api/v1/auth/login \
-                -H "Content-Type: application/json" \
-                -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}")
-              echo "Port 3001 result (first 80 chars): $(echo "$R2" | cut -c1-80)"
-
-              echo "========================================"
-              echo "=== CORS PREFLIGHT TEST (as browser from :3001) ==="
-              echo "========================================"
-              curl -s -I -X OPTIONS http://localhost:80/api/v1/auth/login \
-                -H "Origin: http://178.105.126.165:3001" \
-                -H "Access-Control-Request-Method: POST" \
-                -H "Access-Control-Request-Headers: Content-Type" | grep -i "access-control\|HTTP/" || echo "no CORS headers"
-
-              echo "========================================"
-              echo "=== DB: superadmin row ==="
-              echo "========================================"
+              git fetch origin && git checkout main-sync 2>/dev/null || true && git pull origin main-sync
+              echo "=== tenant-service migration ==="
+              docker exec haccp-tenants npx prisma migrate deploy --schema=/app/prisma/schema.prisma 2>&1 || echo "tenant migration error (see above)"
+              echo "=== auth-service migration ==="
+              docker exec haccp-auth npx prisma migrate deploy --schema=/app/prisma/schema.prisma 2>&1 || echo "auth migration error"
+              echo "=== user-service migration ==="
+              docker exec haccp-users npx prisma migrate deploy --schema=/app/prisma/schema.prisma 2>&1 || echo "user migration error"
+              echo "=== Verifying new tables exist in haccp_tenants DB ==="
               PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER)
               PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD)
-              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_auth \
-                -c "SELECT email, role, status, LEFT(password_hash,10) as hash_prefix FROM users WHERE email='superadmin@haccp.com';" 2>&1 || echo "DB query failed"
+              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_tenants \
+                -c "\dt" 2>&1 | grep -E "tenant_modules|tenant_subscriptions|sites|zones" || echo "Tables not found yet"
+              echo "=== Migrations complete ==="
+              exit 0
+            fi
 
-              echo "========================================"
-              echo "=== DISK USAGE ==="
-              echo "========================================"
-              df -h /
+            if [ "$ACTION" = "init-tenant-modules" ]; then
+              echo "=== Seeding TenantModule + TenantSubscription for all existing tenants ==="
+              PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER)
+              PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD)
 
-              echo "========================================"
-              echo "=== CONTAINER MEMORY USAGE ==="
-              echo "========================================"
-              docker stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}" | grep -E "haccp|NAME" || true
+              # Build the seed SQL inline — idempotent (ON CONFLICT DO NOTHING)
+              # Standard plan defaults: DASHBOARD, HACCP_CONTROLS, NONCONFORMITIES, DLC, REPORTS,
+              # EQUIPMENTS, PRODUCTS, SUPPLIERS, GED, NOTIFICATIONS, AUDIT
+              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_tenants << 'ENDSQL'
+DO $$
+DECLARE
+  r RECORD;
+  all_modules TEXT[] := ARRAY[
+    'DASHBOARD','HACCP_CONTROLS','NONCONFORMITIES','DLC','REPORTS',
+    'EQUIPMENTS','PRODUCTS','SUPPLIERS','GED','NOTIFICATIONS','AUDIT',
+    'PLANNING','TEMPERATURES','RECEPTIONS','HYGIENE','ANALYTICS','MOBILE_ACCESS'
+  ];
+  standard_modules TEXT[] := ARRAY[
+    'DASHBOARD','HACCP_CONTROLS','NONCONFORMITIES','DLC','REPORTS',
+    'EQUIPMENTS','PRODUCTS','SUPPLIERS','GED','NOTIFICATIONS','AUDIT'
+  ];
+  trial_modules TEXT[] := ARRAY[
+    'DASHBOARD','HACCP_CONTROLS','NONCONFORMITIES','DLC'
+  ];
+  tenant_plan TEXT;
+  enabled_modules TEXT[];
+  mod TEXT;
+  now_ts TIMESTAMPTZ := NOW();
+  trial_end TIMESTAMPTZ := NOW() + INTERVAL '14 days';
+BEGIN
+  FOR r IN SELECT id, plan FROM tenants WHERE status != 'ARCHIVED' LOOP
+    tenant_plan := COALESCE(r.plan, 'standard');
+    IF tenant_plan = 'premium' THEN
+      enabled_modules := all_modules;
+    ELSIF tenant_plan = 'trial' THEN
+      enabled_modules := trial_modules;
+    ELSE
+      enabled_modules := standard_modules;
+    END IF;
 
-              echo "========================================"
-              echo "=== LOGIN TEST WITH BROWSER HEADERS (port 3001) ==="
-              echo "=== (simulates exact Axios request from Chrome) ==="
-              echo "========================================"
-              CORR_ID=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || echo "test-corr-id")
-              IDEM_KEY=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || echo "test-idem-key")
-              R3=$(curl -sv -X POST "http://localhost:3001/api/v1/auth/login" \
-                -H "Content-Type: application/json" \
-                -H "Accept: application/json, text/plain, */*" \
-                -H "X-Correlation-ID: $CORR_ID" \
-                -H "Idempotency-Key: $IDEM_KEY" \
-                -H "Origin: http://178.105.126.165:3001" \
-                -H "Referer: http://178.105.126.165:3001/login" \
-                -H "Connection: keep-alive" \
-                -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}" 2>&1)
-              echo "Browser-headers test full output:"
-              echo "$R3" | tail -30
-              if echo "$R3" | grep -q "accessToken"; then
-                echo "=== BROWSER-HEADERS TEST: OK ==="
-              else
-                echo "=== BROWSER-HEADERS TEST: FAILED ==="
-                echo "=== Auth service logs (last 50 lines) ==="
-                docker logs haccp-auth --tail=50 2>&1 || true
-                echo "=== Gateway error log ==="
-                docker logs haccp-gateway --tail=30 2>&1 || true
-              fi
+    -- Insert all 17 module rows (skip if already exists)
+    FOREACH mod IN ARRAY all_modules LOOP
+      INSERT INTO tenant_modules (id, tenant_id, module_key, enabled, created_at, updated_at)
+      VALUES (
+        gen_random_uuid()::TEXT,
+        r.id,
+        mod::"TenantModuleKey",
+        mod = ANY(enabled_modules),
+        now_ts,
+        now_ts
+      )
+      ON CONFLICT (tenant_id, module_key) DO NOTHING;
+    END LOOP;
 
-              echo "========================================"
-              echo "=== THROTTLER STATE: Auth service rate limit check ==="
-              echo "========================================"
-              for i in 1 2 3 4 5 6; do
-                STATUS=$(curl -so /dev/null -w "%{http_code}" -X POST "http://localhost/api/v1/auth/login" \
-                  -H "Content-Type: application/json" \
-                  -d '{"email":"wrong@test.com","password":"wrong"}')
-                echo "Attempt $i: HTTP $STATUS"
-              done
-              echo "=== (HTTP 429 = throttled, 401 = correct, 500 = AppError bug) ==="
+    -- Insert subscription row (skip if already exists)
+    INSERT INTO tenant_subscriptions (
+      id, tenant_id, plan, status,
+      trial_ends_at, started_at, max_users, max_sites,
+      created_at, updated_at
+    )
+    VALUES (
+      gen_random_uuid()::TEXT,
+      r.id,
+      tenant_plan,
+      CASE tenant_plan
+        WHEN 'trial'   THEN 'TRIAL'::"SubscriptionStatus"
+        WHEN 'premium' THEN 'ACTIVE'::"SubscriptionStatus"
+        ELSE                'ACTIVE'::"SubscriptionStatus"
+      END,
+      CASE tenant_plan WHEN 'trial' THEN trial_end ELSE NULL END,
+      now_ts,
+      CASE tenant_plan WHEN 'trial' THEN 5 WHEN 'premium' THEN 500 ELSE 50 END,
+      CASE tenant_plan WHEN 'trial' THEN 1 WHEN 'premium' THEN 100 ELSE 10 END,
+      now_ts,
+      now_ts
+    )
+    ON CONFLICT (tenant_id) DO NOTHING;
 
+    RAISE NOTICE 'Seeded tenant: % (plan: %)', r.id, tenant_plan;
+  END LOOP;
+END$$;
+ENDSQL
+
+              echo "=== Verifying seed results ==="
+              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_tenants \
+                -c "SELECT t.name, t.plan, COUNT(tm.id) AS modules, ts.status AS sub_status
+                    FROM tenants t
+                    LEFT JOIN tenant_modules tm ON tm.tenant_id = t.id AND tm.enabled = true
+                    LEFT JOIN tenant_subscriptions ts ON ts.tenant_id = t.id
+                    GROUP BY t.id, t.name, t.plan, ts.status
+                    ORDER BY t.name;" 2>&1
+              echo "=== Tenant modules seed complete ==="
+              exit 0
+            fi
+
+            if [ "$ACTION" = "diagnose" ]; then
+              cd /opt/haccp && git log --oneline -3
+              docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "haccp|NAME" || true
+              ss -tlnp | grep -E "3001|:80 " || true
+              echo "=== Port 3001 redirect check ===" && curl -so /dev/null -w "3001: HTTP %{http_code}\n" --max-time 5 http://localhost:3001/ || true
+              echo "=== VITE_API_URL in bundle ===" && docker exec haccp-web sh -c 'grep -ro "178\.105\.126\.165" /usr/share/nginx/html/assets/*.js 2>/dev/null | head -3 || echo "not found"'
+              cat /opt/haccp/apps/web/.env 2>/dev/null || echo ".env not found"
+              PASS="${SUPERADMIN_PASSWORD:-Admin@HACCP2024!}" && EMAIL="${SUPERADMIN_EMAIL:-superadmin@haccp.com}"
+              echo "=== Login port 80 ===" && curl -s -X POST http://localhost:80/api/v1/auth/login -H "Content-Type: application/json" -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}" | cut -c1-120
+              echo "=== Login port 3001 (should 301) ===" && curl -sL -X POST http://localhost:3001/api/v1/auth/login -H "Content-Type: application/json" -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}" | cut -c1-120
+              echo "=== CORS preflight ===" && curl -s -I -X OPTIONS http://localhost:80/api/v1/auth/login -H "Origin: http://178.105.126.165:3001" -H "Access-Control-Request-Method: POST" | grep -i "access-control\|HTTP/"
+              PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER) && PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD)
+              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_auth -c "SELECT email,role,status,LEFT(password_hash,10) FROM users WHERE email='superadmin@haccp.com';" 2>&1 || true
+              df -h / && docker stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}" | grep -E "haccp|NAME" || true
+              docker logs haccp-auth --tail=20 2>&1 || true
+              for i in 1 2 3 4 5 6; do STATUS=$(curl -so /dev/null -w "%{http_code}" -X POST "http://localhost/api/v1/auth/login" -H "Content-Type: application/json" -d '{"email":"x","password":"x"}'); echo "Throttle $i: HTTP $STATUS"; done
               exit 0
             fi
 
             if [ "$ACTION" = "restart-only" ]; then
               echo "=== Restarting services (no build) ==="
               cd /opt/haccp
-              git pull origin main
+              git fetch origin && git checkout main-sync 2>/dev/null || true && git pull origin main-sync
               docker compose up -d --remove-orphans
               sleep 20
               docker cp infrastructure/scripts/create-superadmin.js haccp-auth:/tmp/create-superadmin.js
@@ -345,7 +460,7 @@ jobs:
 
             echo "=== Full deploy ==="
             cd /opt/haccp
-            git pull origin main
+            git fetch origin && git checkout main-sync 2>/dev/null || true && git pull origin main-sync
 
             echo "=== Git commit on server after pull ==="
             git log --oneline -3
@@ -363,8 +478,15 @@ jobs:
             docker compose up -d --force-recreate api-gateway
             sleep 3
 
-            echo "=== Fixing web .env (VITE_API_URL must be EMPTY for relative URLs) ==="
-            printf 'VITE_API_URL=\nVITE_WS_URL=\n' > apps/web/.env
+            echo "=== Fixing web .env (VITE_API_URL pinned to port 80 to bypass ISP POST blocking) ==="
+            # ARCH-DECISION: Pin VITE_API_URL to http://IP (port 80) explicitly.
+            # The SPA is accessible on port 3001 (redirect) and port 80. When the
+            # browser loads the SPA from port 3001, relative API URLs also go to
+            # port 3001 — which Tunisian ISPs block for POST (login, forms).
+            # Pinning to port 80 forces ALL API calls to port 80 regardless of
+            # which port the browser opened the app on. NestJS uses origin:true
+            # so CORS cross-port requests are accepted.
+            printf 'VITE_API_URL=https://178.105.126.165\nVITE_WS_URL=\n' > apps/web/.env
             echo "apps/web/.env written: $(cat apps/web/.env)"
 
             DOCKER_BUILDKIT=1 docker compose build --parallel
@@ -396,9 +518,9 @@ jobs:
             docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_users -c "$SQL_USERS" || true
 
             # ── Self-verification ─────────────────────────────────────────────────
-            echo "=== VERIFICATION: VITE_API_URL in JS bundle ==="
+            echo "=== VERIFICATION: VITE_API_URL (http://178.105.126.165) in JS bundle ==="
             docker exec haccp-web sh -c \
-              'grep -r "178\.105\|VITE_API_URL" /usr/share/nginx/html/assets/*.js 2>/dev/null | head -3 || echo "OK: no hardcoded URL (relative URLs = correct)"'
+              'grep -r "178\.105\.126\.165" /usr/share/nginx/html/assets/*.js 2>/dev/null | head -3 && echo "OK: port-80 URL baked in" || echo "WARNING: URL not found in bundle"'
 
             echo "=== VERIFICATION: Login test on port 80 ==="
             PASS="${SUPERADMIN_PASSWORD:-Admin@HACCP2024!}"
