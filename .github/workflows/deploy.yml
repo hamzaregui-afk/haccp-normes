@@ -127,22 +127,34 @@ jobs:
             df -h / | tail -1
 
             if [ "$ACTION" = "reload-gateway" ]; then
-              echo "=== Reloading api-gateway nginx config (no rebuild needed) ==="
+              echo "=== Reloading api-gateway nginx config ==="
               cd /opt/haccp
               git pull origin main
               echo "=== Git commit after pull ==="
               git log --oneline -2
-              echo "=== Testing nginx config validity (nginx -t) ==="
-              docker exec haccp-gateway nginx -t 2>&1
-              echo "=== nginx -t exit code: $? ==="
-              echo "=== Reloading nginx (nginx -s reload) ==="
-              docker exec haccp-gateway nginx -s reload 2>&1
-              echo "=== Forcing container restart to guarantee new config ==="
-              docker compose restart api-gateway
-              echo "=== Gateway reloaded — CORS and routing changes are now active ==="
-              echo "=== Verifying config is live ==="
+              echo "=== Testing nginx config validity (nginx -t inside container) ==="
+              docker exec haccp-gateway nginx -t 2>&1 || true
+              # ARCH-DECISION: Use force-recreate (not restart) so that port binding
+              # changes in docker-compose.yml are applied. `docker compose restart`
+              # keeps the same container spec — it does NOT re-read port mappings.
+              # `--force-recreate` stops + removes + creates a new container from the
+              # current compose definition, picking up port and volume changes.
+              echo "=== Force-recreating api-gateway (applies port binding + config changes) ==="
+              docker compose up -d --force-recreate api-gateway
+              echo "=== Gateway recreated — waiting 5s for nginx to bind ports ==="
               sleep 5
-              curl -sI http://localhost/health | grep -i "content-security\|server:" || echo "gateway responding"
+              echo "=== Verifying port 80 health ==="
+              curl -sf http://localhost:80/health && echo "Port 80: OK" || echo "Port 80: FAILED"
+              echo "=== Verifying port 3001 redirect (expect HTTP 301) ==="
+              HTTP_CODE=$(curl -so /dev/null -w "%{http_code}" --max-time 5 http://localhost:3001/ || echo "ERR")
+              echo "Port 3001 response: HTTP $HTTP_CODE (expect 301)"
+              if [ "$HTTP_CODE" = "301" ]; then
+                echo "=== PORT 3001 REDIRECT: ACTIVE — ISP POST blocking bypassed ==="
+              else
+                echo "=== PORT 3001 REDIRECT: not active yet (got $HTTP_CODE) ==="
+              fi
+              LOCATION=$(curl -sI --max-time 5 http://localhost:3001/ | grep -i "^location:" || echo "no Location header")
+              echo "Redirect target: $LOCATION"
               exit 0
             fi
 
