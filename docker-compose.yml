@@ -120,18 +120,15 @@ services:
     restart: unless-stopped
     volumes:
       - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # ARCH-DECISION: SSL certificates are generated on the host by the
+      # setup-https CI action (openssl req) and mounted read-only into nginx.
+      # Self-signed cert allows HTTPS on port 443 without a domain name.
+      # The ISP cannot inspect HTTP method (POST) inside TLS traffic, which
+      # bypasses carrier DPI that silently drops POST on plain HTTP.
+      - /opt/haccp/ssl:/etc/nginx/ssl:ro
     ports:
       - "80:80"
-      # ARCH-DECISION: Port 3001 also routes to the api-gateway (not the web
-      # container). This makes the browser origin (:3001) identical to the API
-      # origin — zero CORS overhead. The React SPA is served via location / in
-      # nginx.conf which proxies to the web container internally.
-      # ARCH-DECISION: Changed from 3001:80 to 3001:3001 so nginx can listen on
-      # port 3001 INSIDE the container and issue a proper HTTP 301 redirect to
-      # port 80. Previously, docker mapped host:3001→container:80 so nginx never
-      # saw port 3001 and could not redirect. Now nginx has a dedicated server
-      # block for port 3001 that redirects every request to port 80, bypassing
-      # ISP DPI that blocks POST on non-standard ports.
+      - "443:443"
       - "3001:3001"
     # ARCH-DECISION: condition: service_healthy prevents nginx from starting before
     # microservices are ready. Without this, nginx boots in ~1s and immediately

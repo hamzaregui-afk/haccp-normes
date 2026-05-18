@@ -12,6 +12,7 @@ on:
         type: choice
         options:
           - full-deploy
+          - setup-https
           - restart-only
           - reload-gateway
           - init-superadmin-only
@@ -125,6 +126,40 @@ jobs:
             echo "=== Freeing Docker build cache ==="
             docker builder prune -f 2>/dev/null || true
             df -h / | tail -1
+
+            if [ "$ACTION" = "setup-https" ]; then
+              echo "=== Generating self-signed SSL certificate ==="
+              mkdir -p /opt/haccp/ssl
+              openssl req -x509 -newkey rsa:2048 -days 3650 -nodes \
+                -keyout /opt/haccp/ssl/key.pem \
+                -out /opt/haccp/ssl/cert.pem \
+                -subj "/C=TN/ST=Tunis/L=Tunis/O=HACCP/CN=178.105.126.165" \
+                -addext "subjectAltName=IP:178.105.126.165"
+              chmod 644 /opt/haccp/ssl/cert.pem
+              chmod 600 /opt/haccp/ssl/key.pem
+              echo "=== Certificate generated ==="
+              openssl x509 -in /opt/haccp/ssl/cert.pem -noout -subject -dates
+              echo "=== Pulling latest code ==="
+              cd /opt/haccp
+              git fetch origin && git checkout main-sync 2>/dev/null || true && git pull origin main-sync
+              echo "=== Setting VITE_API_URL to HTTPS ==="
+              printf 'VITE_API_URL=https://178.105.126.165\nVITE_WS_URL=\n' > apps/web/.env
+              cat apps/web/.env
+              echo "=== Rebuilding web app with HTTPS URL ==="
+              DOCKER_BUILDKIT=1 docker compose build --parallel web
+              echo "=== Recreating gateway with HTTPS config ==="
+              docker compose up -d --force-recreate api-gateway web
+              sleep 8
+              echo "=== Verifying HTTPS ==="
+              curl -sk https://localhost:443/health && echo "HTTPS port 443: OK" || echo "HTTPS port 443: FAILED"
+              curl -sk https://localhost:443/api/v1/auth/login -X POST \
+                -H "Content-Type: application/json" \
+                -d "{\"email\":\"${SUPERADMIN_EMAIL:-superadmin@haccp.com}\",\"password\":\"${SUPERADMIN_PASSWORD:-Admin@HACCP2024!}\"}" | cut -c1-80
+              echo "=== HTTPS setup complete ==="
+              echo "=== Access the app at: https://178.105.126.165 ==="
+              echo "=== Browser will show a security warning — click Advanced > Proceed ==="
+              exit 0
+            fi
 
             if [ "$ACTION" = "reload-gateway" ]; then
               echo "=== Reloading api-gateway nginx config ==="
@@ -335,7 +370,7 @@ jobs:
             # Pinning to port 80 forces ALL API calls to port 80 regardless of
             # which port the browser opened the app on. NestJS uses origin:true
             # so CORS cross-port requests are accepted.
-            printf 'VITE_API_URL=http://178.105.126.165\nVITE_WS_URL=\n' > apps/web/.env
+            printf 'VITE_API_URL=https://178.105.126.165\nVITE_WS_URL=\n' > apps/web/.env
             echo "apps/web/.env written: $(cat apps/web/.env)"
 
             DOCKER_BUILDKIT=1 docker compose build --parallel
