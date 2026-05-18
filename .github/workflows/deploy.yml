@@ -143,7 +143,7 @@ jobs:
               openssl x509 -in /opt/haccp/ssl/cert.pem -noout -subject -dates
               echo "=== Pulling latest code ==="
               cd /opt/haccp
-              git fetch origin && git checkout main-sync 2>/dev/null || true && git pull origin main-sync
+              git fetch origin && git checkout main-sync 2>/dev/null || true && git reset --hard origin/main-sync
               echo "=== Setting VITE_API_URL to HTTPS ==="
               printf 'VITE_API_URL=https://178.105.126.165\nVITE_WS_URL=\n' > apps/web/.env
               cat apps/web/.env
@@ -166,7 +166,7 @@ jobs:
             if [ "$ACTION" = "reload-gateway" ]; then
               echo "=== Reloading api-gateway nginx config ==="
               cd /opt/haccp
-              git fetch origin && git checkout main-sync 2>/dev/null || true && git pull origin main-sync
+              git fetch origin && git checkout main-sync 2>/dev/null || true && git reset --hard origin/main-sync
               echo "=== Git commit after pull ==="
               git log --oneline -2
               echo "=== Testing nginx config validity (nginx -t inside container) ==="
@@ -313,7 +313,7 @@ jobs:
             if [ "$ACTION" = "run-migrations" ]; then
               echo "=== Running Prisma migrations for all services ==="
               cd /opt/haccp
-              git fetch origin && git checkout main-sync 2>/dev/null || true && git pull origin main-sync
+              git fetch origin && git checkout main-sync 2>/dev/null || true && git reset --hard origin/main-sync
               echo "=== tenant-service migration ==="
               docker exec haccp-tenants npx prisma migrate deploy --schema=/app/prisma/schema.prisma 2>&1 || echo "tenant migration error (see above)"
               echo "=== auth-service migration ==="
@@ -331,9 +331,8 @@ jobs:
 
             if [ "$ACTION" = "init-tenant-modules" ]; then
               cd /opt/haccp
-              git fetch origin && git checkout main-sync 2>/dev/null || true && git pull origin main-sync
+              git fetch origin && git checkout main-sync 2>/dev/null || true && git reset --hard origin/main-sync
               echo "=== Running seed-tenant-modules.sh ==="
-              chmod +x infrastructure/scripts/seed-tenant-modules.sh
               bash infrastructure/scripts/seed-tenant-modules.sh
               echo "=== init-tenant-modules complete ==="
               exit 0
@@ -361,7 +360,7 @@ jobs:
             if [ "$ACTION" = "restart-only" ]; then
               echo "=== Restarting services (no build) ==="
               cd /opt/haccp
-              git fetch origin && git checkout main-sync 2>/dev/null || true && git pull origin main-sync
+              git fetch origin && git checkout main-sync 2>/dev/null || true && git reset --hard origin/main-sync
               docker compose up -d --remove-orphans
               sleep 20
               docker cp infrastructure/scripts/create-superadmin.js haccp-auth:/tmp/create-superadmin.js
@@ -375,7 +374,7 @@ jobs:
 
             echo "=== Full deploy ==="
             cd /opt/haccp
-            git fetch origin && git checkout main-sync 2>/dev/null || true && git pull origin main-sync
+            git fetch origin && git checkout main-sync 2>/dev/null || true && git reset --hard origin/main-sync
 
             echo "=== Git commit on server after pull ==="
             git log --oneline -3
