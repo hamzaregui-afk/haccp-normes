@@ -126,7 +126,13 @@ services:
       # container). This makes the browser origin (:3001) identical to the API
       # origin — zero CORS overhead. The React SPA is served via location / in
       # nginx.conf which proxies to the web container internally.
-      - "3001:80"
+      # ARCH-DECISION: Changed from 3001:80 to 3001:3001 so nginx can listen on
+      # port 3001 INSIDE the container and issue a proper HTTP 301 redirect to
+      # port 80. Previously, docker mapped host:3001→container:80 so nginx never
+      # saw port 3001 and could not redirect. Now nginx has a dedicated server
+      # block for port 3001 that redirects every request to port 80, bypassing
+      # ISP DPI that blocks POST on non-standard ports.
+      - "3001:3001"
     # ARCH-DECISION: condition: service_healthy prevents nginx from starting before
     # microservices are ready. Without this, nginx boots in ~1s and immediately
     # returns 502 for all upstream requests until services finish their DB migrations
