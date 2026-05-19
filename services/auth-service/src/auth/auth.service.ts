@@ -8,6 +8,22 @@ import { UnauthorizedError } from '@haccp/shared-errors';
 import { env } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
 
+// ── All 17 module keys — granted to SUPER_ADMIN unconditionally ────────────────
+// ARCH-DECISION: Kept here as a constant (not imported from shared-types) to
+// avoid a cross-package dependency in the hot path. Must stay in sync with
+// ALL_TENANT_MODULE_KEYS in packages/shared-types/src/tenant.types.ts.
+const ALL_MODULE_KEYS: string[] = [
+  'DASHBOARD', 'HACCP_CONTROLS', 'NONCONFORMITIES', 'DLC', 'REPORTS',
+  'EQUIPMENTS', 'PRODUCTS', 'SUPPLIERS', 'GED', 'NOTIFICATIONS', 'AUDIT',
+  'PLANNING', 'TEMPERATURES', 'RECEPTIONS', 'HYGIENE', 'ANALYTICS', 'MOBILE_ACCESS',
+];
+
+interface TenantJwtContext {
+  allowedModules:   string[];
+  subscriptionPlan: string;
+  tenantStatus:     string;
+}
+
 @Injectable()
 export class AuthService implements OnModuleInit {
   private readonly logger = new Logger(AuthService.name);
@@ -38,6 +54,43 @@ export class AuthService implements OnModuleInit {
     setInterval(() => void purge(), 6 * 60 * 60 * 1_000);
   }
 
+  // ── Fetch tenant JWT context from tenant-service ─────────────────────────────
+  // ARCH-DECISION: Called at login and token refresh to embed allowedModules,
+  // subscriptionPlan, and tenantStatus in the JWT. Uses the internal endpoint
+  // (no nginx forwarding, Docker-network-only). Graceful degradation: if the
+  // call fails (tenant-service down, tenant not found), returns safe defaults
+  // so login is never blocked by a module-service outage.
+  private async fetchTenantJwtContext(tenantId: string): Promise<TenantJwtContext> {
+    // SUPER_ADMIN's platform user — gets all modules
+    if (tenantId === 'platform') {
+      return { allowedModules: ALL_MODULE_KEYS, subscriptionPlan: 'premium', tenantStatus: 'ACTIVE' };
+    }
+
+    const tenantServiceUrl = env.TENANT_SERVICE_URL;
+    if (!tenantServiceUrl) {
+      this.logger.warn('TENANT_SERVICE_URL not configured — JWT will have no module data');
+      return { allowedModules: [], subscriptionPlan: 'standard', tenantStatus: 'ACTIVE' };
+    }
+
+    try {
+      const url = `${tenantServiceUrl}/internal/tenants/${tenantId}/jwt-context`;
+      const res = await fetch(url, {
+        headers: { 'x-internal-secret': env.INTERNAL_SERVICE_SECRET },
+        signal: AbortSignal.timeout(3_000), // 3s hard timeout — never block login
+      });
+
+      if (!res.ok) {
+        this.logger.warn(`tenant-service returned ${res.status} for jwt-context of ${tenantId}`);
+        return { allowedModules: [], subscriptionPlan: 'standard', tenantStatus: 'ACTIVE' };
+      }
+
+      return (await res.json()) as TenantJwtContext;
+    } catch (err) {
+      this.logger.warn(`Failed to fetch tenant jwt-context for ${tenantId}: ${String(err)}`);
+      return { allowedModules: [], subscriptionPlan: 'standard', tenantStatus: 'ACTIVE' };
+    }
+  }
+
   async validateUser(email: string, password: string): Promise<JwtPayload> {
     const user = await this.prisma.user.findUnique({ where: { email } });
 
@@ -52,12 +105,21 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedError('AUTH_001');
     }
 
+    // ARCH-DECISION: SUPER_ADMIN always gets all modules; other roles get the
+    // tenant's enabled module list fetched from tenant-service.
+    const tenantCtx = user.role === 'SUPER_ADMIN'
+      ? { allowedModules: ALL_MODULE_KEYS, subscriptionPlan: 'premium', tenantStatus: 'ACTIVE' }
+      : await this.fetchTenantJwtContext(user.tenantId);
+
     return {
-      sub:      user.id,
-      email:    user.email,
-      name:     user.name,
-      tenantId: user.tenantId,
-      role:     user.role as JwtPayload['role'],
+      sub:              user.id,
+      email:            user.email,
+      name:             user.name,
+      tenantId:         user.tenantId,
+      role:             user.role as JwtPayload['role'],
+      allowedModules:   tenantCtx.allowedModules,
+      subscriptionPlan: tenantCtx.subscriptionPlan,
+      tenantStatus:     tenantCtx.tenantStatus,
     };
   }
 
@@ -138,13 +200,23 @@ export class AuthService implements OnModuleInit {
       // Step 4: Delete the used token (rotation — one-time use)
       await this.prisma.refreshToken.delete({ where: { id: matchedTokenId } });
 
+      // ARCH-DECISION: Re-fetch tenant context on refresh so module changes
+      // (admin enabling/disabling modules) take effect at the next token refresh
+      // without requiring re-login. SUPER_ADMIN always gets all modules.
+      const tenantCtx = dbUser.role === 'SUPER_ADMIN'
+        ? { allowedModules: ALL_MODULE_KEYS, subscriptionPlan: 'premium', tenantStatus: 'ACTIVE' }
+        : await this.fetchTenantJwtContext(payload.tenantId);
+
       // Re-fetch name from DB so it reflects any profile updates since last login
       const user: JwtPayload = {
-        sub:      payload.sub,
-        email:    payload.email,
-        name:     dbUser.name,
-        tenantId: payload.tenantId,
-        role:     payload.role,
+        sub:              payload.sub,
+        email:            payload.email,
+        name:             dbUser.name,
+        tenantId:         payload.tenantId,
+        role:             payload.role,
+        allowedModules:   tenantCtx.allowedModules,
+        subscriptionPlan: tenantCtx.subscriptionPlan,
+        tenantStatus:     tenantCtx.tenantStatus,
       };
 
       // ARCH-DECISION: Return user alongside tokens so the web auth.store

@@ -20,6 +20,11 @@ const envSchema = z.object({
   // docker-compose provides it via ${INTERNAL_SERVICE_SECRET}. Failing fast here
   // is safer than booting with a well-known weak secret.
   INTERNAL_SERVICE_SECRET: z.string().min(16),
+  // ARCH-DECISION: TENANT_SERVICE_URL lets auth-service call tenant-service's
+  // /internal/tenants/:id/jwt-context endpoint at login time to enrich the JWT
+  // with allowedModules, subscriptionPlan, and tenantStatus. Optional — if absent,
+  // login still succeeds but JWT won't carry module data (graceful degradation).
+  TENANT_SERVICE_URL: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

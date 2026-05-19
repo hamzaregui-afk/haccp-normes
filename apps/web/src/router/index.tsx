@@ -47,11 +47,31 @@ function RequireRole({ roles, children }: { roles: UserRole[]; children: React.R
   return <>{children}</>;
 }
 
+/**
+ * RequireModule — blocks access to a route when the tenant doesn't have the module enabled.
+ *
+ * ARCH-DECISION: SUPER_ADMIN bypasses all module checks — matches backend ModuleGuard.
+ * Users who lose module access mid-session (e.g., tenant downgrade) are redirected to
+ * /dashboard rather than shown a blank page or error.
+ */
+function RequireModule({ moduleKey, children }: { moduleKey: string; children: React.ReactNode }) {
+  const hasModule = useAuthStore((s) => s.hasModule);
+  // ARCH-DECISION: Always fall back to /dashboard (not /controls) to avoid infinite
+  // redirect loops — if OPERATOR's HACCP_CONTROLS module is missing and we redirected
+  // to /controls, RequireModule would catch it again and loop. /dashboard is the safe
+  // landing page; OperatorDashboardGuard runs there and redirects to /controls only
+  // when that module is actually enabled.
+  if (!hasModule(moduleKey)) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
 // ARCH-DECISION: OPERATOR has no access to the general dashboard (charts, NC stats,
-// full KPI grid). Redirect them immediately to /controls which shows their own tasks.
+// full KPI grid). Redirect them to /controls only when HACCP_CONTROLS module is enabled —
+// guarding against the mis-configured edge case where an OPERATOR tenant has no modules.
 function OperatorDashboardGuard({ children }: { children: React.ReactNode }) {
-  const role = useAuthStore((s) => s.user?.role);
-  if (role === 'OPERATOR') return <Navigate to="/controls" replace />;
+  const role      = useAuthStore((s) => s.user?.role);
+  const hasModule = useAuthStore((s) => s.hasModule);
+  if (role === 'OPERATOR' && hasModule('HACCP_CONTROLS')) return <Navigate to="/controls" replace />;
   return <>{children}</>;
 }
 
@@ -61,12 +81,14 @@ const S = (Component: React.LazyExoticComponent<() => JSX.Element>) => (
   </Suspense>
 );
 
-// ARCH-DECISION: Role-aware home redirect — OPERATOR's primary workspace is /controls
-// (their own task list), so sending them to /dashboard (charts + org KPIs) is useless.
-// All other roles land on /dashboard as before.
+// ARCH-DECISION: Role-aware home redirect — OPERATOR's primary workspace is /controls.
+// Only redirect there when HACCP_CONTROLS module is enabled; fall back to /dashboard
+// for mis-configured tenants (OperatorDashboardGuard shows what it can there).
 function RoleHome() {
-  const role = useAuthStore((s) => s.user?.role);
-  return <Navigate to={role === 'OPERATOR' ? '/controls' : '/dashboard'} replace />;
+  const role      = useAuthStore((s) => s.user?.role);
+  const hasModule = useAuthStore((s) => s.hasModule);
+  const target    = role === 'OPERATOR' && hasModule('HACCP_CONTROLS') ? '/controls' : '/dashboard';
+  return <Navigate to={target} replace />;
 }
 
 // ─── Router ───────────────────────────────────────────────────────────────────
@@ -92,20 +114,39 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
       // Dashboard — OPERATOR is redirected to /controls by OperatorDashboardGuard
       {
         path: 'dashboard',
-        element: <OperatorDashboardGuard>{S(DashboardPage)}</OperatorDashboardGuard>,
+        element: (
+          <RequireModule moduleKey="DASHBOARD">
+            <OperatorDashboardGuard>{S(DashboardPage)}</OperatorDashboardGuard>
+          </RequireModule>
+        ),
       },
 
       // Controls & Nonconformities — open to all roles including OPERATOR
-      { path: 'controls',              element: S(ControlsPage) },
-      { path: 'controls/templates/:id', element: S(ChecklistEditorPage) },
-      { path: 'nonconformities',       element: S(NonconformitiesPage) },
+      {
+        path: 'controls',
+        element: (
+          <RequireModule moduleKey="HACCP_CONTROLS">{S(ControlsPage)}</RequireModule>
+        ),
+      },
+      {
+        path: 'controls/templates/:id',
+        element: (
+          <RequireModule moduleKey="HACCP_CONTROLS">{S(ChecklistEditorPage)}</RequireModule>
+        ),
+      },
+      {
+        path: 'nonconformities',
+        element: (
+          <RequireModule moduleKey="NONCONFORMITIES">{S(NonconformitiesPage)}</RequireModule>
+        ),
+      },
 
       // DLC — ADMIN, MANAGER, SUPER_ADMIN and OPERATOR (field printing)
       {
         path: 'dlc',
         element: (
           <RequireRole roles={['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'SUPER_ADMIN', 'OPERATOR']}>
-            {S(DLCWebPage)}
+            <RequireModule moduleKey="DLC">{S(DLCWebPage)}</RequireModule>
           </RequireRole>
         ),
       },
@@ -115,7 +156,7 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
         path: 'products',
         element: (
           <RequireRole roles={['ADMIN', 'MANAGER', 'SUPER_ADMIN']}>
-            {S(ProductsPage)}
+            <RequireModule moduleKey="PRODUCTS">{S(ProductsPage)}</RequireModule>
           </RequireRole>
         ),
       },
@@ -123,7 +164,7 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
         path: 'equipments',
         element: (
           <RequireRole roles={['ADMIN', 'MANAGER', 'SUPER_ADMIN']}>
-            {S(EquipmentsPage)}
+            <RequireModule moduleKey="EQUIPMENTS">{S(EquipmentsPage)}</RequireModule>
           </RequireRole>
         ),
       },
@@ -131,7 +172,7 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
         path: 'suppliers',
         element: (
           <RequireRole roles={['ADMIN', 'MANAGER', 'SUPER_ADMIN']}>
-            {S(SuppliersPage)}
+            <RequireModule moduleKey="SUPPLIERS">{S(SuppliersPage)}</RequireModule>
           </RequireRole>
         ),
       },
@@ -147,20 +188,26 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
         path: 'zones',
         element: (
           <RequireRole roles={['ADMIN', 'MANAGER', 'SUPER_ADMIN']}>
-            {S(ZonesPage)}
+            {/* Zones are tied to HACCP_CONTROLS — they are control-point locations */}
+            <RequireModule moduleKey="HACCP_CONTROLS">{S(ZonesPage)}</RequireModule>
           </RequireRole>
         ),
       },
 
       // GED — open to all roles including OPERATOR
-      { path: 'documents', element: S(DocumentsPage) },
+      {
+        path: 'documents',
+        element: (
+          <RequireModule moduleKey="GED">{S(DocumentsPage)}</RequireModule>
+        ),
+      },
 
       // Reports — OPERATOR excluded
       {
         path: 'reports',
         element: (
           <RequireRole roles={['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN']}>
-            {S(ReportsPage)}
+            <RequireModule moduleKey="REPORTS">{S(ReportsPage)}</RequireModule>
           </RequireRole>
         ),
       },
@@ -178,7 +225,7 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
         path: 'audit',
         element: (
           <RequireRole roles={['ADMIN', 'MANAGER', 'SUPER_ADMIN']}>
-            {S(AuditPage)}
+            <RequireModule moduleKey="AUDIT">{S(AuditPage)}</RequireModule>
           </RequireRole>
         ),
       },

@@ -6,6 +6,8 @@ import { TenantModuleModule } from './tenant-module/tenant-module.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { HealthController } from './health/health.controller';
 import { MetricsModule } from './metrics/metrics.module';
+import { TenantInternalController } from './tenant-internal/tenant-internal.controller';
+import { PrismaService } from './prisma/prisma.service';
 
 @Module({
   imports: [
@@ -16,6 +18,7 @@ import { MetricsModule } from './metrics/metrics.module';
     SiteModule,
     MetricsModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, TenantInternalController],
+  providers:   [PrismaService],
 })
 export class AppModule {}

@@ -172,12 +172,14 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       AUDIT_SERVICE_URL: http://audit-service:3019/api/v1
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-haccp-internal-dev-secret-change-in-prod}
+      TENANT_SERVICE_URL: http://tenant-service:3018
       OTEL_SERVICE_NAME: auth-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
       OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
     depends_on:
-      postgres: { condition: service_healthy }
-      redis:    { condition: service_healthy }
+      postgres:       { condition: service_healthy }
+      redis:          { condition: service_healthy }
+      tenant-service: { condition: service_healthy }
     networks:
       - haccp-network
     healthcheck:

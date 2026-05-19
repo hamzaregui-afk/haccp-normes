@@ -11,13 +11,40 @@ import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
 import type { UserRole } from '@haccp/shared-types';
 
+// ─── Module-aware item filter ─────────────────────────────────────────────────
+
+/**
+ * Returns true when an item should appear in the sidebar for this user.
+ *
+ * Rules (applied in order):
+ *  1. User role must be in item.roles (or roles is empty = everyone)
+ *  2. SUPER_ADMIN always passes — they bypass all module checks
+ *  3. If item has a moduleKey, the tenant must have that module enabled
+ */
+function isItemVisible(
+  item:           { roles: UserRole[]; moduleKey?: string },
+  userRole:       UserRole,
+  allowedModules: string[],
+): boolean {
+  if (item.roles.length > 0 && !item.roles.includes(userRole)) return false;
+  if (userRole === 'SUPER_ADMIN') return true;
+  if (item.moduleKey && !allowedModules.includes(item.moduleKey)) return false;
+  return true;
+}
+
 // ─── Nav item definition ──────────────────────────────────────────────────────
 
 interface NavItem {
-  labelKey: string;
-  to:    string;
-  icon:  LucideIcon;
-  roles: UserRole[];
+  labelKey:  string;
+  to:        string;
+  icon:      LucideIcon;
+  roles:     UserRole[];
+  /**
+   * Module key from shared-types ALL_MODULES list.
+   * When set, the item is hidden unless the tenant has this module enabled.
+   * SUPER_ADMIN always sees every item regardless of moduleKey.
+   */
+  moduleKey?: string;
 }
 
 interface NavSection {
@@ -29,31 +56,38 @@ interface NavSection {
 // that may see the item. OPERATOR is explicitly listed only where it belongs:
 //   - controls (own tasks)   - nonconformities   - dlc (label printing)   - documents (GED)
 // MANAGER is ≈ ADMIN everywhere except user/client creation (enforced in UsersPage).
+//
+// moduleKey maps to the JWT allowedModules array (set by tenant-service at login).
+// Items with a moduleKey are hidden when the tenant doesn't have that module enabled.
+// SUPER_ADMIN always sees all items regardless of moduleKey — mirrors backend ModuleGuard.
+// Items WITHOUT a moduleKey (users, groups, settings, clients) are admin functions not
+// gated by modules — they follow role-only rules.
 const NAV_SECTIONS: NavSection[] = [
   {
     titleKey: 'nav.operations',
     items: [
       // Dashboard: OPERATOR is redirected to /controls on arrival — no sidebar entry for them
-      { labelKey: 'nav.overview',        to: '/dashboard',       icon: LayoutDashboard, roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN'] },
-      { labelKey: 'nav.controls',        to: '/controls',        icon: ClipboardList,   roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'] },
-      { labelKey: 'nav.nonconformities', to: '/nonconformities', icon: ShieldAlert,     roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'] },
-      { labelKey: 'nav.dlc',             to: '/dlc',             icon: Tag,             roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'OPERATOR'] },
+      { labelKey: 'nav.overview',        to: '/dashboard',       icon: LayoutDashboard, roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN'],                    moduleKey: 'DASHBOARD'        },
+      { labelKey: 'nav.controls',        to: '/controls',        icon: ClipboardList,   roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'],        moduleKey: 'HACCP_CONTROLS'   },
+      { labelKey: 'nav.nonconformities', to: '/nonconformities', icon: ShieldAlert,     roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'],        moduleKey: 'NONCONFORMITIES'  },
+      { labelKey: 'nav.dlc',             to: '/dlc',             icon: Tag,             roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'OPERATOR'],                                     moduleKey: 'DLC'              },
     ],
   },
   {
     titleKey: 'nav.assets',
     items: [
-      { labelKey: 'nav.products',   to: '/products',   icon: Package,  roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
-      { labelKey: 'nav.equipments', to: '/equipments', icon: Cog,      roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
-      { labelKey: 'nav.suppliers',  to: '/suppliers',  icon: Truck,    roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
-      { labelKey: 'nav.zones',      to: '/zones',      icon: MapPin,   roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
-      { labelKey: 'nav.documents',  to: '/documents',  icon: BookOpen, roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'] },
+      { labelKey: 'nav.products',   to: '/products',   icon: Package,  roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'],                                              moduleKey: 'PRODUCTS'       },
+      { labelKey: 'nav.equipments', to: '/equipments', icon: Cog,      roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'],                                              moduleKey: 'EQUIPMENTS'     },
+      { labelKey: 'nav.suppliers',  to: '/suppliers',  icon: Truck,    roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'],                                              moduleKey: 'SUPPLIERS'      },
+      // Zones are tied to HACCP_CONTROLS — they are control-point locations
+      { labelKey: 'nav.zones',      to: '/zones',      icon: MapPin,   roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'],                                              moduleKey: 'HACCP_CONTROLS' },
+      { labelKey: 'nav.documents',  to: '/documents',  icon: BookOpen, roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'],    moduleKey: 'GED'            },
     ],
   },
   {
     titleKey: 'nav.team',
     items: [
-      // Users: MANAGER can view but cannot create/edit/delete (enforced in UsersPage)
+      // Users / Groups: admin functions — no module gate, role-only
       { labelKey: 'nav.users',  to: '/users',  icon: Users,      roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
       { labelKey: 'nav.groups', to: '/groups', icon: UsersRound, roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
     ],
@@ -61,8 +95,9 @@ const NAV_SECTIONS: NavSection[] = [
   {
     titleKey: 'nav.administration',
     items: [
-      { labelKey: 'nav.reports',  to: '/reports',  icon: BarChart3,  roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN'] },
-      { labelKey: 'nav.audit',    to: '/audit',    icon: ScrollText, roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
+      { labelKey: 'nav.reports',  to: '/reports',  icon: BarChart3,  roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN'], moduleKey: 'REPORTS' },
+      { labelKey: 'nav.audit',    to: '/audit',    icon: ScrollText, roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'],                               moduleKey: 'AUDIT'   },
+      // Settings / Clients: admin functions — no module gate, role-only
       { labelKey: 'nav.settings', to: '/settings', icon: Cog,        roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
       // Clients: ADMIN + SUPER_ADMIN (ADMIN manages their own client base; SUPER_ADMIN manages all tenants)
       { labelKey: 'nav.clients',  to: '/clients',  icon: Building2,  roles: ['ADMIN', 'SUPER_ADMIN'] },
@@ -77,10 +112,11 @@ interface SidebarContentProps {
 }
 
 function SidebarContent({ onClose }: SidebarContentProps) {
-  const { t }    = useTranslation();
-  const user     = useAuthStore((s) => s.user);
-  const logout   = useAuthStore((s) => s.logout);
-  const navigate = useNavigate();
+  const { t }          = useTranslation();
+  const user           = useAuthStore((s) => s.user);
+  const logout         = useAuthStore((s) => s.logout);
+  const allowedModules = useAuthStore((s) => s.allowedModules)();
+  const navigate       = useNavigate();
 
   const handleLogout = () => {
     void logout();
@@ -109,8 +145,8 @@ function SidebarContent({ onClose }: SidebarContentProps) {
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
         {NAV_SECTIONS.map((section) => {
-          const visible = section.items.filter(
-            (item) => item.roles.length === 0 || item.roles.includes(user.role),
+          const visible = section.items.filter((item) =>
+            isItemVisible(item, user.role, allowedModules),
           );
           if (!visible.length) return null;
 

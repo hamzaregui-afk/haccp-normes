@@ -60,6 +60,10 @@ export const UpdateUserSchema = CreateUserSchema.partial().omit({ password: true
 export type UpdateUser = z.infer<typeof UpdateUserSchema>;
 
 // ─── JWT Payload ──────────────────────────────────────────────────────────────
+// ARCH-DECISION: allowedModules / subscriptionPlan / tenantStatus are optional
+// with defaults so existing refresh tokens (issued before this field was added)
+// still validate — no forced logout on deploy. Backend guards treat an absent
+// allowedModules as [] (no access); SUPER_ADMIN bypasses module checks entirely.
 
 export const JwtPayloadSchema = z.object({
   sub: z.string().min(1),        // userId — min(1) not cuid() so any valid ID format works
@@ -67,6 +71,10 @@ export const JwtPayloadSchema = z.object({
   name: z.string().optional(),   // display name — included in JWT for UI convenience
   tenantId: z.string().min(1),   // CRITICAL — every service query is scoped to this
   role: UserRoleSchema,
+  // ── Multi-tenant enterprise fields ───────────────────────────────────────────
+  allowedModules:   z.array(z.string()).optional().default([]),  // enabled TenantModuleKeys
+  subscriptionPlan: z.string().optional().default('standard'),   // trial | standard | premium
+  tenantStatus:     z.string().optional().default('ACTIVE'),     // ACTIVE | SUSPENDED | ARCHIVED
   iat: z.number().optional(),
   exp: z.number().optional(),
 });
