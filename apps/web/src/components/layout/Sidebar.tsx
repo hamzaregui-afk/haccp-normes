@@ -55,11 +55,13 @@ interface NavSection {
 // ─── Role matrix rationale ────────────────────────────────────────────────────
 //
 // SUPER_ADMIN  → platform operator: sees everything including /clients
-// ADMIN        → TENANT_ADMIN: manages ONE tenant's setup only.
-//                Allowed: equipments, suppliers, zones, documents, users, groups,
-//                         reports, audit, settings (tenant-scoped).
-//                Blocked: dashboard, controls, NCs, DLC, products, /clients.
-// MANAGER      → operational manager: runs HACCP controls, NCs, DLC, full reporting.
+// ADMIN        → TENANT_ADMIN: full access within their ONE tenant.
+//                Mandatory modules: dashboard, controls, NCs, DLC, equipments,
+//                suppliers, zones, documents, users, groups, reports, audit, settings.
+//                Blocked: /clients (SaaS backoffice), products (operational catalog).
+//                Additional optional modules can be activated by SUPER_ADMIN per tenant.
+// MANAGER      → operational manager: same as ADMIN for operations + products.
+//                Does NOT manage users (ADMIN-only function).
 // QUALITY_OFFICER → quality ops: read + NC/reports write.
 // OPERATOR     → field worker: controls (own tasks), NCs, DLC, documents.
 // VIEWER       → read-only.
@@ -71,17 +73,17 @@ const NAV_SECTIONS: NavSection[] = [
   {
     titleKey: 'nav.operations',
     items: [
-      // Dashboard: ADMIN → /equipments (their home); OPERATOR → /controls (their home)
-      { labelKey: 'nav.overview',        to: '/dashboard',       icon: LayoutDashboard, roles: ['MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN'],             moduleKey: 'DASHBOARD'       },
-      { labelKey: 'nav.controls',        to: '/controls',        icon: ClipboardList,   roles: ['MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'], moduleKey: 'HACCP_CONTROLS'  },
-      { labelKey: 'nav.nonconformities', to: '/nonconformities', icon: ShieldAlert,     roles: ['MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'], moduleKey: 'NONCONFORMITIES' },
-      { labelKey: 'nav.dlc',             to: '/dlc',             icon: Tag,             roles: ['MANAGER', 'SUPER_ADMIN', 'OPERATOR'],                              moduleKey: 'DLC'             },
+      // Dashboard: ADMIN always sees tenant dashboard; OPERATOR → /controls (their home)
+      { labelKey: 'nav.overview',        to: '/dashboard',       icon: LayoutDashboard, roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN'],             moduleKey: 'DASHBOARD'       },
+      { labelKey: 'nav.controls',        to: '/controls',        icon: ClipboardList,   roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'], moduleKey: 'HACCP_CONTROLS'  },
+      { labelKey: 'nav.nonconformities', to: '/nonconformities', icon: ShieldAlert,     roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'], moduleKey: 'NONCONFORMITIES' },
+      { labelKey: 'nav.dlc',             to: '/dlc',             icon: Tag,             roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'OPERATOR'],                              moduleKey: 'DLC'             },
     ],
   },
   {
     titleKey: 'nav.assets',
     items: [
-      // Products: operational referential — ADMIN has no operational duties
+      // Products: operational catalog managed by MANAGER — ADMIN excluded
       { labelKey: 'nav.products',   to: '/products',   icon: Package,  roles: ['MANAGER', 'SUPER_ADMIN'],                                                    moduleKey: 'PRODUCTS'       },
       // Equipments/Suppliers/Zones: ADMIN manages these as tenant setup
       { labelKey: 'nav.equipments', to: '/equipments', icon: Cog,      roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'],                                            moduleKey: 'EQUIPMENTS'     },

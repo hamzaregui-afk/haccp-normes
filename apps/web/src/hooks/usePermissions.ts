@@ -4,18 +4,28 @@
  * Combines role + module access into named boolean capabilities so that
  * components never repeat the (role AND module) logic inline.
  *
- * ┌─────────────────────────────────────────────────────────────────────────┐
- * │  Role split summary                                                     │
- * │  SUPER_ADMIN  → platform operator: all tenants, SaaS backoffice         │
- * │  ADMIN        → TENANT_ADMIN: setup-only (assets, users, audit, reports)│
- * │  MANAGER      → operational: controls, NCs, DLC, full reporting          │
- * │  QUALITY_OFFICER → quality ops: read + NC/reports write                 │
- * │  OPERATOR     → field: executes controls, NCs, DLC (mobile-first)       │
- * │  VIEWER       → read-only across all tenant data                        │
- * └─────────────────────────────────────────────────────────────────────────┘
+ * ┌──────────────────────────────────────────────────────────────────────────────┐
+ * │  Final role/access matrix                                                    │
+ * │                                                                              │
+ * │  SUPER_ADMIN  → platform operator: all tenants, SaaS backoffice (/clients)   │
+ * │  ADMIN        → TENANT_ADMIN: full access within their ONE tenant.           │
+ * │                 Mandatory modules: dashboard, controls, NCs, DLC,            │
+ * │                 equipments, suppliers, zones, documents, users, groups,      │
+ * │                 reports, audit, settings.                                    │
+ * │                 Blocked: /clients (SaaS), products (MANAGER catalog).        │
+ * │  MANAGER      → operational manager: controls, NCs, DLC, products + reports  │
+ * │  QUALITY_OFFICER → quality ops: read + NC/reports write                     │
+ * │  OPERATOR     → field: executes controls, NCs, DLC (mobile-first)           │
+ * │  VIEWER       → read-only across all tenant data                            │
+ * └──────────────────────────────────────────────────────────────────────────────┘
  *
  * ARCH-DECISION: SUPER_ADMIN bypasses ALL restrictions — role and module.
  * This mirrors the backend ModuleGuard + RolesGuard behavior exactly.
+ *
+ * ARCH-DECISION: "Mandatory modules" for TENANT_ADMIN are modules that are always
+ * accessible regardless of tenant configuration. They are seeded at tenant creation
+ * and guaranteed present in the JWT allowedModules array. The frontend module gate
+ * (RequireModule) still applies — the guarantee is on the data, not bypassed here.
  */
 
 import { useAuthStore } from '@/store/auth.store';
@@ -54,48 +64,48 @@ export function usePermissions() {
     hasModuleAccess(role, allowedModules, moduleKey);
 
   // ── Dashboard ──────────────────────────────────────────────────────────────
-  // ADMIN is excluded: their workspace is /equipments, not the KPI dashboard
+  // ADMIN sees the tenant-scoped dashboard (KPIs for their own tenant)
   const canViewDashboard =
-    hasRole(role, ['MANAGER', 'QUALITY_OFFICER', 'VIEWER']) &&
+    hasRole(role, ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER']) &&
     canAccessModule('DASHBOARD');
 
   // ── Controls / HACCP ──────────────────────────────────────────────────────
-  // ADMIN is excluded: managing controls is an operational role (MANAGER/QO)
+  // ADMIN: mandatory module — oversees controls within their tenant
   const canViewControls =
-    hasRole(role, ['MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'OPERATOR']) &&
+    hasRole(role, ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'OPERATOR']) &&
     canAccessModule('HACCP_CONTROLS');
 
   const canManageControls =
-    hasRole(role, ['MANAGER']) &&
+    hasRole(role, ['ADMIN', 'MANAGER']) &&
     canAccessModule('HACCP_CONTROLS');
 
   // ── Nonconformities ───────────────────────────────────────────────────────
-  // ADMIN is excluded: NC lifecycle is an operational responsibility
+  // ADMIN: mandatory module — tracks compliance issues in their tenant
   const canViewNonconformities =
-    hasRole(role, ['MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'OPERATOR']) &&
+    hasRole(role, ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'OPERATOR']) &&
     canAccessModule('NONCONFORMITIES');
 
   const canCreateNonconformities =
-    hasRole(role, ['MANAGER', 'OPERATOR']) &&
+    hasRole(role, ['ADMIN', 'MANAGER', 'OPERATOR']) &&
     canAccessModule('NONCONFORMITIES');
 
   const canCloseNonconformities =
-    hasRole(role, ['MANAGER']) &&
+    hasRole(role, ['ADMIN', 'MANAGER']) &&
     canAccessModule('NONCONFORMITIES');
 
   // ── DLC ───────────────────────────────────────────────────────────────────
-  // ADMIN excluded: label printing is an operational / field function
+  // ADMIN: mandatory module — oversees DLC operations within their tenant
   const canAccessDLC =
-    hasRole(role, ['MANAGER', 'QUALITY_OFFICER', 'OPERATOR']) &&
+    hasRole(role, ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'OPERATOR']) &&
     canAccessModule('DLC');
 
   // ── Asset referential ─────────────────────────────────────────────────────
-  // Products: operational catalog — ADMIN excluded
+  // Products: operational catalog managed by MANAGER — ADMIN does not manage products
   const canManageProducts =
     hasRole(role, ['MANAGER']) &&
     canAccessModule('PRODUCTS');
 
-  // Equipments/Suppliers: tenant setup — ADMIN included
+  // Equipments/Suppliers: tenant setup — ADMIN mandatory, MANAGER operational
   const canManageEquipments =
     hasRole(role, ['ADMIN', 'MANAGER']) &&
     canAccessModule('EQUIPMENTS');
@@ -106,7 +116,6 @@ export function usePermissions() {
 
   // ── Zones ─────────────────────────────────────────────────────────────────
   // ARCH-DECISION: Zones are tied to HACCP_CONTROLS module (control-point locations).
-  // ADMIN manages the physical space setup; MANAGER uses zones operationally.
   const canManageZones =
     hasRole(role, ['ADMIN', 'MANAGER']) &&
     canAccessModule('HACCP_CONTROLS');
@@ -117,32 +126,32 @@ export function usePermissions() {
     canAccessModule('GED');
 
   // ── Reports ───────────────────────────────────────────────────────────────
-  // ADMIN can view reports (tenant-level compliance reporting)
+  // ADMIN: mandatory — views tenant compliance reports
   const canViewReports =
     hasRole(role, ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER']) &&
     canAccessModule('REPORTS');
 
   const canGenerateReports =
-    hasRole(role, ['MANAGER']) &&
+    hasRole(role, ['ADMIN', 'MANAGER']) &&
     canAccessModule('REPORTS');
 
   // ── Audit ─────────────────────────────────────────────────────────────────
-  // ADMIN can view the audit log (they need visibility into their tenant's activity)
+  // ADMIN: mandatory — reviews tenant activity log
   const canViewAudit =
     hasRole(role, ['ADMIN', 'MANAGER']) &&
     canAccessModule('AUDIT');
 
   // ── Team management (role-only — no module gate) ──────────────────────────
-  // ADMIN creates/edits/deletes users and groups (their core admin function)
+  // ADMIN: core function — manages who has access to their tenant
   const canManageUsers  = hasRole(role, ['ADMIN']);
   const canViewUsers    = hasRole(role, ['ADMIN', 'MANAGER']);
   const canManageGroups = hasRole(role, ['ADMIN', 'MANAGER']);
 
-  // Settings: local tenant settings (ADMIN + MANAGER); global SaaS settings → SUPER_ADMIN only
+  // Settings: local tenant settings only; global SaaS settings → SUPER_ADMIN only
   const canManageSettings = hasRole(role, ['ADMIN', 'MANAGER']);
 
-  // ── Platform clients / SaaS backoffice (SUPER_ADMIN only) ─────────────────
-  // ADMIN (TENANT_ADMIN) NEVER sees the /clients page or any cross-tenant data
+  // ── Platform clients / SaaS backoffice ────────────────────────────────────
+  // SUPER_ADMIN only — ADMIN (TENANT_ADMIN) NEVER sees cross-tenant data
   const canManageClients = isSuperAdmin;
 
   return {
@@ -171,7 +180,7 @@ export function usePermissions() {
     canManageSettings,
     canManageClients,
 
-    // Convenience
+    // Convenience flags
     isSuperAdmin,
     isTenantAdmin,
     role,
