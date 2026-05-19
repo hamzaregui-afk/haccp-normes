@@ -19,13 +19,14 @@ import {
   Headers,
   Logger,
   Param,
-  SkipThrottle,
 } from '@nestjs/common';
 
 import { env } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
 
-@SkipThrottle() // internal calls are not user-facing
+// ARCH-DECISION: @SkipThrottle() intentionally omitted — tenant-service does not
+// install @nestjs/throttler. The /internal/** path is excluded from nginx routing
+// so it is only reachable within the Docker cluster; no rate-limiting needed.
 @Controller('internal/tenants')
 export class TenantInternalController {
   private readonly logger = new Logger(TenantInternalController.name);
