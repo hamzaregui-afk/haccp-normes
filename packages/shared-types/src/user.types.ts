@@ -5,11 +5,12 @@ import { z } from 'zod';
 // Update any reference to 'QUALITY' → 'QUALITY_OFFICER'.
 
 export const UserRoleSchema = z.enum([
-  'SUPER_ADMIN',      // Platform-level — manages tenants (clients feature only)
-  'ADMIN',            // Tenant admin — full access within their tenant
-  'MANAGER',          // Department / site manager
-  'QUALITY_OFFICER',  // Responsible for quality — read + NC/reports write
-  'OPERATOR',         // Field worker — primary mobile app user
+  'SUPER_ADMIN',      // Platform-level — manages all tenants, SaaS backoffice, subscriptions
+  'ADMIN',            // TENANT_ADMIN — manages ONE tenant: users, groups, assets, audit, reports.
+                      // Does NOT see platform clients, global dashboard, controls or NCs.
+  'MANAGER',          // Operational manager — runs HACCP controls, NCs, DLC, full reporting
+  'QUALITY_OFFICER',  // Quality role — read + NC/reports write; no admin functions
+  'OPERATOR',         // Field worker — primary mobile app user; executes controls + NCs
   'VIEWER',           // Read-only across all tenant data
 ]);
 

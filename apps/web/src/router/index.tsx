@@ -56,22 +56,29 @@ function RequireRole({ roles, children }: { roles: UserRole[]; children: React.R
  */
 function RequireModule({ moduleKey, children }: { moduleKey: string; children: React.ReactNode }) {
   const hasModule = useAuthStore((s) => s.hasModule);
-  // ARCH-DECISION: Always fall back to /dashboard (not /controls) to avoid infinite
-  // redirect loops — if OPERATOR's HACCP_CONTROLS module is missing and we redirected
-  // to /controls, RequireModule would catch it again and loop. /dashboard is the safe
-  // landing page; OperatorDashboardGuard runs there and redirects to /controls only
-  // when that module is actually enabled.
-  if (!hasModule(moduleKey)) return <Navigate to="/dashboard" replace />;
+  const role      = useAuthStore((s) => s.user?.role);
+  // ARCH-DECISION: Fall back to role home — ADMIN goes to /equipments, others to /dashboard.
+  // Never fall back to /controls directly: if OPERATOR's HACCP_CONTROLS is missing and we
+  // redirect to /controls, RequireModule would catch it and loop. DashboardAccessGuard
+  // handles the OPERATOR→/controls and ADMIN→/equipments redirects from /dashboard.
+  const fallback = role === 'ADMIN' ? '/equipments' : '/dashboard';
+  if (!hasModule(moduleKey)) return <Navigate to={fallback} replace />;
   return <>{children}</>;
 }
 
-// ARCH-DECISION: OPERATOR has no access to the general dashboard (charts, NC stats,
-// full KPI grid). Redirect them to /controls only when HACCP_CONTROLS module is enabled —
-// guarding against the mis-configured edge case where an OPERATOR tenant has no modules.
-function OperatorDashboardGuard({ children }: { children: React.ReactNode }) {
+/**
+ * DashboardAccessGuard — redirects roles that must not land on /dashboard.
+ *
+ * ADMIN (TENANT_ADMIN): their workspace is /equipments (asset setup + user mgmt),
+ *   not the operational KPI dashboard.
+ * OPERATOR: no access to the general dashboard — redirected to /controls (own tasks)
+ *   only when HACCP_CONTROLS module is enabled, to avoid redirect loops.
+ */
+function DashboardAccessGuard({ children }: { children: React.ReactNode }) {
   const role      = useAuthStore((s) => s.user?.role);
   const hasModule = useAuthStore((s) => s.hasModule);
-  if (role === 'OPERATOR' && hasModule('HACCP_CONTROLS')) return <Navigate to="/controls" replace />;
+  if (role === 'ADMIN')                                       return <Navigate to="/equipments" replace />;
+  if (role === 'OPERATOR' && hasModule('HACCP_CONTROLS'))     return <Navigate to="/controls"   replace />;
   return <>{children}</>;
 }
 
@@ -81,14 +88,16 @@ const S = (Component: React.LazyExoticComponent<() => JSX.Element>) => (
   </Suspense>
 );
 
-// ARCH-DECISION: Role-aware home redirect — OPERATOR's primary workspace is /controls.
-// Only redirect there when HACCP_CONTROLS module is enabled; fall back to /dashboard
-// for mis-configured tenants (OperatorDashboardGuard shows what it can there).
+// ARCH-DECISION: Role-aware home redirect.
+//   ADMIN    → /equipments  (their primary workspace: asset setup + user management)
+//   OPERATOR → /controls    (their task list) — only when HACCP_CONTROLS is enabled
+//   everyone else → /dashboard
 function RoleHome() {
   const role      = useAuthStore((s) => s.user?.role);
   const hasModule = useAuthStore((s) => s.hasModule);
-  const target    = role === 'OPERATOR' && hasModule('HACCP_CONTROLS') ? '/controls' : '/dashboard';
-  return <Navigate to={target} replace />;
+  if (role === 'ADMIN')                                   return <Navigate to="/equipments" replace />;
+  if (role === 'OPERATOR' && hasModule('HACCP_CONTROLS')) return <Navigate to="/controls"   replace />;
+  return <Navigate to="/dashboard" replace />;
 }
 
 // ─── Router ───────────────────────────────────────────────────────────────────
@@ -111,51 +120,58 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
       // Default redirect — OPERATOR lands on /controls (their workspace), others on /dashboard
       { index: true, element: <RoleHome /> },
 
-      // Dashboard — OPERATOR is redirected to /controls by OperatorDashboardGuard
+      // Dashboard — OPERATOR is redirected to /controls by DashboardAccessGuard
       {
         path: 'dashboard',
         element: (
           <RequireModule moduleKey="DASHBOARD">
-            <OperatorDashboardGuard>{S(DashboardPage)}</OperatorDashboardGuard>
+            <DashboardAccessGuard>{S(DashboardPage)}</DashboardAccessGuard>
           </RequireModule>
         ),
       },
 
-      // Controls & Nonconformities — open to all roles including OPERATOR
+      // Controls — ADMIN excluded (operational, not tenant-admin function)
       {
         path: 'controls',
         element: (
-          <RequireModule moduleKey="HACCP_CONTROLS">{S(ControlsPage)}</RequireModule>
+          <RequireRole roles={['MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR']}>
+            <RequireModule moduleKey="HACCP_CONTROLS">{S(ControlsPage)}</RequireModule>
+          </RequireRole>
         ),
       },
       {
         path: 'controls/templates/:id',
         element: (
-          <RequireModule moduleKey="HACCP_CONTROLS">{S(ChecklistEditorPage)}</RequireModule>
+          <RequireRole roles={['MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR']}>
+            <RequireModule moduleKey="HACCP_CONTROLS">{S(ChecklistEditorPage)}</RequireModule>
+          </RequireRole>
         ),
       },
+      // Nonconformities — ADMIN excluded
       {
         path: 'nonconformities',
         element: (
-          <RequireModule moduleKey="NONCONFORMITIES">{S(NonconformitiesPage)}</RequireModule>
+          <RequireRole roles={['MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR']}>
+            <RequireModule moduleKey="NONCONFORMITIES">{S(NonconformitiesPage)}</RequireModule>
+          </RequireRole>
         ),
       },
 
-      // DLC — ADMIN, MANAGER, SUPER_ADMIN and OPERATOR (field printing)
+      // DLC — ADMIN excluded (field printing / operational)
       {
         path: 'dlc',
         element: (
-          <RequireRole roles={['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'SUPER_ADMIN', 'OPERATOR']}>
+          <RequireRole roles={['MANAGER', 'QUALITY_OFFICER', 'SUPER_ADMIN', 'OPERATOR']}>
             <RequireModule moduleKey="DLC">{S(DLCWebPage)}</RequireModule>
           </RequireRole>
         ),
       },
 
-      // Asset referential — OPERATOR has no access
+      // Products — ADMIN excluded (product catalog is operational, not tenant-admin setup)
       {
         path: 'products',
         element: (
-          <RequireRole roles={['ADMIN', 'MANAGER', 'SUPER_ADMIN']}>
+          <RequireRole roles={['MANAGER', 'SUPER_ADMIN']}>
             <RequireModule moduleKey="PRODUCTS">{S(ProductsPage)}</RequireModule>
           </RequireRole>
         ),
@@ -240,11 +256,11 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
         ),
       },
 
-      // Clients — ADMIN can access (create clients for their org); SUPER_ADMIN manages all tenants
+      // Clients — SUPER_ADMIN only (platform-level SaaS management; ADMIN never sees this)
       {
         path: 'clients',
         element: (
-          <RequireRole roles={['ADMIN', 'SUPER_ADMIN']}>
+          <RequireRole roles={['SUPER_ADMIN']}>
             {S(ClientsPage)}
           </RequireRole>
         ),
