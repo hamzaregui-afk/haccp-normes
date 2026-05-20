@@ -68,6 +68,17 @@ export class AuditService {
     return toApiResponse(log);
   }
 
+  /**
+   * SUPER_ADMIN cross-tenant read — used by the platform backoffice (ClientDetailPage).
+   * ARCH-DECISION: This method does NOT scope by the caller's tenantId; instead
+   * it queries the explicitly supplied targetTenantId so a SUPER_ADMIN can read
+   * any tenant's audit trail without having to impersonate that tenant's JWT.
+   * Access control (SUPER_ADMIN role check) is enforced at the controller layer.
+   */
+  async findAllForTenant(targetTenantId: string, query: AuditQuery) {
+    return this.findAll(targetTenantId, query);
+  }
+
   // ─── INTENTIONALLY NO update() / delete() ────────────────────────────────
   // If you think you need one: you do not. The audit log is immutable by law.
 }

@@ -9,7 +9,7 @@
  *  4. Abonnement       — plan, limits, trial dates
  *  5. Sites & Zones    — hierarchical reference data
  *  6. Utilisateurs     — tenant user list (read-only from SA view)
- *  7. Historique       — placeholder (audit trail)
+ *  7. Historique       — real-time audit trail scoped to the tenant
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
@@ -861,24 +861,145 @@ function UsersTab({ tenant }: { tenant: Tenant }) {
 
 // ─── Tab: Historique ──────────────────────────────────────────────────────────
 
+interface AuditEntry {
+  id:         string;
+  userId:     string;
+  action:     string;
+  resource:   string;
+  resourceId?: string;
+  ipAddress?: string;
+  createdAt:  string;
+}
+
+const ACTION_STYLES: Record<string, string> = {
+  CREATE: 'bg-green-50 text-green-700',
+  UPDATE: 'bg-blue-50 text-blue-700',
+  DELETE: 'bg-red-50 text-red-700',
+  LOGIN:  'bg-purple-50 text-purple-700',
+  LOGOUT: 'bg-gray-100 text-gray-600',
+  EXPORT: 'bg-orange-50 text-orange-700',
+};
+
 function HistoryTab({ tenantId }: { tenantId: string }) {
+  const [page, setPage] = useState(1);
+  const LIMIT = 20;
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['audit.tenant', tenantId, page],
+    queryFn: async () => {
+      const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) });
+      const { data } = await api.get<ApiResponse<AuditEntry[]>>(
+        `/api/v1/audit/tenant/${tenantId}?${params}`,
+      );
+      return data;
+    },
+    staleTime: 30_000,
+  });
+
+  const entries  = data?.data ?? [];
+  const meta     = data?.meta;
+  const lastPage = meta?.lastPage ?? 1;
+
   return (
     <div className="space-y-4">
-      <h3 className="text-base font-semibold text-gray-900">Historique d'audit</h3>
-      <div className="rounded-xl border border-gray-100 bg-gray-50 p-8 text-center">
-        <History className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-        <p className="font-medium text-gray-500">Journal d'audit du tenant</p>
-        <p className="mt-1 text-xs text-gray-400">
-          Les événements liés à ce tenant (id: <span className="font-mono">{tenantId}</span>)
-          sont disponibles dans le journal d'audit global.
-        </p>
-        <Link
-          to="/audit"
-          className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-brand-medium px-3 py-2 text-sm font-medium text-white hover:bg-brand-dark transition-colors"
-        >
-          <ScrollText className="h-4 w-4" /> Voir le journal d'audit
-        </Link>
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-semibold text-gray-900">Historique d'audit</h3>
+        {meta && (
+          <span className="text-xs text-gray-400">
+            {meta.total} entrée{meta.total !== 1 ? 's' : ''}
+          </span>
+        )}
       </div>
+
+      {isLoading && (
+        <div className="space-y-2">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-10 animate-pulse rounded-lg bg-gray-100" />
+          ))}
+        </div>
+      )}
+
+      {isError && (
+        <div className="rounded-xl border border-red-100 bg-red-50 p-6 text-center">
+          <p className="text-sm text-red-600">Impossible de charger le journal d'audit.</p>
+        </div>
+      )}
+
+      {!isLoading && !isError && entries.length === 0 && (
+        <div className="rounded-xl border border-gray-100 bg-gray-50 p-8 text-center">
+          <History className="mx-auto mb-3 h-10 w-10 text-gray-300" />
+          <p className="text-sm text-gray-500">Aucune entrée d'audit pour ce tenant.</p>
+        </div>
+      )}
+
+      {!isLoading && entries.length > 0 && (
+        <>
+          <div className="overflow-hidden rounded-xl border border-surface-muted bg-white shadow-sm">
+            <table className="w-full text-sm">
+              <thead className="bg-surface-page text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <tr>
+                  <th className="px-4 py-3 text-left">Action</th>
+                  <th className="px-4 py-3 text-left">Ressource</th>
+                  <th className="px-4 py-3 text-left">Utilisateur</th>
+                  <th className="px-4 py-3 text-left">IP</th>
+                  <th className="px-4 py-3 text-left">Date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-muted">
+                {entries.map((entry) => (
+                  <tr key={entry.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-2.5">
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${ACTION_STYLES[entry.action] ?? 'bg-gray-100 text-gray-600'}`}>
+                        {entry.action}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-700">
+                      <span className="font-medium">{entry.resource}</span>
+                      {entry.resourceId && (
+                        <span className="ml-1.5 font-mono text-xs text-gray-400">
+                          {entry.resourceId.slice(0, 8)}…
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-gray-500">
+                      {entry.userId.slice(0, 8)}…
+                    </td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-gray-400">
+                      {entry.ipAddress ?? '—'}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-gray-500">
+                      {new Date(entry.createdAt).toLocaleString('fr-FR', {
+                        day: '2-digit', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                      })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {lastPage > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+              >
+                ← Précédent
+              </button>
+              <span className="text-xs text-gray-500">Page {page} sur {lastPage}</span>
+              <button
+                onClick={() => setPage((p) => Math.min(lastPage, p + 1))}
+                disabled={page >= lastPage}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+              >
+                Suivant →
+              </button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

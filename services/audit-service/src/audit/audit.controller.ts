@@ -37,4 +37,21 @@ export class AuditController {
   findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.auditService.findOne(id, user.tenantId);
   }
+
+  /**
+   * SUPER_ADMIN cross-tenant audit query — returns the audit trail for a
+   * specific tenant without the caller needing to be a member of that tenant.
+   *
+   * ARCH-DECISION: Route is /audit/tenant/:tenantId (not /audit/:tenantId) to
+   * avoid ambiguity with the existing GET /audit/:id endpoint.
+   * Only SUPER_ADMIN may call this; other roles see HTTP 403 from RolesGuard.
+   */
+  @Get('tenant/:tenantId')
+  @Roles('SUPER_ADMIN')
+  findAllForTenant(
+    @Param('tenantId') tenantId: string,
+    @Req() req: Request & { query: unknown },
+  ) {
+    return this.auditService.findAllForTenant(tenantId, AuditQuerySchema.parse(req.query));
+  }
 }
