@@ -35,7 +35,7 @@ import { api } from '@/lib/api';
 import { showToast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/store/auth.store';
 import type { ApiResponse } from '@haccp/shared-types';
-import type { ControlStats, ControlTask, ControlTemplate, ControlType, TaskResult } from './types';
+import type { ControlStats, ControlTask, ControlTemplate, TaskResult } from './types';
 import { ChecklistExecutionModal } from './ChecklistExecutionModal';
 
 // ─── Error Boundary ────────────────────────────────────────────────────────────
@@ -91,21 +91,6 @@ const STATUS_LABELS: Record<ControlTask['status'], string> = {
   OVERDUE:     'En retard',
   CANCELLED:   'Annulé',
 };
-
-const TYPE_LABELS: Record<ControlType, string> = {
-  RECEPTION:           'Réception',
-  TEMPERATURE_STOCK:   'Temp. stock',
-  TEMPERATURE_DISPLAY: 'Temp. vitrine',
-  TEMPERATURE_OIL:     'Temp. huile',
-  EQUIPMENT:           'Équipement',
-  SANITARY:            'Sanitaire',
-  DAILY_PRODUCTION:    'Production quotidienne',
-};
-
-const TYPE_OPTIONS = (Object.keys(TYPE_LABELS) as ControlType[]).map((k) => ({
-  value: k,
-  label: TYPE_LABELS[k],
-}));
 
 const STATUS_FILTER_OPTIONS = [
   { value: '',            label: 'Tous les statuts' },
@@ -308,7 +293,7 @@ function PlanTaskForm({
     () => (templatesData ?? []).map((t) => ({
       value:    t.id,
       label:    t.name,
-      sublabel: TYPE_LABELS[t.type],
+      sublabel: FREQUENCY_OPTIONS.find((f) => f.value === t.frequency)?.label,
     })),
     [templatesData],
   );
@@ -587,12 +572,6 @@ function TaskDetailModal({
             <dd className="mt-0.5 text-gray-900">{task.template?.name ?? task.templateId.slice(0, 8)}</dd>
           </div>
           <div>
-            <dt className="font-medium text-gray-500">Type</dt>
-            <dd className="mt-0.5 text-gray-900">
-              {task.template ? TYPE_LABELS[task.template.type as ControlType] ?? task.template.type : '—'}
-            </dd>
-          </div>
-          <div>
             <dt className="font-medium text-gray-500">Zone</dt>
             <dd className="mt-0.5 text-gray-900">{zoneName}</dd>
           </div>
@@ -844,7 +823,6 @@ function TaskDetailModal({
 
 interface CreateTemplateFormValues {
   name:      string;
-  type:      ControlType;
   frequency: string;
 }
 
@@ -863,13 +841,6 @@ function CreateTemplateForm({
         placeholder="Contrôle réception viande…"
         required
         {...register('name')}
-      />
-      <Select
-        label="Type"
-        placeholder="Sélectionner un type"
-        options={TYPE_OPTIONS}
-        required
-        {...register('type', { required: 'Veuillez sélectionner un type' })}
       />
       <Select
         label="Fréquence"
@@ -1227,9 +1198,6 @@ function TemplatesTab() {
                       </div>
                       <div>
                         <p className="font-semibold text-gray-900">{tpl.name}</p>
-                        <span className="inline-block rounded-full bg-brand-light px-2 py-0.5 text-xs font-medium text-brand-dark border border-brand-lighter mt-0.5">
-                          {TYPE_LABELS[tpl.type]}
-                        </span>
                       </div>
                     </div>
                   </div>
@@ -1283,9 +1251,8 @@ function TemplatesTab() {
           loading={createTemplateMutation.isPending}
           onSubmit={(v) =>
             createTemplateMutation.mutateAsync({
-              name:         v.name,
-              type:         v.type,
-              frequency:    v.frequency || undefined,
+              name:          v.name,
+              frequency:     v.frequency || undefined,
               checklistJson: [],
             })
           }

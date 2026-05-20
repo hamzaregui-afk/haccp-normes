@@ -160,11 +160,11 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
         ),
       },
 
-      // Products — ADMIN excluded (product catalog is operational, not tenant-admin setup)
+      // Products — ADMIN included (manages product catalog within their own tenant)
       {
         path: 'products',
         element: (
-          <RequireRole roles={['MANAGER', 'SUPER_ADMIN']}>
+          <RequireRole roles={['ADMIN', 'MANAGER', 'SUPER_ADMIN']}>
             <RequireModule moduleKey="PRODUCTS">{S(ProductsPage)}</RequireModule>
           </RequireRole>
         ),

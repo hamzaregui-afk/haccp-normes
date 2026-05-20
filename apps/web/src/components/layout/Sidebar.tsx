@@ -83,8 +83,8 @@ const NAV_SECTIONS: NavSection[] = [
   {
     titleKey: 'nav.assets',
     items: [
-      // Products: operational catalog managed by MANAGER — ADMIN excluded
-      { labelKey: 'nav.products',   to: '/products',   icon: Package,  roles: ['MANAGER', 'SUPER_ADMIN'],                                                    moduleKey: 'PRODUCTS'       },
+      // Products: ADMIN and MANAGER manage catalog within their tenant; ADMIN excluded from SaaS backoffice only
+      { labelKey: 'nav.products',   to: '/products',   icon: Package,  roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'],                                           moduleKey: 'PRODUCTS'       },
       // Equipments/Suppliers/Zones: ADMIN manages these as tenant setup
       { labelKey: 'nav.equipments', to: '/equipments', icon: Cog,      roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'],                                            moduleKey: 'EQUIPMENTS'     },
       { labelKey: 'nav.suppliers',  to: '/suppliers',  icon: Truck,    roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'],                                            moduleKey: 'SUPPLIERS'      },

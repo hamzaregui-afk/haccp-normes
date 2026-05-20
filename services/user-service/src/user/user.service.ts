@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
 import type { JwtPayload } from '@haccp/shared-types';
@@ -15,7 +15,15 @@ import type { UpdateUserDto } from './dto/update-user.dto';
 export class UserService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // ARCH-DECISION: tenantId guard at service entry — defense-in-depth against
+  // JWT mis-configuration where tenantId is undefined. Prisma treats
+  // `where: { tenantId: undefined }` as "no filter" → returns ALL rows.
+  private assertTenantId(tenantId: string | undefined): asserts tenantId is string {
+    if (!tenantId) throw new UnauthorizedException('Missing tenantId in request context');
+  }
+
   async findAll(tenantId: string, query: Record<string, unknown>) {
+    this.assertTenantId(tenantId);
     const { page, limit, search } = PaginationQuerySchema.parse(query);
 
     const where = {
@@ -50,6 +58,7 @@ export class UserService {
   }
 
   async findOne(id: string, tenantId: string) {
+    this.assertTenantId(tenantId);
     const user = await this.prisma.user.findFirst({
       where: { id, tenantId },
       select: {
@@ -63,7 +72,13 @@ export class UserService {
   }
 
   async create(dto: CreateUserDto, actor: JwtPayload) {
-    const exists = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    this.assertTenantId(actor.tenantId);
+    // ARCH-DECISION: Check email uniqueness within this tenant only.
+    // Cross-tenant email collision is caught by the DB unique constraint and
+    // surfaced as a generic 409 — we do not expose which tenant owns the email.
+    const exists = await this.prisma.user.findFirst({
+      where: { email: dto.email, tenantId: actor.tenantId },
+    });
     if (exists) throw new ConflictException(`Email ${dto.email} already in use`);
 
     // Hash the password here; the hash is passed to auth-service (never stored in user-service DB).
@@ -128,7 +143,10 @@ export class UserService {
     await this.findOne(id, tenantId); // throws 404 if not found or wrong tenant
 
     const user = await this.prisma.user.update({
-      where: { id },
+      // ARCH-DECISION: Double-scoped where for defense-in-depth — findOne already
+      // validates tenantId, but an explicit tenantId here ensures the UPDATE itself
+      // cannot touch a row in another tenant if the Prisma client is ever misused.
+      where: { id, tenantId },
       data: dto,
       select: {
         id: true, email: true, name: true,
@@ -183,7 +201,7 @@ export class UserService {
     await this.findOne(id, tenantId);
     if (id === actor.sub) throw new ConflictException('You cannot delete your own account');
 
-    await this.prisma.user.delete({ where: { id } });
+    await this.prisma.user.delete({ where: { id, tenantId } });
     return toApiResponse(null, undefined, 'User deleted');
   }
 }

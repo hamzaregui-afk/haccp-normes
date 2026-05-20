@@ -38,16 +38,6 @@ model OutboxEvent {
 }
 
 // ─── Domain enums ─────────────────────────────────────────────────────────────
-enum ControlType {
-  RECEPTION
-  TEMPERATURE_STOCK
-  TEMPERATURE_DISPLAY
-  TEMPERATURE_OIL
-  EQUIPMENT
-  SANITARY
-  DAILY_PRODUCTION
-}
-
 enum TaskStatus {
   PLANNED
   IN_PROGRESS
@@ -57,13 +47,12 @@ enum TaskStatus {
 }
 
 model ControlTemplate {
-  id            String      @id @default(cuid())
+  id            String   @id @default(cuid())
   name          String
-  type          ControlType
-  checklistJson Json        @map("checklist_json") // ChecklistItem[]
-  frequency     String?                            // DAILY | WEEKLY | ON_RECEIPT | …
-  tenantId      String?     @map("tenant_id")      // null = system-level template
-  createdAt     DateTime    @default(now()) @map("created_at")
+  checklistJson Json     @map("checklist_json") // ChecklistItem[]
+  frequency     String?                         // DAILY | WEEKLY | ON_RECEIPT | …
+  tenantId      String?  @map("tenant_id")      // null = system-level template
+  createdAt     DateTime @default(now()) @map("created_at")
 
   tasks ControlTask[]
 

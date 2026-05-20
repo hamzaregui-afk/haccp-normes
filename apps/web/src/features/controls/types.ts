@@ -12,7 +12,7 @@ export interface ControlTask {
   resultJson?: unknown;
   notes?: string;
   createdAt: string;
-  template?: { id: string; name: string; type: string };
+  template?: { id: string; name: string };
 }
 
 export interface ChecklistItem {
@@ -27,19 +27,9 @@ export interface ChecklistItem {
   options?: string[];
 }
 
-export type ControlType =
-  | 'RECEPTION'
-  | 'TEMPERATURE_STOCK'
-  | 'TEMPERATURE_DISPLAY'
-  | 'TEMPERATURE_OIL'
-  | 'EQUIPMENT'
-  | 'SANITARY'
-  | 'DAILY_PRODUCTION';
-
 export interface ControlTemplate {
   id: string;
   name: string;
-  type: ControlType;
   checklistJson: unknown;
   frequency?: string;
   tenantId?: string;
@@ -85,7 +75,6 @@ export interface ControlTaskDetail extends Omit<ControlTask, 'template' | 'resul
   template?: {
     id:            string;
     name:          string;
-    type:          string;
     checklistJson: unknown;
     frequency?:    string;
   };

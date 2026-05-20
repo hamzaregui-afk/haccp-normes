@@ -29,12 +29,11 @@ export class ControlService {
   // ─── Templates ─────────────────────────────────────────────────────────────
 
   async findAllTemplates(tenantId: string, query: TemplateQuery) {
-    const { page, limit, search, type } = query;
+    const { page, limit, search } = query;
 
     const where = {
       // Include system-level templates (tenantId = null) + tenant's own templates
       OR: [{ tenantId }, { tenantId: null }],
-      ...(type ? { type: type as never } : {}),
       ...(search
         ? { name: { contains: search, mode: 'insensitive' as const } }
         : {}),
@@ -65,7 +64,6 @@ export class ControlService {
     const template = await this.prisma.controlTemplate.create({
       data: {
         name:          dto.name,
-        type:          dto.type,
         checklistJson: dto.checklistJson as Prisma.InputJsonValue,
         frequency:     dto.frequency,
         tenantId,
@@ -85,10 +83,9 @@ export class ControlService {
       // but this ensures a TOCTOU window between the two queries cannot affect a different tenant.
       where: { id, tenantId },
       data: {
-        ...(dto.name          !== undefined ? { name: dto.name }                   : {}),
-        ...(dto.type          !== undefined ? { type: dto.type }                   : {}),
+        ...(dto.name          !== undefined ? { name: dto.name }                                           : {}),
         ...(dto.checklistJson !== undefined ? { checklistJson: dto.checklistJson as Prisma.InputJsonValue } : {}),
-        ...(dto.frequency     !== undefined ? { frequency: dto.frequency }         : {}),
+        ...(dto.frequency     !== undefined ? { frequency: dto.frequency }                                 : {}),
       },
     });
     return toApiResponse(template);

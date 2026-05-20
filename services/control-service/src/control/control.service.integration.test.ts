@@ -8,7 +8,7 @@
  */
 
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { PrismaClient, ControlType, TaskStatus } from '@prisma/client';
+import { PrismaClient, TaskStatus } from '@prisma/client';
 import { execSync } from 'child_process';
 import * as path from 'path';
 
@@ -78,7 +78,6 @@ describe('ControlService (integration)', () => {
       const template = await prisma.controlTemplate.create({
         data: {
           name:          'Réception viande',
-          type:          ControlType.RECEPTION,
           checklistJson: CHECKLIST_JSON,
           frequency:     'ON_RECEIPT',
           tenantId:      TENANT_A,
@@ -87,7 +86,6 @@ describe('ControlService (integration)', () => {
 
       expect(template.id).toBeDefined();
       expect(template.name).toBe('Réception viande');
-      expect(template.type).toBe(ControlType.RECEPTION);
       expect(template.tenantId).toBe(TENANT_A);
     });
 
@@ -95,7 +93,6 @@ describe('ControlService (integration)', () => {
       const template = await prisma.controlTemplate.create({
         data: {
           name:          'Contrôle températures (système)',
-          type:          ControlType.TEMPERATURE_STOCK,
           checklistJson: CHECKLIST_JSON,
           tenantId:      null,
         },
@@ -108,14 +105,14 @@ describe('ControlService (integration)', () => {
       // System-level template (visible to everyone)
       await prisma.controlTemplate.create({
         data: {
-          name: 'Système global', type: ControlType.SANITARY,
+          name: 'Système global',
           checklistJson: CHECKLIST_JSON, tenantId: null,
         },
       });
       // Tenant A's own template
       await prisma.controlTemplate.create({
         data: {
-          name: 'Tenant A propre', type: ControlType.EQUIPMENT,
+          name: 'Tenant A propre',
           checklistJson: CHECKLIST_JSON, tenantId: TENANT_A,
         },
       });
@@ -133,7 +130,7 @@ describe('ControlService (integration)', () => {
     it('4. cross-tenant isolation — Tenant B cannot see Tenant A templates', async () => {
       await prisma.controlTemplate.create({
         data: {
-          name: 'Secret A', type: ControlType.DAILY_PRODUCTION,
+          name: 'Secret A',
           checklistJson: CHECKLIST_JSON, tenantId: TENANT_A,
         },
       });
@@ -150,27 +147,27 @@ describe('ControlService (integration)', () => {
 
     it('5. filters templates by type', async () => {
       await prisma.controlTemplate.create({
-        data: { name: 'Réception 1', type: ControlType.RECEPTION, checklistJson: CHECKLIST_JSON, tenantId: TENANT_A },
+        data: { name: 'Réception 1', checklistJson: CHECKLIST_JSON, tenantId: TENANT_A },
       });
       await prisma.controlTemplate.create({
-        data: { name: 'Température stock', type: ControlType.TEMPERATURE_STOCK, checklistJson: CHECKLIST_JSON, tenantId: TENANT_A },
+        data: { name: 'Température stock', checklistJson: CHECKLIST_JSON, tenantId: TENANT_A },
       });
 
       const results = await prisma.controlTemplate.findMany({
         where: {
           OR: [{ tenantId: TENANT_A }, { tenantId: null }],
-          type: ControlType.RECEPTION,
+          name: 'Réception 1',
         },
       });
 
       expect(results).toHaveLength(1);
-      expect(results[0]!.type).toBe(ControlType.RECEPTION);
+      expect(results[0]!.name).toBe('Réception 1');
     });
 
     it('6. updates a template name', async () => {
       const created = await prisma.controlTemplate.create({
         data: {
-          name: 'Ancien nom', type: ControlType.EQUIPMENT,
+          name: 'Ancien nom',
           checklistJson: CHECKLIST_JSON, tenantId: TENANT_A,
         },
       });
@@ -187,7 +184,7 @@ describe('ControlService (integration)', () => {
     it('7. deleting a template cascades and removes its tasks', async () => {
       const template = await prisma.controlTemplate.create({
         data: {
-          name: 'À supprimer', type: ControlType.SANITARY,
+          name: 'À supprimer',
           checklistJson: CHECKLIST_JSON, tenantId: TENANT_A,
         },
       });
@@ -221,7 +218,7 @@ describe('ControlService (integration)', () => {
     async function seedTemplate(tenantId: string | null = TENANT_A) {
       return prisma.controlTemplate.create({
         data: {
-          name: 'Template de test', type: ControlType.TEMPERATURE_DISPLAY,
+          name: 'Template de test',
           checklistJson: CHECKLIST_JSON, tenantId,
         },
       });
@@ -239,7 +236,7 @@ describe('ControlService (integration)', () => {
           scheduledAt: todayAt(3_600_000),
           status:      TaskStatus.PLANNED,
         },
-        include: { template: { select: { id: true, name: true, type: true } } },
+        include: { template: { select: { id: true, name: true } } },
       });
 
       expect(task.id).toBeDefined();
@@ -436,7 +433,7 @@ describe('ControlService (integration)', () => {
     it('17. complianceRate = Math.round((completed/total)*100) for non-zero totals', async () => {
       const template = await prisma.controlTemplate.create({
         data: {
-          name: 'Stats template', type: ControlType.TEMPERATURE_OIL,
+          name: 'Stats template',
           checklistJson: CHECKLIST_JSON, tenantId: TENANT_A,
         },
       });
@@ -457,7 +454,7 @@ describe('ControlService (integration)', () => {
     it('17b. complianceRate = 100 when all tasks are completed', async () => {
       const template = await prisma.controlTemplate.create({
         data: {
-          name: 'Full compliance template', type: ControlType.SANITARY,
+          name: 'Full compliance template',
           checklistJson: CHECKLIST_JSON, tenantId: TENANT_A,
         },
       });
@@ -476,7 +473,7 @@ describe('ControlService (integration)', () => {
     it('17c. complianceRate = 0 when no tasks are completed', async () => {
       const template = await prisma.controlTemplate.create({
         data: {
-          name: 'Zero compliance template', type: ControlType.TEMPERATURE_DISPLAY,
+          name: 'Zero compliance template',
           checklistJson: CHECKLIST_JSON, tenantId: TENANT_A,
         },
       });
@@ -494,10 +491,10 @@ describe('ControlService (integration)', () => {
 
     it('complianceRate is scoped per tenant (no cross-tenant bleed)', async () => {
       const templateA = await prisma.controlTemplate.create({
-        data: { name: 'TA', type: ControlType.EQUIPMENT, checklistJson: CHECKLIST_JSON, tenantId: TENANT_A },
+        data: { name: 'TA', checklistJson: CHECKLIST_JSON, tenantId: TENANT_A },
       });
       const templateB = await prisma.controlTemplate.create({
-        data: { name: 'TB', type: ControlType.EQUIPMENT, checklistJson: CHECKLIST_JSON, tenantId: TENANT_B },
+        data: { name: 'TB', checklistJson: CHECKLIST_JSON, tenantId: TENANT_B },
       });
 
       // Tenant A — all planned (0% compliance)
@@ -529,10 +526,10 @@ describe('ControlService (integration)', () => {
   describe('openOverdue count', () => {
     it('counts only OVERDUE tasks for the correct tenant', async () => {
       const templateA = await prisma.controlTemplate.create({
-        data: { name: 'Overdue TA', type: ControlType.SANITARY, checklistJson: CHECKLIST_JSON, tenantId: TENANT_A },
+        data: { name: 'Overdue TA', checklistJson: CHECKLIST_JSON, tenantId: TENANT_A },
       });
       const templateB = await prisma.controlTemplate.create({
-        data: { name: 'Overdue TB', type: ControlType.SANITARY, checklistJson: CHECKLIST_JSON, tenantId: TENANT_B },
+        data: { name: 'Overdue TB', checklistJson: CHECKLIST_JSON, tenantId: TENANT_B },
       });
 
       const yesterday = new Date();

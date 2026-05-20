@@ -100,9 +100,9 @@ export function usePermissions() {
     canAccessModule('DLC');
 
   // ── Asset referential ─────────────────────────────────────────────────────
-  // Products: operational catalog managed by MANAGER — ADMIN does not manage products
+  // Products: catalog managed by ADMIN (within their tenant) and MANAGER
   const canManageProducts =
-    hasRole(role, ['MANAGER']) &&
+    hasRole(role, ['ADMIN', 'MANAGER']) &&
     canAccessModule('PRODUCTS');
 
   // Equipments/Suppliers: tenant setup — ADMIN mandatory, MANAGER operational

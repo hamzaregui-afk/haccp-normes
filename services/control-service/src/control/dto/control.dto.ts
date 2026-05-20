@@ -2,17 +2,6 @@ import { z } from 'zod';
 
 // ─── Enums (mirror Prisma enums — validated at API boundary) ──────────────────
 
-export const ControlTypeSchema = z.enum([
-  'RECEPTION',
-  'TEMPERATURE_STOCK',
-  'TEMPERATURE_DISPLAY',
-  'TEMPERATURE_OIL',
-  'EQUIPMENT',
-  'SANITARY',
-  'DAILY_PRODUCTION',
-]);
-export type ControlType = z.infer<typeof ControlTypeSchema>;
-
 export const TaskStatusSchema = z.enum([
   'PLANNED',
   'IN_PROGRESS',
@@ -50,10 +39,9 @@ export type TaskResult = z.infer<typeof TaskResultSchema>;
 // ─── Template DTOs ────────────────────────────────────────────────────────────
 
 export const CreateTemplateDtoSchema = z.object({
-  name:         z.string().min(1).max(200),
-  type:         ControlTypeSchema,
+  name:          z.string().min(1).max(200),
   checklistJson: z.array(z.unknown()),
-  frequency:    z.string().max(50).optional(),
+  frequency:     z.string().max(50).optional(),
 });
 export type CreateTemplateDto = z.infer<typeof CreateTemplateDtoSchema>;
 
@@ -109,7 +97,6 @@ export const TemplateQuerySchema = z.object({
   page:   z.coerce.number().int().min(1).default(1),
   limit:  z.coerce.number().int().min(1).max(100).default(20),
   search: z.string().max(200).optional(),
-  type:   z.string().optional(),
 });
 export type TemplateQuery = z.infer<typeof TemplateQuerySchema>;
 

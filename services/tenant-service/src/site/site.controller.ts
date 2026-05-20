@@ -19,31 +19,31 @@ export class SiteController {
   }
 
   @Post()
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
   create(@Body() body: unknown, @CurrentUser() user: JwtPayload) {
     return this.siteService.create(CreateSiteDtoSchema.parse(body), user.tenantId);
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
   update(@Param('id') id: string, @Body() body: unknown, @CurrentUser() user: JwtPayload) {
     return this.siteService.update(id, UpdateSiteDtoSchema.parse(body), user.tenantId);
   }
 
   @Delete(':id')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
   remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.siteService.remove(id, user.tenantId);
   }
 
   @Post(':id/zones')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
   createZone(@Param('id') id: string, @Body() body: unknown, @CurrentUser() user: JwtPayload) {
     return this.siteService.createZone(id, CreateZoneDtoSchema.parse(body), user.tenantId);
   }
 
   @Patch(':siteId/zones/:zoneId')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
   updateZone(
     @Param('siteId') siteId: string,
     @Param('zoneId') zoneId: string,
@@ -54,7 +54,7 @@ export class SiteController {
   }
 
   @Delete(':siteId/zones/:zoneId')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
   removeZone(
     @Param('siteId') siteId: string,
     @Param('zoneId') zoneId: string,
