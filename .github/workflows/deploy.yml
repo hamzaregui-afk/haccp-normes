@@ -307,6 +307,8 @@ jobs:
               ADMIN_HASH="$SUPERADMIN_HASH"
               SQL_AUTH=$(printf "INSERT INTO users (id,email,name,password_hash,role,status,tenant_id,updated_at) VALUES ('%s','%s','Super Administrateur','%s','SUPER_ADMIN'::\"UserRole\",'ACTIVE'::\"UserStatus\",'platform',NOW()) ON CONFLICT (email) DO UPDATE SET password_hash=EXCLUDED.password_hash,updated_at=NOW();" "$ADMIN_ID" "$ADMIN_EMAIL" "$ADMIN_HASH")
               docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_auth -c "$SQL_AUTH" 2>&1 || true
+              SQL_TENANT="INSERT INTO tenants (id,name,slug,status,plan,created_at,updated_at) VALUES ('platform','Platform Admin','platform','ACTIVE'::\"TenantStatus\",'enterprise',NOW(),NOW()) ON CONFLICT (id) DO NOTHING;"
+              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_tenants -c "$SQL_TENANT" 2>&1 || true
 
               echo "=== Restarting all services ==="
               cd /opt/haccp
