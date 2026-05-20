@@ -28,7 +28,7 @@ type TaskStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'OVERDUE' | 'CANCELL
 interface ControlTask {
   id: string;
   // backend returns template.name via include — no top-level `title` field
-  template: { id: string; name: string; type: string };
+  template: { id: string; name: string };
   scheduledAt: string;   // was scheduledDate — matches Prisma field name
   status: TaskStatus;
   templateId: string;

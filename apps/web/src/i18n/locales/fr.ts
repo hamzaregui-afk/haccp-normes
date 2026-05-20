@@ -136,15 +136,6 @@ const fr = {
       CANCELLED:   'Annulé',
       all:         'Tous les statuts',
     },
-    type: {
-      RECEPTION:           'Réception',
-      TEMPERATURE_STOCK:   'Temp. stock',
-      TEMPERATURE_DISPLAY: 'Temp. vitrine',
-      TEMPERATURE_OIL:     'Temp. huile',
-      EQUIPMENT:           'Équipement',
-      SANITARY:            'Sanitaire',
-      DAILY_PRODUCTION:    'Production quotidienne',
-    },
     freq: {
       DAILY:        'Quotidienne',
       WEEKLY:       'Hebdomadaire',

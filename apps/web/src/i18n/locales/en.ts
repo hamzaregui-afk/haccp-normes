@@ -130,15 +130,6 @@ const en = {
       CANCELLED:   'Cancelled',
       all:         'All statuses',
     },
-    type: {
-      RECEPTION:           'Reception',
-      TEMPERATURE_STOCK:   'Stock temp.',
-      TEMPERATURE_DISPLAY: 'Display temp.',
-      TEMPERATURE_OIL:     'Oil temp.',
-      EQUIPMENT:           'Equipment',
-      SANITARY:            'Sanitary',
-      DAILY_PRODUCTION:    'Daily production',
-    },
     freq: {
       DAILY:        'Daily',
       WEEKLY:       'Weekly',

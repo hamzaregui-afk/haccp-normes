@@ -17,7 +17,7 @@
  *  - KPI cards (loaded values, "—" placeholders while loading)
  *  - Tab bar (Tasks tab active by default, switching to Modèles)
  *  - Tasks tab: loading, task rows (template name, zone, assignee, status badge), empty state, plan-task modal
- *  - Templates tab: loading, template cards (name, type badge, frequency), empty state, create-template modal
+ *  - Templates tab: loading, template cards (name, frequency), empty state, create-template modal
  *  - Status badge colour classes for every status value
  *  - Pagination controls in both tabs
  */
@@ -67,7 +67,6 @@ const TEMPLATES = [
   {
     id:            'tpl-1',
     name:          'Contrôle réception viande',
-    type:          'RECEPTION' as const,
     checklistJson: [],
     frequency:     'ON_RECEPTION',
     tenantId:      'ctenant001testidabc1234',
@@ -76,7 +75,6 @@ const TEMPLATES = [
   {
     id:            'tpl-2',
     name:          'Relevé température chambre froide',
-    type:          'TEMPERATURE_STOCK' as const,
     checklistJson: [],
     frequency:     'DAILY',
     tenantId:      'ctenant001testidabc1234',
@@ -94,7 +92,7 @@ const TASKS = [
     status:      'PLANNED'     as const,
     scheduledAt: '2026-05-06T09:00:00Z',
     createdAt:   '2026-05-05T10:00:00Z',
-    template:    { id: 'tpl-1', name: 'Contrôle réception viande', type: 'RECEPTION' },
+    template:    { id: 'tpl-1', name: 'Contrôle réception viande' },
   },
   {
     id:          'task-2',
@@ -105,7 +103,7 @@ const TASKS = [
     status:      'COMPLETED'   as const,
     scheduledAt: '2026-05-06T08:00:00Z',
     createdAt:   '2026-05-05T10:00:00Z',
-    template:    { id: 'tpl-2', name: 'Relevé température chambre froide', type: 'TEMPERATURE_STOCK' },
+    template:    { id: 'tpl-2', name: 'Relevé température chambre froide' },
   },
   {
     id:          'task-3',
@@ -116,7 +114,7 @@ const TASKS = [
     status:      'OVERDUE'     as const,
     scheduledAt: '2026-05-05T09:00:00Z',
     createdAt:   '2026-05-04T10:00:00Z',
-    template:    { id: 'tpl-1', name: 'Contrôle réception viande', type: 'RECEPTION' },
+    template:    { id: 'tpl-1', name: 'Contrôle réception viande' },
   },
 ];
 
@@ -453,13 +451,6 @@ describe('ControlsPage', () => {
       expect(screen.getByText('Relevé température chambre froide')).toBeInTheDocument();
     });
 
-    it('renders type badge for each template', async () => {
-      await renderInTemplatesTab();
-      // TYPE_LABELS['RECEPTION'] = 'Réception', ['TEMPERATURE_STOCK'] = 'Temp. stock'
-      expect(screen.getByText('Réception')).toBeInTheDocument();
-      expect(screen.getByText('Temp. stock')).toBeInTheDocument();
-    });
-
     it('renders the frequency badge for templates that have one', async () => {
       await renderInTemplatesTab();
       // FREQUENCY_OPTIONS: ON_RECEPTION → "À la réception", DAILY → "Quotidienne"
@@ -508,7 +499,6 @@ describe('ControlsPage', () => {
 
       expect(screen.getByText('Nouveau modèle de contrôle')).toBeInTheDocument();
       expect(screen.getByLabelText(/nom du modèle/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/^type$/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/fréquence/i)).toBeInTheDocument();
     });
 

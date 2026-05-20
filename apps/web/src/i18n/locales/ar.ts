@@ -131,15 +131,6 @@ const ar = {
       CANCELLED:   'ملغى',
       all:         'جميع الحالات',
     },
-    type: {
-      RECEPTION:           'الاستقبال',
-      TEMPERATURE_STOCK:   'درجة حرارة المخزون',
-      TEMPERATURE_DISPLAY: 'درجة حرارة العرض',
-      TEMPERATURE_OIL:     'درجة حرارة الزيت',
-      EQUIPMENT:           'المعدات',
-      SANITARY:            'الصرف الصحي',
-      DAILY_PRODUCTION:    'الإنتاج اليومي',
-    },
     freq: {
       DAILY:        'يومي',
       WEEKLY:       'أسبوعي',
