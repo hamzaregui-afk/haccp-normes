@@ -950,15 +950,9 @@ export function ChecklistExecutionModal({
               <h2 className="text-base font-bold text-brand-dark leading-snug truncate">
                 {modalTitle}
               </h2>
-              {taskDetail && (
+              {taskDetail?.template?.frequency && (
                 <p className="mt-0.5 text-xs text-gray-500">
-                  {taskDetail.template?.type
-                    ? { RECEPTION:'Réception', TEMPERATURE_STOCK:'Temp. stockage',
-                        TEMPERATURE_DISPLAY:'Temp. vitrine', TEMPERATURE_OIL:'Temp. huile',
-                        EQUIPMENT:'Équipement', SANITARY:'Sanitaire',
-                        DAILY_PRODUCTION:'Production quotidienne',
-                      }[taskDetail.template.type] ?? taskDetail.template.type
-                    : ''}
+                  {taskDetail.template.frequency}
                 </p>
               )}
             </div>
