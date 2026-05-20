@@ -129,7 +129,7 @@ export class ControlService {
         skip: (page - 1) * limit,
         take: limit,
         include: {
-          template: { select: { id: true, name: true, type: true } },
+          template: { select: { id: true, name: true } },
         },
       }),
       this.prisma.controlTask.count({ where }),
@@ -142,7 +142,7 @@ export class ControlService {
     const task = await this.prisma.controlTask.findFirst({
       where: { id, tenantId },
       include: {
-        template: { select: { id: true, name: true, type: true, checklistJson: true, frequency: true } },
+        template: { select: { id: true, name: true, checklistJson: true, frequency: true } },
       },
     });
     if (!task) throw new NotFoundException(`Tâche de contrôle ${id} introuvable`);
@@ -177,7 +177,7 @@ export class ControlService {
           checklistSnapshot: template.checklistJson as Prisma.InputJsonValue,
         },
         include: {
-          template: { select: { id: true, name: true, type: true } },
+          template: { select: { id: true, name: true } },
         },
       }),
       // Outbox event — published to RabbitMQ by OutboxWorker (every 5 s)
@@ -235,7 +235,7 @@ export class ControlService {
           ...(dto.completedAt !== undefined ? { completedAt: dto.completedAt }           : {}),
         },
         include: {
-          template: { select: { id: true, name: true, type: true } },
+          template: { select: { id: true, name: true } },
         },
       }),
       // Outbox: publish task.completed.v1 on COMPLETED transition

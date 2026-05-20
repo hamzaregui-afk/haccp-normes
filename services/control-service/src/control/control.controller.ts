@@ -72,7 +72,7 @@ export class ControlController {
       resource:   'controls',
       ...(extractResourceId(result) !== undefined && { resourceId: extractResourceId(result) }),
       tenantId:   user.tenantId,
-      payload:    { name: dto.name, type: dto.type },
+      payload:    { name: dto.name },
     });
 
     return result;
