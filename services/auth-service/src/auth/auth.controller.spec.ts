@@ -27,10 +27,13 @@ import type { JwtPayload } from '@haccp/shared-types';
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
 const JWT_PAYLOAD: JwtPayload = {
-  sub:      'user-001',
-  email:    'alice@example.com',
-  tenantId: 'tenant-abc',
-  role:     'ADMIN',
+  sub:              'user-001',
+  email:            'alice@example.com',
+  tenantId:         'tenant-abc',
+  role:             'ADMIN',
+  allowedModules:   [],
+  subscriptionPlan: 'standard',
+  tenantStatus:     'ACTIVE',
 };
 
 const TOKEN_PAIR = {

@@ -86,10 +86,13 @@ function makeDbUser(overrides: Partial<{
 
 function makeJwtPayload() {
   return {
-    sub:      USER_ID,
-    email:    'admin@haccp.com',
-    tenantId: TENANT_ID,
-    role:     'ADMIN' as const,
+    sub:              USER_ID,
+    email:            'admin@haccp.com',
+    tenantId:         TENANT_ID,
+    role:             'ADMIN' as const,
+    allowedModules:   [] as string[],
+    subscriptionPlan: 'standard',
+    tenantStatus:     'ACTIVE',
   };
 }
 

@@ -21,10 +21,13 @@ import type { JwtPayload } from '@haccp/shared-types';
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
 const ACTOR: JwtPayload = {
-  sub:      'admin-001',
-  email:    'admin@example.com',
-  tenantId: 'tenant-abc',
-  role:     'ADMIN',
+  sub:              'admin-001',
+  email:            'admin@example.com',
+  tenantId:         'tenant-abc',
+  role:             'ADMIN',
+  allowedModules:   [],
+  subscriptionPlan: 'standard',
+  tenantStatus:     'ACTIVE',
 };
 
 const SUPPLIER_ID = 'supplier-xyz-001';

@@ -22,12 +22,15 @@ const USER_ID    = 'user-123';
 const AUDIT_ID   = 'cuid-audit-1';
 
 const JWT_PAYLOAD: JwtPayload = {
-  sub:      USER_ID,
-  tenantId: TENANT_ID,
-  role:     'ADMIN',
-  email:    'admin@haccp.fr',
-  iat:      0,
-  exp:      9999999999,
+  sub:              USER_ID,
+  tenantId:         TENANT_ID,
+  role:             'ADMIN',
+  email:            'admin@haccp.fr',
+  allowedModules:   [],
+  subscriptionPlan: 'standard',
+  tenantStatus:     'ACTIVE',
+  iat:              0,
+  exp:              9999999999,
 };
 
 const MOCK_LOG = {

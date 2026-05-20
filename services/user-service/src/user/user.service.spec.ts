@@ -52,10 +52,13 @@ const baseUser = {
 };
 
 const actorA: JwtPayload = {
-  sub:      'actor-001',
-  email:    'admin@acme.com',
-  role:     'ADMIN',
-  tenantId: TENANT_A,
+  sub:              'actor-001',
+  email:            'admin@acme.com',
+  role:             'ADMIN',
+  tenantId:         TENANT_A,
+  allowedModules:   [],
+  subscriptionPlan: 'standard',
+  tenantStatus:     'ACTIVE',
 };
 
 // ─── Test suite ───────────────────────────────────────────────────────────────

@@ -31,16 +31,19 @@ import type { JwtPayload } from '@haccp/shared-types';
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
 const ACTOR: JwtPayload = {
-  sub:      'manager-001',
-  email:    'manager@example.com',
-  tenantId: 'tenant-abc',
-  role:     'MANAGER',
+  sub:              'manager-001',
+  email:            'manager@example.com',
+  tenantId:         'tenant-abc',
+  role:             'MANAGER',
+  allowedModules:   [],
+  subscriptionPlan: 'standard',
+  tenantStatus:     'ACTIVE',
 };
 
 const TEMPLATE_ID = 'tmpl-xyz-001';
 const TASK_ID     = 'task-xyz-001';
 
-const CREATED_TEMPLATE = { data: { id: TEMPLATE_ID, name: 'Cold Chain Check', type: 'TEMPERATURE' } };
+const CREATED_TEMPLATE = { data: { id: TEMPLATE_ID, name: 'Cold Chain Check' } };
 const UPDATED_TEMPLATE = { data: { id: TEMPLATE_ID, name: 'Cold Chain Check v2' } };
 const DELETED_TEMPLATE = { message: 'Template deleted' };
 
