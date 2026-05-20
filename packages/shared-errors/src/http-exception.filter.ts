@@ -11,6 +11,21 @@ import { ZodError } from 'zod';
 
 import { AppError } from './app.errors';
 
+/**
+ * Duck-type check for Prisma client errors.
+ * PrismaClientKnownRequestError has a `code` matching /^P\d{4}$/ (e.g. P2002, P2003).
+ * We avoid importing @prisma/client here to keep shared-errors lean.
+ */
+function isPrismaError(err: unknown): boolean {
+  return (
+    err !== null &&
+    typeof err === 'object' &&
+    'code' in err &&
+    typeof (err as Record<string, unknown>)['code'] === 'string' &&
+    /^P\d{4}$/.test((err as Record<string, unknown>)['code'] as string)
+  );
+}
+
 export interface ApiError {
   statusCode: number;
   error: string;
@@ -66,6 +81,31 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message    = appRes.message;
       error      = exception.code;
       this.logger.warn(`AppError [${statusCode}] ${exception.code}: ${exception.message}`);
+    } else if (isPrismaError(exception)) {
+      // ARCH-DECISION: Prisma throws PrismaClientKnownRequestError (extends Error,
+      // not HttpException). Without this branch every DB constraint violation (P2002
+      // unique, P2003 FK, P2025 not-found) surfaces as a generic 500. We duck-type
+      // the error so shared-errors doesn't need a hard @prisma/client dependency.
+      const code = (exception as { code: string }).code;
+      if (code === 'P2002') {
+        statusCode = HttpStatus.CONFLICT;
+        error      = 'Conflict';
+        message    = 'A record with these values already exists.';
+      } else if (code === 'P2003') {
+        statusCode = HttpStatus.UNPROCESSABLE_ENTITY;
+        error      = 'Unprocessable Entity';
+        message    = 'A referenced record does not exist (foreign key constraint).';
+      } else if (code === 'P2025') {
+        statusCode = HttpStatus.NOT_FOUND;
+        error      = 'Not Found';
+        message    = 'Record not found.';
+      } else {
+        // Unknown Prisma code — log full details, return generic 500
+        this.logger.error(
+          `Prisma error [${code}]: ${(exception as Error).message}`,
+          (exception as Error).stack,
+        );
+      }
     } else if (exception instanceof Error) {
       // Log internal errors but do NOT expose message to client
       this.logger.error(`Unhandled exception: ${exception.message}`, exception.stack);

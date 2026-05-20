@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { toApiResponse } from '@haccp/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateSiteDto, CreateZoneDto, UpdateSiteDto, UpdateZoneDto } from './dto/site.dto';
@@ -17,6 +17,17 @@ export class SiteService {
   }
 
   async create(dto: CreateSiteDto, tenantId: string) {
+    // ARCH-DECISION: Verify tenant exists BEFORE the INSERT so callers get a
+    // clear 400 instead of a Prisma P2003 FK violation that surfaces as 500.
+    // This is especially important for SUPER_ADMIN (tenantId='platform') who
+    // may not have a corresponding row in the tenants table.
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant) {
+      throw new BadRequestException(
+        `Tenant "${tenantId}" does not exist. SUPER_ADMIN accounts must have a tenant row to manage sites.`,
+      );
+    }
+
     const exists = await this.prisma.site.findFirst({ where: { name: dto.name, tenantId } });
     if (exists) throw new ConflictException(`Site "${dto.name}" already exists`);
 

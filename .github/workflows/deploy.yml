@@ -216,6 +216,14 @@ jobs:
               SQL_USERS=$(printf "INSERT INTO users (id,email,name,role,status,tenant_id,updated_at) VALUES ('%s','%s','Super Administrateur','SUPER_ADMIN'::\"UserRole\",'ACTIVE'::\"UserStatus\",'platform',NOW()) ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name,role=EXCLUDED.role,status=EXCLUDED.status,updated_at=NOW();" "$ADMIN_ID" "$ADMIN_EMAIL")
               docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_users -c "$SQL_USERS" || true
               echo "=== haccp_users OK ==="
+
+              echo "=== Seeding platform tenant into haccp_tenants ==="
+              # ARCH-DECISION: SUPER_ADMIN JWT carries tenantId='platform'. The sites/zones
+              # tables have a FK to tenants.id. Without a 'platform' row in haccp_tenants,
+              # every site/zone creation by SUPER_ADMIN throws a Prisma P2003 FK violation.
+              SQL_TENANT="INSERT INTO tenants (id,name,slug,status,plan,created_at,updated_at) VALUES ('platform','Platform Admin','platform','ACTIVE'::\"TenantStatus\",'enterprise',NOW(),NOW()) ON CONFLICT (id) DO NOTHING;"
+              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_tenants -c "$SQL_TENANT" || echo "haccp_tenants seed skipped (non-fatal)"
+              echo "=== haccp_tenants platform OK ==="
               exit 0
             fi
 
@@ -434,6 +442,11 @@ jobs:
             echo "=== Seeding superadmin into haccp_users (profile DB) ==="
             SQL_USERS=$(printf "INSERT INTO users (id,email,name,role,status,tenant_id,updated_at) VALUES ('%s','%s','Super Administrateur','SUPER_ADMIN'::\"UserRole\",'ACTIVE'::\"UserStatus\",'platform',NOW()) ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name,role=EXCLUDED.role,status=EXCLUDED.status,updated_at=NOW();" "$ADMIN_ID" "$ADMIN_EMAIL")
             docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_users -c "$SQL_USERS" || true
+
+            echo "=== Seeding platform tenant into haccp_tenants ==="
+            SQL_TENANT="INSERT INTO tenants (id,name,slug,status,plan,created_at,updated_at) VALUES ('platform','Platform Admin','platform','ACTIVE'::\"TenantStatus\",'enterprise',NOW(),NOW()) ON CONFLICT (id) DO NOTHING;"
+            docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_tenants -c "$SQL_TENANT" || echo "haccp_tenants seed skipped (non-fatal)"
+            echo "=== haccp_tenants platform OK ==="
 
             # ── Self-verification ─────────────────────────────────────────────────
             echo "=== VERIFICATION: VITE_API_URL (http://178.105.126.165) in JS bundle ==="
