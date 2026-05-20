@@ -22,6 +22,8 @@ const ar = {
     audit:           'سجل التدقيق',
     clients:         'العملاء',
     dlc:             'تواريخ الصلاحية',
+    zones:           'المواقع والمناطق',
+    documents:       'الوثائق',
   },
 
   common: {

@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
 import type { JwtPayload } from '@haccp/shared-types';
@@ -28,6 +28,12 @@ export class UserService {
 
     const where = {
       tenantId,
+      // ARCH-DECISION: Always exclude SUPER_ADMIN accounts from tenant user lists.
+      // SUPER_ADMIN users belong to the 'platform' pseudo-tenant and are platform
+      // infrastructure — they must never appear in a regular tenant's user directory.
+      // This prevents cross-tenant data leaks when a SUPER_ADMIN accidentally creates
+      // a user from the Users page (which would inherit tenantId='platform').
+      role: { not: 'SUPER_ADMIN' as const },
       ...(search
         ? {
             OR: [
@@ -73,6 +79,17 @@ export class UserService {
 
   async create(dto: CreateUserDto, actor: JwtPayload) {
     this.assertTenantId(actor.tenantId);
+
+    // ARCH-DECISION: Block SUPER_ADMIN from creating users via the tenant Users page.
+    // SUPER_ADMIN's tenantId is 'platform' — any user created here would inherit that
+    // tenantId and appear invisible to real tenants while polluting the platform pseudo-tenant.
+    // SUPER_ADMIN must create tenant users from ClientDetailPage (cross-tenant endpoint).
+    if (actor.role === 'SUPER_ADMIN') {
+      throw new ForbiddenException(
+        'SUPER_ADMIN cannot create users from this endpoint. Use the Clients backoffice to manage tenant users.',
+      );
+    }
+
     // ARCH-DECISION: Check email uniqueness within this tenant only.
     // Cross-tenant email collision is caught by the DB unique constraint and
     // surfaced as a generic 409 — we do not expose which tenant owns the email.

@@ -21,6 +21,8 @@ const en = {
     audit:           'Audit log',
     clients:         'Clients',
     dlc:             'Use-by dates',
+    zones:           'Sites & Zones',
+    documents:       'Documents',
   },
 
   common: {

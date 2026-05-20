@@ -417,9 +417,12 @@ export default function UsersPage() {
 
   const { data, isLoading, isError } = useUsers(page, search, roleFilter, statusFilter);
 
-  // ARCH-DECISION: MANAGER can view the user list but cannot create, edit or delete users.
-  // Only ADMIN and SUPER_ADMIN have full user management privileges.
-  const canManageUsers = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
+  // ARCH-DECISION: Only ADMIN (not SUPER_ADMIN) can create/invite users from this page.
+  // SUPER_ADMIN's tenantId is 'platform' — creating users here would place them in the
+  // platform pseudo-tenant, making them invisible to real tenants. SUPER_ADMIN must use
+  // the Clients backoffice (ClientDetailPage) to manage users within a specific tenant.
+  const isSuperAdmin   = currentUser?.role === 'SUPER_ADMIN';
+  const canManageUsers = currentUser?.role === 'ADMIN';
 
   const closeModal = () => setModal({ kind: 'none' });
   const refresh    = () => { void queryClient.invalidateQueries({ queryKey: ['users'] }); };
@@ -439,6 +442,16 @@ export default function UsersPage() {
     <>
       <Header title="Utilisateurs" subtitle="Gérez les membres de votre équipe" />
       <PageWrapper>
+        {/* SUPER_ADMIN info banner */}
+        {isSuperAdmin && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <strong>Mode Super Admin :</strong> vous voyez uniquement les comptes de la plateforme.
+            Pour gérer les utilisateurs d'un client, accédez à la section{' '}
+            <a href="/clients" className="font-semibold underline hover:text-amber-900">Clients</a>{' '}
+            puis ouvrez la fiche du client concerné.
+          </div>
+        )}
+
         {/* Toolbar */}
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           {/* Search */}
