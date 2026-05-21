@@ -14,15 +14,20 @@ export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 // ─── Task result schemas ───────────────────────────────────────────────────────
 
 export const TaskResultItemSchema = z.object({
-  id:        z.string(),
-  label:     z.string(),
-  type:      z.enum(['BOOLEAN', 'NUMBER', 'TEXT', 'TEMPERATURE', 'PHOTO', 'SIGNATURE', 'DATE', 'SELECT']),
-  value:     z.union([z.boolean(), z.number(), z.string(), z.null()]),
-  unit:      z.string().optional(),
-  min:       z.number().optional(),
-  max:       z.number().optional(),
-  compliant: z.boolean(),
-  required:  z.boolean(),
+  id:           z.string(),
+  label:        z.string(),
+  type:         z.enum(['BOOLEAN', 'NUMBER', 'TEXT', 'TEMPERATURE', 'PHOTO', 'SIGNATURE', 'DATE', 'SELECT']),
+  value:        z.union([z.boolean(), z.number(), z.string(), z.null()]),
+  unit:         z.string().optional(),
+  min:          z.number().optional(),
+  max:          z.number().optional(),
+  compliant:    z.boolean(),
+  required:     z.boolean(),
+  // ARCH-DECISION: measuredTemp stores the operator's raw temperature reading
+  // (the "Valeur relevée" field shown on every checklist item). It is recorded
+  // alongside the structured value so reports can reconstruct the exact ambient/
+  // product temperature at the time of the control — required for HACCP traceability.
+  measuredTemp: z.string().optional(),
 });
 
 export const TaskResultSchema = z.object({
@@ -63,10 +68,14 @@ export const CreateTaskDtoSchema = z.object({
 export type CreateTaskDto = z.infer<typeof CreateTaskDtoSchema>;
 
 // Valid status transitions (enforced additionally in service)
+// ARCH-DECISION: PLANNED and OVERDUE allow direct → COMPLETED to eliminate
+// the two-step race condition (startMutation fire-and-forget + completeMutation).
+// When a task is submitted directly from PLANNED/OVERDUE, the service auto-sets
+// startedAt = completedAt = now so HACCP audit trails remain complete.
 export const VALID_TRANSITIONS: Record<string, readonly string[]> = {
-  PLANNED:     ['IN_PROGRESS', 'CANCELLED', 'OVERDUE'],
+  PLANNED:     ['IN_PROGRESS', 'CANCELLED', 'OVERDUE', 'COMPLETED'],
   IN_PROGRESS: ['COMPLETED', 'CANCELLED'],
-  OVERDUE:     ['IN_PROGRESS', 'CANCELLED'],
+  OVERDUE:     ['IN_PROGRESS', 'CANCELLED', 'COMPLETED'],
   COMPLETED:   [],
   CANCELLED:   [],
 } as const;

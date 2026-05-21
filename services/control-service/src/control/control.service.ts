@@ -221,18 +221,29 @@ export class ControlService {
 
     const isCompleting = dto.status === TaskStatus.COMPLETED && existing.status !== TaskStatus.COMPLETED;
 
+    // ARCH-DECISION: When an operator submits directly from PLANNED or OVERDUE
+    // (skipping the explicit IN_PROGRESS step), we auto-set startedAt = now so
+    // HACCP audit trails always have a start timestamp — required for traceability.
+    // completedAt is similarly defaulted so reports can calculate task duration.
+    const now = new Date();
+    const directComplete =
+      isCompleting &&
+      (existing.status === TaskStatus.PLANNED || existing.status === ('OVERDUE' as TaskStatus));
+    const effectiveStartedAt   = dto.startedAt   ?? (directComplete && !existing.startedAt   ? now : undefined);
+    const effectiveCompletedAt = dto.completedAt ?? (isCompleting                             ? now : undefined);
+
     // Atomically update task + write outbox event for significant transitions
     const [task] = await this.prisma.$transaction([
       this.prisma.controlTask.update({
         where: { id, tenantId },
         data: {
-          ...(dto.status      !== undefined ? { status: dto.status }                     : {}),
-          ...(dto.assigneeId  !== undefined ? { assigneeId: dto.assigneeId, groupId: null } : {}),
-          ...(dto.groupId     !== undefined ? { groupId: dto.groupId, assigneeId: null }    : {}),
-          ...(dto.notes       !== undefined ? { notes: dto.notes }                       : {}),
-          ...(dto.resultJson  !== undefined ? { resultJson: dto.resultJson as never }    : {}),
-          ...(dto.startedAt   !== undefined ? { startedAt: dto.startedAt }               : {}),
-          ...(dto.completedAt !== undefined ? { completedAt: dto.completedAt }           : {}),
+          ...(dto.status               !== undefined ? { status: dto.status }                        : {}),
+          ...(dto.assigneeId           !== undefined ? { assigneeId: dto.assigneeId, groupId: null } : {}),
+          ...(dto.groupId              !== undefined ? { groupId: dto.groupId, assigneeId: null }    : {}),
+          ...(dto.notes                !== undefined ? { notes: dto.notes }                          : {}),
+          ...(dto.resultJson           !== undefined ? { resultJson: dto.resultJson as never }       : {}),
+          ...(effectiveStartedAt       !== undefined ? { startedAt: effectiveStartedAt }             : {}),
+          ...(effectiveCompletedAt     !== undefined ? { completedAt: effectiveCompletedAt }         : {}),
         },
         include: {
           template: { select: { id: true, name: true } },

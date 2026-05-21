@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
@@ -28,6 +29,17 @@ import type {
   TaskResult,
   TaskResultItem,
 } from './types';
+
+// ─── Error helper ─────────────────────────────────────────────────────────────
+
+function extractApiMessage(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const msg = (error.response?.data as { message?: string })?.message;
+    return msg ?? error.message;
+  }
+  if (error instanceof Error) return error.message;
+  return 'Une erreur inattendue est survenue';
+}
 
 // ─── Constants ──────────────────────────────────────────────────────────────────
 
@@ -823,6 +835,14 @@ export function ChecklistExecutionModal({
       void queryClient.invalidateQueries({ queryKey: ['controls.tasks', tenantId] });
       void queryClient.invalidateQueries({ queryKey: ['controls.stats', tenantId] });
     },
+    // ARCH-DECISION: startMutation failure is non-blocking. VALID_TRANSITIONS now
+    // allows PLANNED/OVERDUE → COMPLETED directly, so the operator can still submit
+    // even if the IN_PROGRESS pre-step fails (e.g. network flap at modal open).
+    // The backend auto-sets startedAt when completing directly from PLANNED/OVERDUE.
+    onError: () => {
+      // Silent — the user hasn't clicked Validate yet; don't alarm them for a
+      // pre-flight optimistic transition that is safe to skip.
+    },
   });
 
   useEffect(() => {
@@ -846,9 +866,9 @@ export function ChecklistExecutionModal({
       setSuccess(true);
       closeTimerRef.current = setTimeout(() => { onCompleted(); }, 2500);
     },
-    onError: () => {
+    onError: (error) => {
       submittedRef.current = false;
-      showToast({ title: 'Erreur lors de la validation', variant: 'error' });
+      showToast({ title: extractApiMessage(error), variant: 'error' });
     },
   });
 

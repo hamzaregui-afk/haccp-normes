@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as express from 'express';
 
 import { AllExceptionsFilter } from '@haccp/shared-errors';
 import { correlationIdMiddleware, idempotencyMiddleware, setupGracefulShutdown } from '@haccp/shared-utils';
@@ -13,7 +14,13 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const env = validateEnv();
 
-  const app = await NestFactory.create(AppModule);
+  // ARCH-DECISION: bodyParser disabled so we can set a custom JSON body size limit.
+  // The NestJS default is 100kb which rejects checklists containing base64 photos
+  // or signatures (each image ≈ 50–200kb after compression → total easily > 100kb).
+  // 10mb matches the nginx client_max_body_size configured for /api/v1/controls.
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   app.use(correlationIdMiddleware);
   app.use(idempotencyMiddleware);
