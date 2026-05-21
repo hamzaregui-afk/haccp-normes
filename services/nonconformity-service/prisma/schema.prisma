@@ -37,7 +37,13 @@ enum NCCategory {
 
 model NonConformity {
   id               String      @id @default(cuid())
-  reference        String      @unique              // NC-YYYY-NNNN format, auto-generated
+  // ARCH-DECISION: reference is unique PER TENANT, not globally.
+  // The original @unique global constraint caused P2002 failures when two
+  // different tenants both tried to create their first NC of the year:
+  // generateReference() counts per-tenant (→ both get NC-YYYY-0001) while the
+  // DB enforced global uniqueness, making every second-tenant's first NC fail.
+  // @@unique([reference, tenantId]) matches the per-tenant semantics exactly.
+  reference        String                           // NC-YYYY-NNNN format, per-tenant
   tenantId         String      @map("tenant_id")
   siteId           String      @map("site_id")      // FK to tenant-service (no join)
   productId        String?     @map("product_id")   // FK to asset-service (no join)
@@ -54,6 +60,7 @@ model NonConformity {
 
   photos NCPhoto[]
 
+  @@unique([reference, tenantId])           // per-tenant reference uniqueness (see above)
   @@index([tenantId])
   @@index([status])
   @@index([createdAt])

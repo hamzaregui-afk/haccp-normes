@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 import {
   AlertTriangle,
   Camera,
@@ -24,6 +25,17 @@ import { Select } from '@/components/ui/Select';
 import { showToast } from '@/components/ui/Toast';
 import { useDebounce } from '@/hooks/useDebounce';
 import { api } from '@/lib/api';
+
+// ─── Error helpers ────────────────────────────────────────────────────────────
+
+function extractApiMessage(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as Record<string, unknown> | undefined;
+    if (typeof data?.message === 'string') return data.message;
+    if (Array.isArray(data?.message))      return (data.message as string[]).join(', ');
+  }
+  return 'Une erreur est survenue. Veuillez réessayer.';
+}
 
 // ─── Domain types ────────────────────────────────────────────────────────────
 
@@ -445,8 +457,9 @@ export default function NonconformitiesPage() {
       void queryClient.invalidateQueries({ queryKey: ['nonconformities'] });
       setCreateModalOpen(false);
       setForm(INITIAL_FORM);
+      showToast({ title: 'Non-conformité signalée avec succès', variant: 'success' });
     },
-    onError: () => showToast({ title: 'Erreur lors de la création de la NC', variant: 'error' }),
+    onError: (error) => showToast({ title: extractApiMessage(error), variant: 'error' }),
   });
 
   const closeMutation = useMutation({
@@ -454,8 +467,9 @@ export default function NonconformitiesPage() {
       api.patch(`/api/v1/nonconformities/${id}`, { status: 'CLOSED' }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['nonconformities'] });
+      showToast({ title: 'Non-conformité clôturée avec succès', variant: 'success' });
     },
-    onError: () => showToast({ title: 'Erreur lors de la clôture', variant: 'error' }),
+    onError: (error) => showToast({ title: extractApiMessage(error), variant: 'error' }),
   });
 
   function handleCreate(e: React.FormEvent) {
@@ -755,7 +769,7 @@ export default function NonconformitiesPage() {
             </div>
 
             {createMutation.isError && (
-              <p className="text-xs text-red-600">Une erreur est survenue. Veuillez réessayer.</p>
+              <p className="text-xs text-red-600">{extractApiMessage(createMutation.error)}</p>
             )}
 
             <div className="flex justify-end gap-2 pt-2">
