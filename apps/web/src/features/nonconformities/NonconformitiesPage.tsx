@@ -24,6 +24,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { showToast } from '@/components/ui/Toast';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useTenantId } from '@/hooks/useTenantId';
 import { api } from '@/lib/api';
 
 // ─── Error helpers ────────────────────────────────────────────────────────────
@@ -113,8 +114,9 @@ const SEVERITY_LABELS: Record<NCSeverity, string> = {
 // ─── Query hooks ─────────────────────────────────────────────────────────────
 
 function useNCStats() {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['nonconformities', 'stats'],
+    queryKey: ['nonconformities', tenantId, 'stats'],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<NCStats>>('/api/v1/nonconformities/stats');
       return data.data;
@@ -123,8 +125,9 @@ function useNCStats() {
 }
 
 function useNonConformities(page: number, search: string, status: string, severity: string) {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['nonconformities', page, search, status, severity],
+    queryKey: ['nonconformities', tenantId, page, search, status, severity],
     queryFn: async () => {
       const p = new URLSearchParams({ page: String(page), limit: '20' });
       if (search)   p.set('search', search);
@@ -197,6 +200,7 @@ function NCDetailModal({
   onPhotosUpdated?: () => void;
 }) {
   const queryClient  = useQueryClient();
+  const tenantId     = useTenantId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
@@ -208,7 +212,7 @@ function NCDetailModal({
       await api.post(`/api/v1/nonconformities/${nc!.id}/photos`, formData);
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['nonconformities'] });
+      void queryClient.invalidateQueries({ queryKey: ['nonconformities', tenantId] });
       onPhotosUpdated?.();
     },
     onError: () => showToast({ title: 'Erreur lors du téléversement', variant: 'error' }),
@@ -393,8 +397,9 @@ interface SiteRaw { id: string; name: string; zones?: unknown[] }
 interface ProductRaw { id: string; name: string }
 
 function useSiteOptions() {
+  const tenantId = useTenantId();
   const { data } = useQuery({
-    queryKey: ['sites.all'],
+    queryKey: ['sites.all', tenantId],
     queryFn: async () => {
       try {
         const { data } = await api.get<{ data: SiteRaw[] }>('/api/v1/sites?page=1&limit=100');
@@ -410,8 +415,9 @@ function useSiteOptions() {
 }
 
 function useProductOptions() {
+  const tenantId = useTenantId();
   const { data } = useQuery({
-    queryKey: ['products.all'],
+    queryKey: ['products.all', tenantId],
     queryFn: async () => {
       try {
         const { data } = await api.get<{ data: ProductRaw[] }>('/api/v1/products?page=1&limit=100');
@@ -439,6 +445,7 @@ export default function NonconformitiesPage() {
 
   const debouncedSearch  = useDebounce(search, 400);
   const queryClient      = useQueryClient();
+  const tenantId         = useTenantId();
   const siteOptions      = useSiteOptions();
   const productOptions   = useProductOptions();
 
@@ -454,7 +461,7 @@ export default function NonconformitiesPage() {
     mutationFn: (body: Record<string, unknown>) =>
       api.post('/api/v1/nonconformities', body),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['nonconformities'] });
+      void queryClient.invalidateQueries({ queryKey: ['nonconformities', tenantId] });
       setCreateModalOpen(false);
       setForm(INITIAL_FORM);
       showToast({ title: 'Non-conformité signalée avec succès', variant: 'success' });
@@ -466,7 +473,7 @@ export default function NonconformitiesPage() {
     mutationFn: (id: string) =>
       api.patch(`/api/v1/nonconformities/${id}`, { status: 'CLOSED' }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['nonconformities'] });
+      void queryClient.invalidateQueries({ queryKey: ['nonconformities', tenantId] });
       showToast({ title: 'Non-conformité clôturée avec succès', variant: 'success' });
     },
     onError: (error) => showToast({ title: extractApiMessage(error), variant: 'error' }),
@@ -705,7 +712,7 @@ export default function NonconformitiesPage() {
           onClose={() => setSelectedNC(null)}
           onPhotosUpdated={() => {
             // Re-fetch the NC list to get updated photo counts
-            void queryClient.invalidateQueries({ queryKey: ['nonconformities'] });
+            void queryClient.invalidateQueries({ queryKey: ['nonconformities', tenantId] });
           }}
         />
 

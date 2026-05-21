@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { api } from '@/lib/api';
+import { useTenantId } from '@/hooks/useTenantId';
 import type { ApiResponse, Supplier } from '@haccp/shared-types';
 
 interface ProductFormValues {
@@ -27,9 +28,10 @@ export function ProductForm({ onSubmit, loading, defaultValues }: ProductFormPro
   const { register, handleSubmit, formState: { errors } } = useForm<ProductFormValues>({
     defaultValues: { code: '', name: '', category: '', ...defaultValues },
   });
+  const tenantId = useTenantId();
 
   const { data: suppliersData } = useQuery({
-    queryKey: ['suppliers-select'],
+    queryKey: ['suppliers-select', tenantId],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<Supplier[]>>('/api/v1/suppliers?limit=100');
       return data.data;

@@ -31,6 +31,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useTenantId } from '@/hooks/useTenantId';
 import { api } from '@/lib/api';
 import { showToast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/store/auth.store';
@@ -119,8 +120,9 @@ interface GroupRaw   { id: string; name: string }
 // ─── Lookup hooks ──────────────────────────────────────────────────────────────
 
 function useZoneLookup() {
+  const tenantId = useTenantId();
   const { data } = useQuery({
-    queryKey: ['sites.all'],
+    queryKey: ['sites.all', tenantId],
     queryFn: async () => {
       const { data } = await api.get<{ data: SiteRaw[] }>('/api/v1/sites');
       return data.data ?? [];
@@ -152,10 +154,11 @@ function useZoneLookup() {
 }
 
 function useUserLookup() {
+  const tenantId = useTenantId();
   // ARCH-DECISION: retry:false + throwOnError:false so a 403 (MANAGER role cannot
   // list users) silently yields an empty array rather than crashing the form.
   const { data } = useQuery({
-    queryKey: ['users.all'],
+    queryKey: ['users.all', tenantId],
     queryFn: async () => {
       try {
         const { data } = await api.get<{ data: UserRaw[] }>('/api/v1/users?page=1&limit=100');
@@ -183,8 +186,9 @@ function useUserLookup() {
 }
 
 function useGroupLookup() {
+  const tenantId = useTenantId();
   const { data } = useQuery({
-    queryKey: ['groups.all'],
+    queryKey: ['groups.all', tenantId],
     queryFn: async () => {
       try {
         const { data } = await api.get<{ data: GroupRaw[] }>('/api/v1/groups?page=1&limit=100');
@@ -266,8 +270,9 @@ function PlanTaskForm({
   loading?:     boolean;
 }) {
   // ── Live templates ────────────────────────────────────────────────────────
+  const tenantId = useTenantId();
   const { data: templatesData, isLoading: templatesLoading } = useQuery({
-    queryKey: ['controls.templates.all'],
+    queryKey: ['controls.templates.all', tenantId],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<ControlTemplate[]>>(
         '/api/v1/controls/templates?page=1&limit=100',
@@ -280,7 +285,7 @@ function PlanTaskForm({
 
   // ── Live sites + zones ────────────────────────────────────────────────────
   const { data: sitesData, isLoading: zonesLoading } = useQuery({
-    queryKey: ['sites.all.live'],
+    queryKey: ['sites.all.live', tenantId],
     queryFn: async () => {
       const { data } = await api.get<{ data: SiteRaw[] }>('/api/v1/sites');
       return data.data ?? [];
@@ -471,6 +476,7 @@ function TaskDetailModal({
   isOperator:   boolean;
 }) {
   const queryClient  = useQueryClient();
+  const tenantId     = useTenantId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
@@ -492,7 +498,7 @@ function TaskDetailModal({
 
   // Fetch photos for this task
   const { data: photosData, refetch: refetchPhotos } = useQuery({
-    queryKey: ['controls.tasks.photos', task?.id],
+    queryKey: ['controls.tasks.photos', tenantId, task?.id],
     queryFn: async () => {
       const { data } = await api.get<{ data: ControlPhoto[] }>(
         `/api/v1/controls/tasks/${task!.id}/photos`,
@@ -523,7 +529,7 @@ function TaskDetailModal({
     mutationFn: (body: Record<string, unknown>) =>
       api.patch(`/api/v1/controls/tasks/${task?.id}`, body),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['controls.tasks'] });
+      void queryClient.invalidateQueries({ queryKey: ['controls.tasks', tenantId] });
       onClose();
     },
     onError: () => showToast({ title: 'Erreur lors de la réassignation', variant: 'error' }),
@@ -535,8 +541,8 @@ function TaskDetailModal({
         status: 'CANCELLED',
       }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['controls.tasks'] });
-      void queryClient.invalidateQueries({ queryKey: ['controls.stats'] });
+      void queryClient.invalidateQueries({ queryKey: ['controls.tasks', tenantId] });
+      void queryClient.invalidateQueries({ queryKey: ['controls.stats', tenantId] });
       onClose();
       reset();
     },
@@ -881,6 +887,7 @@ function TasksTab({
   const [selectedTask, setSelectedTask]     = useState<ControlTask | null>(null);
   const [selectedExecTaskId, setSelectedExecTaskId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const tenantId    = useTenantId();
 
   // Reset search when status filter changes
   useEffect(() => {
@@ -891,7 +898,7 @@ function TasksTab({
     // ARCH-DECISION: When the current user is an OPERATOR, inject their ID as
     // assigneeId filter so they only see tasks assigned to them. Managers and
     // admins see all tasks and can filter manually.
-    queryKey: ['controls.tasks', page, statusFilter, isOperator ? operatorId : null],
+    queryKey: ['controls.tasks', tenantId, page, statusFilter, isOperator ? operatorId : null],
     queryFn: async () => {
       const p = new URLSearchParams({ page: String(page), limit: '20' });
       if (statusFilter) p.set('status', statusFilter);
@@ -904,8 +911,8 @@ function TasksTab({
   const createTaskMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => api.post('/api/v1/controls/tasks', body),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['controls.tasks'] });
-      void queryClient.invalidateQueries({ queryKey: ['controls.stats'] });
+      void queryClient.invalidateQueries({ queryKey: ['controls.tasks', tenantId] });
+      void queryClient.invalidateQueries({ queryKey: ['controls.stats', tenantId] });
       setPlanModalOpen(false);
     },
     onError: () => showToast({ title: 'Erreur lors de la planification', variant: 'error' }),
@@ -1100,8 +1107,8 @@ function TasksTab({
           onClose={() => setSelectedExecTaskId(null)}
           onCompleted={() => {
             setSelectedExecTaskId(null);
-            void queryClient.invalidateQueries({ queryKey: ['controls.tasks'] });
-            void queryClient.invalidateQueries({ queryKey: ['controls.stats'] });
+            void queryClient.invalidateQueries({ queryKey: ['controls.tasks', tenantId] });
+            void queryClient.invalidateQueries({ queryKey: ['controls.stats', tenantId] });
           }}
         />
       )}
@@ -1118,9 +1125,10 @@ function TemplatesTab() {
   const queryClient             = useQueryClient();
   const navigate                = useNavigate();
   const debouncedSearch         = useDebounce(search, 400);
+  const tenantId                = useTenantId();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['controls.templates', page, debouncedSearch],
+    queryKey: ['controls.templates', tenantId, page, debouncedSearch],
     queryFn: async () => {
       const p = new URLSearchParams({ page: String(page), limit: '20' });
       if (debouncedSearch) p.set('search', debouncedSearch);
@@ -1132,7 +1140,7 @@ function TemplatesTab() {
   const createTemplateMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => api.post('/api/v1/controls/templates', body),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['controls.templates'] });
+      void queryClient.invalidateQueries({ queryKey: ['controls.templates', tenantId] });
       setModalOpen(false);
     },
     onError: () => showToast({ title: 'Erreur lors de la création du modèle', variant: 'error' }),
@@ -1140,7 +1148,7 @@ function TemplatesTab() {
 
   const deleteTemplateMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/controls/templates/${id}`),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['controls.templates'] }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['controls.templates', tenantId] }),
     onError: () => showToast({ title: 'Erreur lors de la suppression', variant: 'error' }),
   });
 
@@ -1272,6 +1280,7 @@ export default function ControlsPage() {
   const currentUser = useAuthStore((s) => s.user);
   const isOperator  = currentUser?.role === 'OPERATOR';
   const operatorId  = currentUser?.sub ?? '';
+  const tenantId    = useTenantId();
 
   // Lookup data fetched once for the whole page
   // zoneOptions is intentionally not destructured — PlanTaskForm fetches zones with staleTime:0
@@ -1281,7 +1290,7 @@ export default function ControlsPage() {
 
   // Stats
   const { data: statsData } = useQuery({
-    queryKey: ['controls.stats'],
+    queryKey: ['controls.stats', tenantId],
     queryFn: async () => {
       const { data } = await api.get<{ data: ControlStats }>('/api/v1/controls/stats');
       return data.data;

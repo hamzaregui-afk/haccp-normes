@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
 import { api } from '@/lib/api';
+import { useTenantId } from '@/hooks/useTenantId';
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
@@ -293,8 +294,9 @@ const TABS: { id: Tab; label: string }[] = [
 const REFETCH_MS = 5 * 60 * 1000;
 
 function useProducts() {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['products', 'dlc-select'],
+    queryKey: ['products', tenantId, 'dlc-select'],
     // ARCH-DECISION: No active=true filter — the backend default (when active param
     // is omitted) already filters isActive:true. Passing active=true explicitly
     // triggers a Prisma query that returns 0 results due to enum parsing mismatch.
@@ -309,8 +311,9 @@ function useProducts() {
 }
 
 function useExpiringToday() {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['dlc', 'today'],
+    queryKey: ['dlc', tenantId, 'today'],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<DLCLabel[]>>('/api/v1/dlc/labels/expiring-today');
       return data.data;
@@ -319,8 +322,9 @@ function useExpiringToday() {
   });
 }
 function useExpiringSoon() {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['dlc', 'soon'],
+    queryKey: ['dlc', tenantId, 'soon'],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<DLCLabel[]>>('/api/v1/dlc/labels/expiring-soon?days=7');
       return data.data;
@@ -329,8 +333,9 @@ function useExpiringSoon() {
   });
 }
 function useAllLabels(page: number) {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['dlc', 'all', page],
+    queryKey: ['dlc', tenantId, 'all', page],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<DLCLabel[]>>(`/api/v1/dlc/labels?page=${page}&limit=20`);
       return data;
@@ -422,6 +427,7 @@ export default function DLCWebPage() {
   const [form, setForm]           = useState<FormState>(INITIAL);
   const [allPage, setAllPage]     = useState(1);
   const queryClient               = useQueryClient();
+  const tenantId                  = useTenantId();
 
   const productsQuery = useProducts();
   const todayQuery    = useExpiringToday();
@@ -439,7 +445,7 @@ export default function DLCWebPage() {
       producedAt: string; expiresAt: string;
     }) => api.post<ApiResponse<DLCLabel>>('/api/v1/dlc/labels', payload),
     onSuccess: (resp, vars) => {
-      void queryClient.invalidateQueries({ queryKey: ['dlc'] });
+      void queryClient.invalidateQueries({ queryKey: ['dlc', tenantId] });
       setModalOpen(false);
       setForm(INITIAL);
       const label = resp.data.data;

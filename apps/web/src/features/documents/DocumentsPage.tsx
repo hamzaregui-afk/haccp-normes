@@ -43,6 +43,7 @@ import { Modal } from '@/components/ui/Modal';
 import { api } from '@/lib/api';
 import { showToast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/store/auth.store';
+import { useTenantId } from '@/hooks/useTenantId';
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
@@ -167,8 +168,9 @@ function Lightbox({ url, onClose }: { url: string; onClose: () => void }) {
 // ─── Query hooks ──────────────────────────────────────────────────────────────
 
 function useDocuments(category: DocumentCategory | '', search: string, page: number) {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['ged.documents', category, search, page],
+    queryKey: ['ged.documents', tenantId, category, search, page],
     queryFn: async () => {
       const p = new URLSearchParams({ page: String(page), limit: '24' });
       if (category) p.set('category', category);
@@ -180,8 +182,9 @@ function useDocuments(category: DocumentCategory | '', search: string, page: num
 }
 
 function useDocRequests(statusFilter: DocRequestStatus | '') {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['ged.requests', statusFilter],
+    queryKey: ['ged.requests', tenantId, statusFilter],
     queryFn: async () => {
       const p = new URLSearchParams({ limit: '50' });
       if (statusFilter) p.set('status', statusFilter);
@@ -192,8 +195,9 @@ function useDocRequests(statusFilter: DocRequestStatus | '') {
 }
 
 function useNCPhotos() {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['ged.nc_photos'],
+    queryKey: ['ged.nc_photos', tenantId],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<NonConformity[]>>('/api/v1/nonconformities?limit=50');
       return (data.data ?? []).filter((nc) => nc.photos?.length > 0);
@@ -203,8 +207,9 @@ function useNCPhotos() {
 }
 
 function useReports(page: number) {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['ged.reports', page],
+    queryKey: ['ged.reports', tenantId, page],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<Report[]>>(`/api/v1/reports?page=${page}&limit=20`);
       return data;
@@ -224,6 +229,7 @@ function UploadModal({
   onClose:         () => void;
 }) {
   const queryClient  = useQueryClient();
+  const tenantId     = useTenantId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile]         = useState<File | null>(null);
   const [name, setName]         = useState('');
@@ -255,7 +261,7 @@ function UploadModal({
       await api.post('/api/v1/documents', fd);
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['ged.documents'] });
+      void queryClient.invalidateQueries({ queryKey: ['ged.documents', tenantId] });
       reset();
       onClose();
     },
@@ -489,6 +495,7 @@ function DocRow({
 
 function LibraryTab({ isAdmin }: { isAdmin: boolean }) {
   const queryClient  = useQueryClient();
+  const tenantId     = useTenantId();
 
   const [page, setPage]           = useState(1);
   const [search, setSearch]       = useState('');
@@ -502,7 +509,7 @@ function LibraryTab({ isAdmin }: { isAdmin: boolean }) {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/documents/${id}`),
-    onSuccess:  () => void queryClient.invalidateQueries({ queryKey: ['ged.documents'] }),
+    onSuccess:  () => void queryClient.invalidateQueries({ queryKey: ['ged.documents', tenantId] }),
     onError: () => showToast({ title: 'Erreur lors de la suppression', variant: 'error' }),
   });
 
@@ -653,6 +660,7 @@ function LibraryTab({ isAdmin }: { isAdmin: boolean }) {
 
 function NewRequestModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const queryClient = useQueryClient();
+  const tenantId    = useTenantId();
   const [title, setTitle]         = useState('');
   const [description, setDesc]    = useState('');
   const [category, setCategory]   = useState<DocumentCategory | ''>('');
@@ -664,7 +672,7 @@ function NewRequestModal({ open, onClose }: { open: boolean; onClose: () => void
       category:    category || undefined,
     }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['ged.requests'] });
+      void queryClient.invalidateQueries({ queryKey: ['ged.requests', tenantId] });
       setTitle(''); setDesc(''); setCategory('');
       onClose();
     },
@@ -756,13 +764,14 @@ function FulfillModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const tenantId    = useTenantId();
   const [action, setAction] = useState<'FULFILLED' | 'REJECTED'>('FULFILLED');
 
   const updateMutation = useMutation({
     mutationFn: () =>
       api.patch(`/api/v1/document-requests/${request!.id}`, { status: action }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['ged.requests'] });
+      void queryClient.invalidateQueries({ queryKey: ['ged.requests', tenantId] });
       onClose();
     },
   });
