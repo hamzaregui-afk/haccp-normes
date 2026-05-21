@@ -303,7 +303,11 @@ function AdminTab({ tenant, tenantId }: AdminTabProps) {
 
   const createMutation = useMutation({
     mutationFn: (v: { name: string; email: string; password: string }) =>
-      api.post('/api/v1/users', { ...v, role: 'ADMIN' }),
+      // ARCH-DECISION: SUPER_ADMIN cannot use POST /api/v1/users (that would create
+      // the user in the 'platform' pseudo-tenant). The dedicated cross-tenant endpoint
+      // POST /api/v1/users/for-tenant/:tenantId uses the URL param as the target tenant,
+      // so the new admin is correctly scoped to this client's tenant — not the platform.
+      api.post(`/api/v1/users/for-tenant/${tenantId}`, { ...v, role: 'ADMIN' }),
     onSuccess: (res) => {
       const userId = (res.data as ApiResponse<{ id: string }>).data?.id;
       if (userId) {

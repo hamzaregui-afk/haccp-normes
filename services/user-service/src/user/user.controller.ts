@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards,
+  Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, UseGuards,
 } from '@nestjs/common';
 
 import type { JwtPayload } from '@haccp/shared-types';
@@ -29,6 +29,40 @@ export class UserController {
   @Roles('ADMIN', 'SUPER_ADMIN')
   findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.userService.findOne(id, user.tenantId);
+  }
+
+  /**
+   * SUPER_ADMIN cross-tenant endpoint — creates a user inside a specific tenant.
+   *
+   * ARCH-DECISION: Route is POST /users/for-tenant/:tenantId (not PATCH /users/:id)
+   * to be unambiguous. SUPER_ADMIN's JWT tenantId is 'platform' — this endpoint
+   * overrides that by using the URL :tenantId parameter as the target tenant.
+   * Regular POST /users blocks SUPER_ADMIN to prevent platform-tenant pollution.
+   *
+   * IMPORTANT: This route MUST be declared BEFORE the generic POST /users route
+   * so NestJS resolves 'for-tenant' as a literal segment, not as a :id param.
+   */
+  @Post('for-tenant/:tenantId')
+  @Roles('SUPER_ADMIN')
+  async createForTenant(
+    @Param('tenantId') tenantId: string,
+    @Body() body: unknown,
+    @CurrentUser() actor: JwtPayload,
+  ) {
+    if (!tenantId) throw new ForbiddenException('tenantId path parameter is required');
+    const dto    = CreateUserDtoSchema.parse(body);
+    const result = await this.userService.createForTenant(tenantId, dto, actor);
+
+    void emitAuditEvent({
+      userId:     actor.sub,
+      action:     'CREATE',
+      resource:   'users',
+      ...(extractResourceId(result) !== undefined && { resourceId: extractResourceId(result) }),
+      tenantId,                            // audit in the TARGET tenant's context
+      payload:    { email: dto.email, role: dto.role, createdBySuper: true },
+    });
+
+    return result;
   }
 
   @Post()

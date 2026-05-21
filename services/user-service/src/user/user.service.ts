@@ -156,6 +156,81 @@ export class UserService {
     return toApiResponse(user, undefined, status === 'INVITED' ? 'Invitation sent' : 'User created');
   }
 
+  /**
+   * SUPER_ADMIN cross-tenant user creation — creates a user in any tenant.
+   *
+   * ARCH-DECISION: Separate method from create() so tenantId comes from the
+   * URL parameter (the target tenant), NOT from the actor's JWT tenantId
+   * (which is 'platform'). This is the ONLY path by which a new TENANT_ADMIN
+   * is bootstrapped. Regular create() blocks SUPER_ADMIN to prevent pollution
+   * of the platform pseudo-tenant.
+   *
+   * Access control: enforced at controller level (@Roles('SUPER_ADMIN')).
+   * This method trusts that the caller has already been verified as SUPER_ADMIN.
+   */
+  async createForTenant(targetTenantId: string, dto: CreateUserDto, actor: JwtPayload) {
+    // Defence-in-depth: re-check role even though controller guard already ensures this
+    if (actor.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Only SUPER_ADMIN may create users in a specific tenant.');
+    }
+
+    // Email uniqueness scoped to the target tenant only
+    const exists = await this.prisma.user.findFirst({
+      where: { email: dto.email, tenantId: targetTenantId },
+    });
+    if (exists) throw new ConflictException(`Email ${dto.email} already in use in this tenant`);
+
+    const passwordHash = await bcrypt.hash(
+      dto.password ?? crypto.randomUUID(),
+      12,
+    );
+    const status = dto.password ? 'ACTIVE' : 'INVITED';
+
+    // ── Step 1: create profile scoped to the TARGET tenant (never 'platform') ──
+    const user = await this.prisma.user.create({
+      data: {
+        email:    dto.email,
+        name:     dto.name,
+        role:     dto.role,
+        status:   status as 'ACTIVE' | 'INVITED',
+        tenantId: targetTenantId,          // ← target tenant, NOT actor.tenantId
+      },
+      select: {
+        id: true, email: true, name: true,
+        role: true, status: true, tenantId: true, createdAt: true, updatedAt: true,
+      },
+    });
+
+    // ── Step 2: sync credential to auth-service (same atomic pattern as create()) ──
+    try {
+      const authUrl  = `${env.AUTH_SERVICE_URL}/internal/users`;
+      const response = await fetch(authUrl, {
+        method:  'POST',
+        headers: {
+          'Content-Type':      'application/json',
+          'X-Internal-Secret': env.INTERNAL_SERVICE_SECRET,
+        },
+        body:   JSON.stringify({ ...user, passwordHash }),
+        signal: AbortSignal.timeout(5_000),
+      });
+
+      if (!response.ok) {
+        await this.prisma.user.delete({ where: { id: user.id } });
+        throw new InternalServerErrorException('Failed to create user credentials in auth-service');
+      }
+    } catch (err: unknown) {
+      if (err instanceof InternalServerErrorException) throw err;
+      await this.prisma.user.delete({ where: { id: user.id } }).catch(() => undefined);
+      throw new InternalServerErrorException('auth-service unreachable — user creation rolled back');
+    }
+
+    return toApiResponse(
+      user,
+      undefined,
+      status === 'INVITED' ? 'Invitation sent' : 'Admin created in tenant',
+    );
+  }
+
   async update(id: string, dto: UpdateUserDto, tenantId: string) {
     await this.findOne(id, tenantId); // throws 404 if not found or wrong tenant
 
