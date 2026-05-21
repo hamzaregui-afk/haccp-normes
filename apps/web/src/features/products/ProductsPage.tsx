@@ -11,6 +11,7 @@ import { showToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
 import { exportCSV, importFile } from '@/lib/csv';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useTenantId } from '@/hooks/useTenantId';
 import type { ApiResponse, Product } from '@haccp/shared-types';
 import { ProductForm } from './components/ProductForm';
 
@@ -62,10 +63,11 @@ export default function ProductsPage() {
 
   const queryClient     = useQueryClient();
   const debouncedSearch = useDebounce(search, 400);
+  const tenantId        = useTenantId();
 
   // Re-declare useProducts inline to support category filter
   const { data, isLoading } = useQuery({
-    queryKey: ['products', page, debouncedSearch, categoryFilter],
+    queryKey: ['products', tenantId, page, debouncedSearch, categoryFilter],
     queryFn: async () => {
       const p = new URLSearchParams({ page: String(page), limit: '20' });
       if (debouncedSearch) p.set('search', debouncedSearch);
@@ -79,7 +81,7 @@ export default function ProductsPage() {
   const createMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => api.post('/api/v1/products', body),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['products'] });
+      void queryClient.invalidateQueries({ queryKey: ['products', tenantId] });
       setCreateOpen(false);
     },
   });
@@ -88,14 +90,14 @@ export default function ProductsPage() {
     mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
       api.patch(`/api/v1/products/${id}`, body),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['products'] });
+      void queryClient.invalidateQueries({ queryKey: ['products', tenantId] });
       setEditProduct(null);
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/products/${id}`),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['products'] }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['products', tenantId] }),
     onError: () => showToast({ title: 'Erreur lors de la suppression', variant: 'error' }),
   });
 
@@ -155,7 +157,7 @@ export default function ProductsPage() {
           fail++;
         }
       }
-      void queryClient.invalidateQueries({ queryKey: ['products'] });
+      void queryClient.invalidateQueries({ queryKey: ['products', tenantId] });
       showToast({
         title: `Import terminé : ${ok} ligne(s) importée(s)${fail ? `, ${fail} ignorée(s)` : ''}`,
         variant: fail && ok === 0 ? 'error' : fail ? 'warning' : 'success',

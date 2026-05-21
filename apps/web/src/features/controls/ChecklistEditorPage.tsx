@@ -35,6 +35,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
+import { useTenantId } from '@/hooks/useTenantId';
 import { api } from '@/lib/api';
 import type { ChecklistItem, ControlTemplate } from './types';
 
@@ -286,6 +287,7 @@ export default function ChecklistEditorPage() {
   const { id }      = useParams<{ id: string }>();
   const navigate    = useNavigate();
   const queryClient = useQueryClient();
+  const tenantId    = useTenantId();
 
   const [items, setItems]               = useState<ChecklistItem[] | null>(null);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -293,7 +295,7 @@ export default function ChecklistEditorPage() {
   const [dirty, setDirty]               = useState(false);
 
   const { data: templateData, isLoading } = useQuery({
-    queryKey: ['controls.template', id],
+    queryKey: ['controls.template', tenantId, id],
     queryFn: async () => {
       const { data } = await api.get<{ data: ControlTemplate }>(`/api/v1/controls/templates/${id}`);
       return data.data;
@@ -335,8 +337,8 @@ export default function ChecklistEditorPage() {
     mutationFn: (checklistJson: ChecklistItem[]) =>
       api.patch(`/api/v1/controls/templates/${id}`, { checklistJson }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['controls.template', id] });
-      void queryClient.invalidateQueries({ queryKey: ['controls.templates'] });
+      void queryClient.invalidateQueries({ queryKey: ['controls.template', tenantId, id] });
+      void queryClient.invalidateQueries({ queryKey: ['controls.templates', tenantId] });
       setDirty(false);
     },
   });

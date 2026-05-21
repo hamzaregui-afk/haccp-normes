@@ -7,13 +7,15 @@ import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { api } from '@/lib/api';
+import { useTenantId } from '@/hooks/useTenantId';
 import type { ApiResponse, AuditLog } from '@haccp/shared-types';
 
 // ─── Query hook ───────────────────────────────────────────────────────────────
 
 function useAuditLogs(page: number, from: string, to: string) {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['audit', page, from, to],
+    queryKey: ['audit', tenantId, page, from, to],
     queryFn: async () => {
       const p = new URLSearchParams({ page: String(page), limit: '20' });
       if (from) p.set('from', from);

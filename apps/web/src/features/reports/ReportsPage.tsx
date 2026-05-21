@@ -16,6 +16,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { api } from '@/lib/api';
+import { useTenantId } from '@/hooks/useTenantId';
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
@@ -73,8 +74,9 @@ const TYPE_LABELS: Record<ReportType, string> = {
 // ─── Query hooks ──────────────────────────────────────────────────────────────
 
 function useReportStats() {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['reports', 'stats'],
+    queryKey: ['reports', tenantId, 'stats'],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<ReportStats>>('/api/v1/reports/stats');
       return data.data;
@@ -83,8 +85,9 @@ function useReportStats() {
 }
 
 function useReports(page: number, status: string, type: string) {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['reports', page, status, type],
+    queryKey: ['reports', tenantId, page, status, type],
     queryFn: async () => {
       const p = new URLSearchParams({ page: String(page), limit: '20' });
       if (status) p.set('status', status);
@@ -165,6 +168,7 @@ export default function ReportsPage() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
+  const tenantId    = useTenantId();
 
   // ARCH-DECISION: PDF download uses api.get with responseType 'blob' rather than
   // a plain <a href> because the report endpoint is protected by JwtAuthGuard.
@@ -200,7 +204,7 @@ export default function ReportsPage() {
   const createMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => api.post('/api/v1/reports', body),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['reports'] });
+      void queryClient.invalidateQueries({ queryKey: ['reports', tenantId] });
       setModalOpen(false);
       setForm(INITIAL_FORM);
     },
@@ -210,7 +214,7 @@ export default function ReportsPage() {
     mutationFn: ({ id, status }: { id: string; status: ReportStatus }) =>
       api.patch(`/api/v1/reports/${id}`, { status }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['reports'] });
+      void queryClient.invalidateQueries({ queryKey: ['reports', tenantId] });
     },
   });
 

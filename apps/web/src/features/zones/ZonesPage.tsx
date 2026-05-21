@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { showToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
+import { useTenantId } from '@/hooks/useTenantId';
 import type { ApiResponse } from '@haccp/shared-types';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -125,9 +126,10 @@ export default function ZonesPage() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [apiError, setApiError] = useState<string | null>(null);
   const queryClient             = useQueryClient();
+  const tenantId                = useTenantId();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['sites'],
+    queryKey: ['sites', tenantId],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<Site[]>>('/api/v1/sites');
       return data;
@@ -137,7 +139,7 @@ export default function ZonesPage() {
   const sites = data?.data ?? [];
 
   const closeModal = () => { setModal({ kind: 'none' }); setApiError(null); };
-  const refresh    = () => { void queryClient.invalidateQueries({ queryKey: ['sites'] }); };
+  const refresh    = () => { void queryClient.invalidateQueries({ queryKey: ['sites', tenantId] }); };
 
   const toggleExpand = (id: string) =>
     setExpanded((prev) => {

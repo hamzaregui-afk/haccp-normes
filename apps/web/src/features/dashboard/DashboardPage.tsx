@@ -17,6 +17,7 @@ import { Header } from '@/components/layout/Header';
 import { PageWrapper } from '@/components/layout/AppLayout';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
+import { useTenantId } from '@/hooks/useTenantId';
 import type { ApiResponse, UserRole } from '@haccp/shared-types';
 
 // ─── API shapes ───────────────────────────────────────────────────────────────
@@ -207,8 +208,9 @@ interface DlcLabel {
 }
 
 function DlcAlertWidget() {
+  const tenantId = useTenantId();
   const { data, isLoading } = useQuery({
-    queryKey: ['dlc.expiring-today'],
+    queryKey: ['dlc.expiring-today', tenantId],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<DlcLabel[]>>('/api/v1/dlc/labels/expiring-today');
       return data.data ?? [];
@@ -264,8 +266,9 @@ const MY_TASK_STATUS: Record<string, { label: string; color: string }> = {
 };
 
 function OperatorTasksWidget({ assigneeId }: { assigneeId: string }) {
+  const tenantId = useTenantId();
   const { data, isLoading } = useQuery({
-    queryKey: ['my.tasks.today', assigneeId],
+    queryKey: ['my.tasks.today', tenantId, assigneeId],
     queryFn: async () => {
       const today = new Date();
       const from  = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
@@ -336,10 +339,11 @@ const NC_STATUS_LABEL: Record<string, string> = {
 
 export default function DashboardPage() {
   const currentUser = useAuthStore((s) => s.user);
+  const tenantId = useTenantId();
   const [controlsQuery, ncStatsQuery, recentNcQuery] = useQueries({
     queries: [
       {
-        queryKey: ['controls.stats'],
+        queryKey: ['controls.stats', tenantId],
         queryFn: async () => {
           const { data } = await api.get<ApiResponse<ControlStats>>('/api/v1/controls/stats');
           return data.data;
@@ -348,7 +352,7 @@ export default function DashboardPage() {
         refetchInterval: 2 * 60 * 1000,
       },
       {
-        queryKey: ['nc.stats'],
+        queryKey: ['nc.stats', tenantId],
         queryFn: async () => {
           const { data } = await api.get<ApiResponse<NcStats>>('/api/v1/nonconformities/stats');
           return data.data;
@@ -356,7 +360,7 @@ export default function DashboardPage() {
         refetchInterval: 2 * 60 * 1000,
       },
       {
-        queryKey: ['nc.recent'],
+        queryKey: ['nc.recent', tenantId],
         queryFn: async () => {
           const { data } = await api.get<ApiResponse<RecentNc[]>>(
             '/api/v1/nonconformities?limit=5&status=OPEN',
@@ -369,7 +373,7 @@ export default function DashboardPage() {
 
   // ── Chart queries ──────────────────────────────────────────────────────────
   const ncChartQuery = useQuery({
-    queryKey: ['nc.chart.monthly'],
+    queryKey: ['nc.chart.monthly', tenantId],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<NcItem[]>>(
         '/api/v1/nonconformities?limit=100',
@@ -380,7 +384,7 @@ export default function DashboardPage() {
   });
 
   const complianceChartQuery = useQuery({
-    queryKey: ['controls.chart.monthly'],
+    queryKey: ['controls.chart.monthly', tenantId],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<ControlTask[]>>(
         '/api/v1/controls/tasks?limit=100',

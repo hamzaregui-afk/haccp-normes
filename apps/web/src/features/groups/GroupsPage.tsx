@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/Select';
 import { api } from '@/lib/api';
 import { showToast } from '@/components/ui/Toast';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useTenantId } from '@/hooks/useTenantId';
 import type { ApiResponse, Group, User } from '@haccp/shared-types';
 
 // ─── Role badge map ───────────────────────────────────────────────────────────
@@ -96,9 +97,10 @@ interface AddMemberModalProps {
 
 function AddMemberModal({ group, onClose, onAdded }: AddMemberModalProps) {
   const { register, handleSubmit, formState: { errors } } = useForm<AddMemberFormValues>();
+  const tenantId = useTenantId();
 
   const { data: usersData } = useQuery({
-    queryKey: ['users-select'],
+    queryKey: ['users-select', tenantId],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<User[]>>('/api/v1/users?limit=100');
       return data.data;
@@ -174,9 +176,10 @@ export default function GroupsPage() {
   const [addMemberTarget, setAddMemberTarget] = useState<Group | null>(null);
   const queryClient = useQueryClient();
   const debouncedSearch = useDebounce(search, 400);
+  const tenantId = useTenantId();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['groups', page],
+    queryKey: ['groups', tenantId, page],
     queryFn: async () => {
       const p = new URLSearchParams({ page: String(page), limit: '20' });
       const { data } = await api.get<ApiResponse<Group[]>>(`/api/v1/groups?${p}`);
@@ -187,14 +190,14 @@ export default function GroupsPage() {
   const createMutation = useMutation({
     mutationFn: (body: { name: string }) => api.post('/api/v1/groups', body),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['groups'] });
+      void queryClient.invalidateQueries({ queryKey: ['groups', tenantId] });
       setCreateOpen(false);
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/groups/${id}`),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['groups'] }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['groups', tenantId] }),
     onError: () => showToast({ title: 'Erreur lors de la suppression', variant: 'error' }),
   });
 
@@ -279,7 +282,7 @@ export default function GroupsPage() {
             <AddMemberModal
               group={addMemberTarget}
               onClose={() => setAddMemberTarget(null)}
-              onAdded={() => void queryClient.invalidateQueries({ queryKey: ['groups'] })}
+              onAdded={() => void queryClient.invalidateQueries({ queryKey: ['groups', tenantId] })}
             />
           )}
         </Modal>

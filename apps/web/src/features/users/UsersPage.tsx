@@ -14,6 +14,7 @@ import { Select } from '@/components/ui/Select';
 import { api } from '@/lib/api';
 import { showToast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/store/auth.store';
+import { useTenantId } from '@/hooks/useTenantId';
 import type { ApiResponse, User, UserRole, UserStatus } from '@haccp/shared-types';
 
 // ─── Shared constants ─────────────────────────────────────────────────────────
@@ -63,8 +64,9 @@ function apiErrorMessage(err: unknown): string {
 // ─── useUsers hook ────────────────────────────────────────────────────────────
 
 function useUsers(page: number, search: string, role: string, status: string) {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['users', page, search, role, status],
+    queryKey: ['users', tenantId, page, search, role, status],
     queryFn: async () => {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (search) params.set('search', search);
@@ -414,6 +416,7 @@ export default function UsersPage() {
   const [modal, setModal]     = useState<ModalState>({ kind: 'none' });
   const queryClient           = useQueryClient();
   const currentUser           = useAuthStore((s) => s.user);
+  const tenantId              = useTenantId();
 
   const { data, isLoading, isError } = useUsers(page, search, roleFilter, statusFilter);
 
@@ -425,7 +428,7 @@ export default function UsersPage() {
   const canManageUsers = currentUser?.role === 'ADMIN';
 
   const closeModal = () => setModal({ kind: 'none' });
-  const refresh    = () => { void queryClient.invalidateQueries({ queryKey: ['users'] }); };
+  const refresh    = () => { void queryClient.invalidateQueries({ queryKey: ['users', tenantId] }); };
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/users/${id}`),

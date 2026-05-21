@@ -13,6 +13,7 @@ import { showToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
 import { exportCSV, importFile } from '@/lib/csv';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useTenantId } from '@/hooks/useTenantId';
 import type { ApiResponse, Supplier } from '@haccp/shared-types';
 
 // ─── Supplier form ────────────────────────────────────────────────────────────
@@ -122,9 +123,10 @@ export default function SuppliersPage() {
 
   const queryClient = useQueryClient();
   const debouncedSearch = useDebounce(search, 400);
+  const tenantId = useTenantId();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['suppliers', page, debouncedSearch],
+    queryKey: ['suppliers', tenantId, page, debouncedSearch],
     queryFn: async () => {
       const p = new URLSearchParams({ page: String(page), limit: '20' });
       if (debouncedSearch) p.set('search', debouncedSearch);
@@ -137,7 +139,7 @@ export default function SuppliersPage() {
   const createMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => api.post('/api/v1/suppliers', body),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      void queryClient.invalidateQueries({ queryKey: ['suppliers', tenantId] });
       setCreateOpen(false);
     },
   });
@@ -146,14 +148,14 @@ export default function SuppliersPage() {
     mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
       api.patch(`/api/v1/suppliers/${id}`, body),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      void queryClient.invalidateQueries({ queryKey: ['suppliers', tenantId] });
       setEditSupplier(null);
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/suppliers/${id}`),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['suppliers'] }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['suppliers', tenantId] }),
     onError: () => showToast({ title: 'Erreur lors de la suppression', variant: 'error' }),
   });
 
@@ -213,7 +215,7 @@ export default function SuppliersPage() {
           fail++;
         }
       }
-      void queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      void queryClient.invalidateQueries({ queryKey: ['suppliers', tenantId] });
       showToast({
         title: `Import terminé : ${ok} ligne(s) importée(s)${fail ? `, ${fail} ignorée(s)` : ''}`,
         variant: fail && ok === 0 ? 'error' : fail ? 'warning' : 'success',

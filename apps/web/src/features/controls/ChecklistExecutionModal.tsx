@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
+import { useTenantId } from '@/hooks/useTenantId';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import type { ApiResponse } from '@haccp/shared-types';
@@ -773,6 +774,7 @@ export function ChecklistExecutionModal({
 }: ChecklistExecutionModalProps) {
   const currentUser = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
+  const tenantId    = useTenantId();
 
   const [values, setValues]               = useState<ValuesMap>({});
   const [measuredTemps, setMeasuredTemps] = useState<Record<string, string>>({});
@@ -800,7 +802,7 @@ export function ChecklistExecutionModal({
   }, [taskId]);
 
   const { data: taskDetail, isLoading } = useQuery({
-    queryKey: ['controls.tasks.detail', taskId],
+    queryKey: ['controls.tasks.detail', tenantId, taskId],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<ControlTaskDetail>>(
         `/api/v1/controls/tasks/${taskId!}`,
@@ -818,8 +820,8 @@ export function ChecklistExecutionModal({
         startedAt: new Date().toISOString(),
       }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['controls.tasks'] });
-      void queryClient.invalidateQueries({ queryKey: ['controls.stats'] });
+      void queryClient.invalidateQueries({ queryKey: ['controls.tasks', tenantId] });
+      void queryClient.invalidateQueries({ queryKey: ['controls.stats', tenantId] });
     },
   });
 
@@ -837,8 +839,8 @@ export function ChecklistExecutionModal({
     mutationFn: (body: Record<string, unknown>) =>
       api.patch(`/api/v1/controls/tasks/${taskId}`, body),
     onSuccess: (_, vars) => {
-      void queryClient.invalidateQueries({ queryKey: ['controls.tasks'] });
-      void queryClient.invalidateQueries({ queryKey: ['controls.stats'] });
+      void queryClient.invalidateQueries({ queryKey: ['controls.tasks', tenantId] });
+      void queryClient.invalidateQueries({ queryKey: ['controls.stats', tenantId] });
       const result = vars['resultJson'] as TaskResult | undefined;
       setLastCompliant(result?.overallCompliant ?? true);
       setSuccess(true);

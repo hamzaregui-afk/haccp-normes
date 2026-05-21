@@ -13,6 +13,7 @@ import { showToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
 import { exportCSV, importFile } from '@/lib/csv';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useTenantId } from '@/hooks/useTenantId';
 import type { ApiResponse, Equipment } from '@haccp/shared-types';
 
 // ─── Temperature badge ────────────────────────────────────────────────────────
@@ -137,9 +138,10 @@ export default function EquipmentsPage() {
 
   const queryClient     = useQueryClient();
   const debouncedSearch = useDebounce(search, 400);
+  const tenantId        = useTenantId();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['equipments', page, debouncedSearch, typeFilter],
+    queryKey: ['equipments', tenantId, page, debouncedSearch, typeFilter],
     queryFn: async () => {
       const p = new URLSearchParams({ page: String(page), limit: '20' });
       if (debouncedSearch) p.set('search', debouncedSearch);
@@ -153,7 +155,7 @@ export default function EquipmentsPage() {
   const createMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => api.post('/api/v1/equipments', body),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['equipments'] });
+      void queryClient.invalidateQueries({ queryKey: ['equipments', tenantId] });
       setModalOpen(false);
     },
   });
@@ -162,14 +164,14 @@ export default function EquipmentsPage() {
     mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
       api.patch(`/api/v1/equipments/${id}`, body),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['equipments'] });
+      void queryClient.invalidateQueries({ queryKey: ['equipments', tenantId] });
       setModalOpen(false);
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/equipments/${id}`),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['equipments'] }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['equipments', tenantId] }),
     onError: () => showToast({ title: 'Erreur lors de la suppression', variant: 'error' }),
   });
 
@@ -241,7 +243,7 @@ export default function EquipmentsPage() {
           fail++;
         }
       }
-      void queryClient.invalidateQueries({ queryKey: ['equipments'] });
+      void queryClient.invalidateQueries({ queryKey: ['equipments', tenantId] });
       showToast({
         title: `Import terminé : ${ok} ligne(s) importée(s)${fail ? `, ${fail} ignorée(s)` : ''}`,
         variant: fail && ok === 0 ? 'error' : fail ? 'warning' : 'success',

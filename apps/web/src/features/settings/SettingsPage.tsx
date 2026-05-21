@@ -9,6 +9,7 @@ import { Modal } from '@/components/ui/Modal';
 import { ServicesHealth } from '@/components/shared/ServicesHealth';
 import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/lib/api';
+import { useTenantId } from '@/hooks/useTenantId';
 
 // ─── Change password modal ────────────────────────────────────────────────────
 
@@ -153,6 +154,7 @@ export default function SettingsPage() {
   const currentUser = useAuthStore((s) => s.user);
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
   const [showPwdModal, setShowPwdModal] = useState(false);
+  const tenantId = useTenantId();
 
   const [toast, setToast]           = useState<string | null>(null);
   const [notifyNc, setNotifyNc]     = useState(false);
@@ -160,7 +162,7 @@ export default function SettingsPage() {
   const [notifyDlc, setNotifyDlc]   = useState(false);
 
   const { data: tenantData, isLoading } = useQuery({
-    queryKey: ['tenant', 'me'],
+    queryKey: ['tenant', tenantId, 'me'],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<TenantSettings>>('/api/v1/tenants/me');
       return data.data;
