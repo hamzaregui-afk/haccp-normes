@@ -413,17 +413,15 @@ jobs:
             # Building first ensures every container uses a fresh, verified image.
             DOCKER_BUILDKIT=1 docker compose build --parallel
 
-            # ── nginx reload AFTER build (images are valid now) ──────────────────
-            echo "=== Fast-path: testing and reloading nginx ==="
-            if docker exec haccp-gateway nginx -t 2>&1; then
-              docker exec haccp-gateway nginx -s reload && echo "nginx reloaded instantly" || echo "reload signal sent"
-            else
-              echo "nginx config invalid — check errors above"
-            fi
-            echo "=== Force-recreating gateway to guarantee new config is loaded ==="
-            docker compose up -d --force-recreate api-gateway
-            sleep 3
-
+            # ── Start all services with the freshly built images ──────────────────
+            # ARCH-DECISION: We skip the inline nginx -t fast-path here because
+            # the gateway container may be stopped (failed prior deploy). A
+            # `docker exec` on a stopped container exits non-zero and, inside
+            # the appleboy SSH action with script_stop:true, aborts the script
+            # even when the command is the condition of an `if` statement.
+            # The `--force-recreate api-gateway` below rebuilds the container
+            # from the freshly built image — that IS the safe nginx reload.
+            echo "=== Starting all services with new images ==="
             docker compose up -d --remove-orphans
 
             echo "=== Waiting 30s for services to start ==="
