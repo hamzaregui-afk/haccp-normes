@@ -58,7 +58,8 @@ export class SupplierService {
 
   async update(id: string, dto: UpdateSupplierDto, tenantId: string) {
     await this.findOne(id, tenantId);
-    const supplier = await this.prisma.supplier.update({ where: { id }, data: dto });
+    // ARCH-DECISION: Double-scoped where for defense-in-depth.
+    const supplier = await this.prisma.supplier.update({ where: { id, tenantId }, data: dto });
     return toApiResponse(supplier);
   }
 
@@ -71,11 +72,13 @@ export class SupplierService {
     });
     if (linked > 0) {
       // Soft-delete instead of hard delete when products are linked
-      await this.prisma.supplier.update({ where: { id }, data: { isActive: false } });
+      // ARCH-DECISION: Double-scoped where for defense-in-depth.
+      await this.prisma.supplier.update({ where: { id, tenantId }, data: { isActive: false } });
       return toApiResponse(supplier, undefined, 'Fournisseur désactivé (produits liés conservés)');
     }
 
-    await this.prisma.supplier.delete({ where: { id } });
+    // ARCH-DECISION: Double-scoped where for defense-in-depth.
+    await this.prisma.supplier.delete({ where: { id, tenantId } });
     return toApiResponse(null, undefined, 'Fournisseur supprimé');
   }
 }

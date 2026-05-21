@@ -72,7 +72,10 @@ export class GroupService {
 
   async remove(id: string, tenantId: string) {
     await this.findOne(id, tenantId);
-    await this.prisma.group.delete({ where: { id } });
+    // ARCH-DECISION: Double-scoped where for defense-in-depth — findOne already
+    // validates tenantId, but an explicit tenantId here ensures the DELETE itself
+    // cannot touch a row in another tenant if the Prisma client is ever misused.
+    await this.prisma.group.delete({ where: { id, tenantId } });
     return toApiResponse(null, undefined, 'Group deleted');
   }
 }

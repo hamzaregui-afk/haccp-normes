@@ -71,6 +71,13 @@ export const useAuthStore = create<AuthState>()(
           // Intentionally swallow — user must always be able to log out locally
         } finally {
           set({ accessToken: null, refreshToken: null, user: null });
+          // ARCH-DECISION: Wipe the entire React Query cache on logout so that
+          // stale data from one tenant session can never flash or leak to the
+          // next authenticated user (even if they share the same browser tab).
+          // Dynamic import avoids a circular dependency between the store and
+          // the QueryProvider module at load time.
+          const { queryClient } = await import('@/lib/queryClient');
+          queryClient.clear();
         }
       },
 

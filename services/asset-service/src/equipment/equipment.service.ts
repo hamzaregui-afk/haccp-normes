@@ -54,13 +54,15 @@ export class EquipmentService {
 
   async update(id: string, dto: UpdateEquipmentDto, tenantId: string) {
     await this.findOne(id, tenantId);
-    const equipment = await this.prisma.equipment.update({ where: { id }, data: dto });
+    // ARCH-DECISION: Double-scoped where for defense-in-depth.
+    const equipment = await this.prisma.equipment.update({ where: { id, tenantId }, data: dto });
     return toApiResponse(equipment);
   }
 
   async remove(id: string, tenantId: string) {
     await this.findOne(id, tenantId);
-    await this.prisma.equipment.update({ where: { id }, data: { isActive: false } });
+    // ARCH-DECISION: Double-scoped where for defense-in-depth.
+    await this.prisma.equipment.update({ where: { id, tenantId }, data: { isActive: false } });
     return toApiResponse(null, undefined, 'Équipement désactivé');
   }
 }

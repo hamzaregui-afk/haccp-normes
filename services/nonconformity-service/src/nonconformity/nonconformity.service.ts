@@ -118,8 +118,11 @@ export class NonconformityService {
         ? new Date()
         : undefined;
 
+    // ARCH-DECISION: Double-scoped where for defense-in-depth — existing check
+    // already validates tenantId ownership, but re-including it in the UPDATE
+    // ensures the mutation cannot affect a row in another tenant.
     const updated = await this.prisma.nonConformity.update({
-      where: { id },
+      where: { id, tenantId },
       data: {
         ...(dto.status           !== undefined ? { status:           dto.status }           : {}),
         ...(dto.correctiveAction !== undefined ? { correctiveAction: dto.correctiveAction } : {}),
@@ -152,7 +155,8 @@ export class NonconformityService {
     }
 
     // NCPhoto rows cascade via Prisma relation — hard delete
-    await this.prisma.nonConformity.delete({ where: { id } });
+    // ARCH-DECISION: Double-scoped where for defense-in-depth.
+    await this.prisma.nonConformity.delete({ where: { id, tenantId } });
 
     return toApiResponse(null, undefined, 'Non-conformity deleted successfully');
   }

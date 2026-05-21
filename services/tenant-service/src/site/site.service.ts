@@ -49,14 +49,16 @@ export class SiteService {
   async update(id: string, dto: UpdateSiteDto, tenantId: string) {
     const site = await this.prisma.site.findFirst({ where: { id, tenantId } });
     if (!site) throw new NotFoundException(`Site ${id} not found`);
-    const updated = await this.prisma.site.update({ where: { id }, data: dto });
+    // ARCH-DECISION: Double-scoped where for defense-in-depth.
+    const updated = await this.prisma.site.update({ where: { id, tenantId }, data: dto });
     return toApiResponse(updated, undefined, 'Site updated');
   }
 
   async remove(id: string, tenantId: string) {
     const site = await this.prisma.site.findFirst({ where: { id, tenantId } });
     if (!site) throw new NotFoundException(`Site ${id} not found`);
-    await this.prisma.site.delete({ where: { id } });
+    // ARCH-DECISION: Double-scoped where for defense-in-depth.
+    await this.prisma.site.delete({ where: { id, tenantId } });
     return toApiResponse(null, undefined, 'Site deleted');
   }
 
@@ -67,7 +69,9 @@ export class SiteService {
     const zone = await this.prisma.zone.findFirst({ where: { id: zoneId, siteId } });
     if (!zone) throw new NotFoundException(`Zone ${zoneId} not found`);
 
-    const updated = await this.prisma.zone.update({ where: { id: zoneId }, data: dto });
+    // ARCH-DECISION: Double-scoped with siteId (zones have no tenantId column —
+    // tenant isolation is enforced via the parent site ownership check above).
+    const updated = await this.prisma.zone.update({ where: { id: zoneId, siteId }, data: dto });
     return toApiResponse(updated, undefined, 'Zone updated');
   }
 
@@ -78,7 +82,8 @@ export class SiteService {
     const zone = await this.prisma.zone.findFirst({ where: { id: zoneId, siteId } });
     if (!zone) throw new NotFoundException(`Zone ${zoneId} not found`);
 
-    await this.prisma.zone.delete({ where: { id: zoneId } });
+    // ARCH-DECISION: Double-scoped with siteId (same rationale as updateZone above).
+    await this.prisma.zone.delete({ where: { id: zoneId, siteId } });
     return toApiResponse(null, undefined, 'Zone deleted');
   }
 }

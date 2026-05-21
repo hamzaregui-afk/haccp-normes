@@ -74,8 +74,9 @@ export class ProductService {
 
   async update(id: string, dto: UpdateProductDto, tenantId: string) {
     await this.findOne(id, tenantId);
+    // ARCH-DECISION: Double-scoped where for defense-in-depth.
     const product = await this.prisma.product.update({
-      where: { id },
+      where: { id, tenantId },
       data: dto,
       include: { supplier: { select: { id: true, name: true, code: true } } },
     });
@@ -85,7 +86,8 @@ export class ProductService {
   async remove(id: string, tenantId: string) {
     await this.findOne(id, tenantId);
     // Soft delete — products may be referenced in NC history
-    await this.prisma.product.update({ where: { id }, data: { isActive: false } });
+    // ARCH-DECISION: Double-scoped where for defense-in-depth.
+    await this.prisma.product.update({ where: { id, tenantId }, data: { isActive: false } });
     return toApiResponse(null, undefined, 'Produit désactivé');
   }
 }

@@ -113,8 +113,12 @@ export class ReportService {
       }
     }
 
+    // ARCH-DECISION: Double-scoped where for defense-in-depth — existing check
+    // already validates tenantId ownership, but re-including it in the UPDATE
+    // ensures the mutation cannot affect a row in another tenant under any
+    // condition (misused Prisma client, race condition, etc.).
     const updated = await this.prisma.report.update({
-      where: { id },
+      where: { id, tenantId },
       data,
     });
 
@@ -135,7 +139,8 @@ export class ReportService {
         `Only PENDING reports can be deleted. Current status: ${report.status}`,
       );
     }
-    await this.prisma.report.delete({ where: { id } });
+    // ARCH-DECISION: Double-scoped where — same pattern as update() above.
+    await this.prisma.report.delete({ where: { id, tenantId } });
     return toApiResponse(null, undefined, 'Report deleted successfully');
   }
 
