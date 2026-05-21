@@ -75,19 +75,31 @@ export class NonconformityService {
   // ── Create ────────────────────────────────────────────────────────────────
 
   async create(dto: CreateNcDto, tenantId: string, reporterId: string) {
-    // ARCH-DECISION: reference generation + insert run in a single SERIALIZABLE transaction
-    // so that concurrent requests cannot receive the same NC-YYYY-NNNN sequence number.
+    this.logger.log(
+      `[NC create] tenantId=${tenantId} reporter=${reporterId} siteId=${dto.siteId} severity=${dto.severity}`,
+    );
+
+    // ARCH-DECISION: reference generation + insert run in a single SERIALIZABLE
+    // transaction so concurrent requests cannot receive the same per-tenant
+    // NC-YYYY-NNNN sequence number.
+    //
+    // Reference uniqueness: @@unique([reference, tenantId]) — the same reference
+    // can exist in different tenants (each tenant has their own NC-0001).
+    // The old global @unique caused P2002 when a second tenant tried to create
+    // its first NC (both got NC-YYYY-0001, but the index only allowed one globally).
     const nc = await this.prisma.$transaction(async (tx) => {
       const reference = await this.generateReference(tx, tenantId);
+      this.logger.debug(`[NC create] generated reference=${reference} for tenant=${tenantId}`);
+
       return tx.nonConformity.create({
         data: {
           reference,
           tenantId,
           siteId:           dto.siteId,
-          productId:        dto.productId,
+          productId:        dto.productId ?? null,
           reporterId,
           description:      dto.description,
-          correctiveAction: dto.correctiveAction,
+          correctiveAction: dto.correctiveAction ?? null,
           severity:         dto.severity ?? NCSeverity.MEDIUM,
           category:         dto.category ?? NCCategory.OTHER,
           status:           NCStatus.OPEN,
@@ -96,7 +108,7 @@ export class NonconformityService {
       });
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
-    this.logger.log(`Created NonConformity ${nc.reference} for tenant ${tenantId}`);
+    this.logger.log(`[NC create] ✅ created ${nc.reference} (id=${nc.id}) for tenant=${tenantId}`);
     return toApiResponse(nc as NcWithPhotos, undefined, 'Non-conformity created successfully');
   }
 
