@@ -393,19 +393,6 @@ jobs:
             echo "=== Git commit on server after pull ==="
             git log --oneline -3
 
-            # ── INSTANT nginx reload FIRST ────────────────────────────────────────
-            # Tests config validity then reloads. If reload fails, force-recreates
-            # the container so the new nginx.conf takes effect either way.
-            echo "=== Fast-path: testing and reloading nginx ==="
-            if docker exec haccp-gateway nginx -t 2>&1; then
-              docker exec haccp-gateway nginx -s reload && echo "nginx reloaded instantly" || echo "reload signal sent"
-            else
-              echo "nginx config invalid — check errors above"
-            fi
-            echo "=== Force-recreating gateway to guarantee new config is loaded ==="
-            docker compose up -d --force-recreate api-gateway
-            sleep 3
-
             echo "=== Fixing web .env (VITE_API_URL pinned to port 80 to bypass ISP POST blocking) ==="
             # ARCH-DECISION: Pin VITE_API_URL to http://IP (port 80) explicitly.
             # The SPA is accessible on port 3001 (redirect) and port 80. When the
@@ -417,7 +404,25 @@ jobs:
             printf 'VITE_API_URL=https://178.105.126.165\nVITE_WS_URL=\n' > apps/web/.env
             echo "apps/web/.env written: $(cat apps/web/.env)"
 
+            # ARCH-DECISION: Build BEFORE starting/recreating any containers.
+            # Previously, the gateway --force-recreate ran first, which triggered
+            # docker compose to start control-service (api-gateway depends on it).
+            # If the existing image was broken (e.g. a missing module from a prior
+            # failed deploy), the start would fail and set -e would abort the script
+            # before the build could produce a working image — a deadlock.
+            # Building first ensures every container uses a fresh, verified image.
             DOCKER_BUILDKIT=1 docker compose build --parallel
+
+            # ── nginx reload AFTER build (images are valid now) ──────────────────
+            echo "=== Fast-path: testing and reloading nginx ==="
+            if docker exec haccp-gateway nginx -t 2>&1; then
+              docker exec haccp-gateway nginx -s reload && echo "nginx reloaded instantly" || echo "reload signal sent"
+            else
+              echo "nginx config invalid — check errors above"
+            fi
+            echo "=== Force-recreating gateway to guarantee new config is loaded ==="
+            docker compose up -d --force-recreate api-gateway
+            sleep 3
 
             docker compose up -d --remove-orphans
 
