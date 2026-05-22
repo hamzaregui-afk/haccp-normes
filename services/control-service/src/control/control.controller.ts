@@ -199,6 +199,12 @@ export class ControlController {
     return this.controlService.getStats(user.tenantId);
   }
 
+  @Get('nc-controls')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'VIEWER')
+  getRecentNcControls(@CurrentUser() user: JwtPayload) {
+    return this.controlService.getRecentNcControls(user.tenantId);
+  }
+
   // ─── Photos ────────────────────────────────────────────────────────────────
 
   @Post('tasks/:id/photos')

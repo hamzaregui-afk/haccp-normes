@@ -273,19 +273,32 @@ export class ControlService {
   }
 
   async getStats(tenantId: string) {
-    const now        = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-    const endOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const now          = new Date();
+    const startOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const endOfDay     = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
 
     const todayWhere = {
       tenantId,
       scheduledAt: { gte: startOfDay, lte: endOfDay },
     };
 
-    const [todayTotal, todayCompleted, openOverdue] = await Promise.all([
+    // ARCH-DECISION: ncControlsThisMonth counts COMPLETED tasks where the
+    // operator submitted resultJson with overallCompliant: false. This is
+    // distinct from the compliance rate (completed/planned) — it measures
+    // actual quality failures, not just scheduling execution.
+    const [todayTotal, todayCompleted, openOverdue, ncControlsThisMonth] = await Promise.all([
       this.prisma.controlTask.count({ where: todayWhere }),
       this.prisma.controlTask.count({ where: { ...todayWhere, status: TaskStatus.COMPLETED } }),
       this.prisma.controlTask.count({ where: { tenantId, status: TaskStatus.OVERDUE } }),
+      this.prisma.controlTask.count({
+        where: {
+          tenantId,
+          status:       TaskStatus.COMPLETED,
+          completedAt:  { gte: startOfMonth },
+          resultJson:   { path: ['overallCompliant'], equals: false },
+        },
+      }),
     ]);
 
     // ARCH-DECISION: complianceRate is calculated over today's tasks only.
@@ -294,7 +307,31 @@ export class ControlService {
       ? 100
       : Math.round((todayCompleted / todayTotal) * 100);
 
-    return toApiResponse({ todayTotal, todayCompleted, openOverdue, complianceRate });
+    return toApiResponse({ todayTotal, todayCompleted, openOverdue, complianceRate, ncControlsThisMonth });
+  }
+
+  /**
+   * Returns the last 10 COMPLETED tasks where resultJson.overallCompliant is false.
+   * Used by the dashboard "Recent NC Controls" widget.
+   */
+  async getRecentNcControls(tenantId: string) {
+    const tasks = await this.prisma.controlTask.findMany({
+      where: {
+        tenantId,
+        status:     TaskStatus.COMPLETED,
+        resultJson: { path: ['overallCompliant'], equals: false },
+      },
+      orderBy: { completedAt: 'desc' },
+      take: 10,
+      select: {
+        id:          true,
+        zoneId:      true,
+        completedAt: true,
+        resultJson:  true,
+        template:    { select: { id: true, name: true } },
+      },
+    });
+    return toApiResponse(tasks);
   }
 
   // ─── Photos ────────────────────────────────────────────────────────────────

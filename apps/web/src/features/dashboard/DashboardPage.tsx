@@ -1,5 +1,5 @@
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Calendar, CheckCircle2, Clock, ShieldCheck, Tag, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Calendar, CheckCircle2, Clock, ShieldAlert, ShieldCheck, Tag, TrendingUp } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -23,10 +23,11 @@ import type { ApiResponse, UserRole } from '@haccp/shared-types';
 // ─── API shapes ───────────────────────────────────────────────────────────────
 
 interface ControlStats {
-  todayTotal: number;
-  todayCompleted: number;
-  openOverdue: number;
-  complianceRate: number;
+  todayTotal:           number;
+  todayCompleted:       number;
+  openOverdue:          number;
+  complianceRate:       number;
+  ncControlsThisMonth:  number;
 }
 
 interface NcStats {
@@ -47,9 +48,18 @@ interface NcItem {
 }
 
 interface ControlTask {
-  id: string;
-  createdAt: string;
-  status: string; // e.g. "DONE", "PENDING", "OVERDUE"
+  id:         string;
+  createdAt:  string;
+  status:     string;
+  resultJson: { overallCompliant: boolean } | null;
+}
+
+interface NcControl {
+  id:          string;
+  zoneId:      string;
+  completedAt: string | null;
+  resultJson:  { overallCompliant: boolean; ncComment?: string; items?: unknown[] } | null;
+  template:    { id: string; name: string } | null;
 }
 
 // ─── Chart helper functions ───────────────────────────────────────────────────
@@ -109,27 +119,37 @@ function groupByMonth(
   }));
 }
 
-/** Computes monthly compliance rate (DONE tasks / total tasks) * 100. */
+/**
+ * Computes monthly compliance rate from resultJson.overallCompliant.
+ *
+ * ARCH-DECISION: We use resultJson.overallCompliant (true/false per submission)
+ * as the numerator, not task.status === 'COMPLETED'. A task can be COMPLETED
+ * with overallCompliant: false (e.g. temperature out of range). Using just
+ * completion status would over-count conformant controls.
+ *
+ * Rate = overallCompliant:true / COMPLETED tasks per month.
+ * Non-completed tasks (PLANNED, OVERDUE…) are excluded from the denominator.
+ */
 function computeComplianceByMonth(
   tasks: ControlTask[],
   monthKeys: string[],
   monthLabels: string[],
 ): { month: string; rate: number }[] {
-  const totals: Record<string, number> = {};
-  const done: Record<string, number> = {};
-  for (const key of monthKeys) { totals[key] = 0; done[key] = 0; }
+  const completed: Record<string, number>  = {};
+  const conformant: Record<string, number> = {};
+  for (const key of monthKeys) { completed[key] = 0; conformant[key] = 0; }
 
   for (const task of tasks) {
+    if (task.status !== 'COMPLETED') continue;
     const key = toMonthKey(new Date(task.createdAt));
-    if (key in totals) {
-      totals[key]++;
-      if (task.status === 'COMPLETED') done[key]++; // matches TaskStatusSchema enum
-    }
+    if (!(key in completed)) continue;
+    completed[key]++;
+    if (task.resultJson?.overallCompliant === true) conformant[key]++;
   }
 
   return monthKeys.map((key, idx) => ({
     month: monthLabels[idx],
-    rate: totals[key] > 0 ? Math.round((done[key] / totals[key]) * 1000) / 10 : 0,
+    rate:  completed[key] > 0 ? Math.round((conformant[key] / completed[key]) * 1000) / 10 : 0,
   }));
 }
 
@@ -335,6 +355,76 @@ const NC_STATUS_LABEL: Record<string, string> = {
   REJECTED:    'Rejetée',
 };
 
+// ─── Recent NC Controls widget ────────────────────────────────────────────────
+
+function RecentNcControlsWidget({ zoneMap }: { zoneMap: Record<string, string> }) {
+  const tenantId = useTenantId();
+  const { data, isLoading } = useQuery({
+    queryKey: ['controls.nc-controls', tenantId],
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<NcControl[]>>('/api/v1/controls/nc-controls');
+      return data.data ?? [];
+    },
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  return (
+    <div className="rounded-xl border border-surface-muted bg-white p-6 shadow-sm">
+      <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-700">
+        <ShieldAlert className="h-4 w-4 text-red-500" />
+        Derniers contrôles non conformes
+      </h3>
+      {isLoading ? (
+        <div className="space-y-2">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-10 animate-pulse rounded bg-surface-page" />
+          ))}
+        </div>
+      ) : (data ?? []).length === 0 ? (
+        <div className="flex h-32 items-center justify-center gap-2 text-sm text-green-600">
+          <CheckCircle2 className="h-4 w-4" />
+          Aucun contrôle non conforme récent ✅
+        </div>
+      ) : (
+        <ul className="divide-y divide-surface-muted">
+          {(data ?? []).map((ctrl) => {
+            const zone      = zoneMap[ctrl.zoneId] ?? ctrl.zoneId;
+            const ncComment = ctrl.resultJson?.ncComment;
+            const completedAt = ctrl.completedAt
+              ? new Date(ctrl.completedAt).toLocaleString('fr-FR', {
+                  day: '2-digit', month: '2-digit',
+                  hour: '2-digit', minute: '2-digit',
+                })
+              : '—';
+            return (
+              <li key={ctrl.id} className="py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-gray-800">
+                      {ctrl.template?.name ?? 'Contrôle'}
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-400">
+                      Zone : {zone} · {completedAt}
+                    </p>
+                    {ncComment && (
+                      <p className="mt-1 line-clamp-1 text-xs text-red-600">
+                        ↳ {ncComment}
+                      </p>
+                    )}
+                  </div>
+                  <span className="shrink-0 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">
+                    NC
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -386,13 +476,31 @@ export default function DashboardPage() {
   const complianceChartQuery = useQuery({
     queryKey: ['controls.chart.monthly', tenantId],
     queryFn: async () => {
+      // fetch up to 200 tasks to cover 6-month compliance history
       const { data } = await api.get<ApiResponse<ControlTask[]>>(
-        '/api/v1/controls/tasks?limit=100',
+        '/api/v1/controls/tasks?limit=200',
       );
       return data.data;
     },
     refetchInterval: 5 * 60 * 1000,
   });
+
+  // ── Zone map (id → name) for NC controls widget ────────────────────────────
+  const zonesQuery = useQuery({
+    queryKey: ['zones.list', tenantId],
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<{ id: string; name: string }[]>>(
+        '/api/v1/tenants/zones?limit=200',
+      );
+      return data.data ?? [];
+    },
+    staleTime: 10 * 60 * 1000, // zones don't change often
+  });
+
+  const zoneMap: Record<string, string> = (zonesQuery.data ?? []).reduce<Record<string, string>>(
+    (acc, z) => { acc[z.id] = z.name; return acc; },
+    {},
+  );
 
   // ── Pre-compute chart data (memoised via derived constants) ────────────────
   const monthKeys   = getLast6MonthKeys();
@@ -432,7 +540,7 @@ export default function DashboardPage() {
         {!isOperator && (
           <>
         {/* ── KPI cards ── */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <KpiCard
             label="Contrôles du jour"
             value={cs ? `${cs.todayCompleted} / ${cs.todayTotal}` : '—'}
@@ -466,6 +574,15 @@ export default function DashboardPage() {
             icon={TrendingUp}
             color="text-brand-dark"
             bg="bg-brand-lighter"
+            loading={loading}
+          />
+          <KpiCard
+            label="Contrôles NC ce mois"
+            value={cs?.ncControlsThisMonth ?? '—'}
+            sub="Contrôles complétés non conformes"
+            icon={ShieldAlert}
+            color={cs?.ncControlsThisMonth ? 'text-red-600' : 'text-gray-400'}
+            bg={cs?.ncControlsThisMonth ? 'bg-red-50' : 'bg-surface-page'}
             loading={loading}
           />
         </div>
@@ -504,35 +621,8 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Controls summary */}
-          <div className="rounded-xl border border-surface-muted bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-sm font-semibold text-gray-700">Résumé des contrôles</h3>
-            {loading ? (
-              <div className="space-y-3">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="h-6 animate-pulse rounded bg-surface-page" />
-                ))}
-              </div>
-            ) : cs ? (
-              <dl className="space-y-3">
-                {[
-                  { label: 'Planifiés aujourd\'hui', value: cs.todayTotal, color: 'text-gray-700' },
-                  { label: 'Complétés', value: cs.todayCompleted, color: 'text-green-600' },
-                  { label: 'En retard', value: cs.openOverdue, color: cs.openOverdue > 0 ? 'text-red-600' : 'text-gray-400' },
-                  { label: 'Taux conformité', value: `${cs.complianceRate}%`, color: 'text-brand-dark' },
-                ].map((row) => (
-                  <div key={row.label} className="flex items-center justify-between rounded-lg bg-surface-page px-3 py-2">
-                    <dt className="text-sm text-gray-500">{row.label}</dt>
-                    <dd className={`text-sm font-semibold ${row.color}`}>{row.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            ) : (
-              <div className="flex h-32 items-center justify-center text-sm text-gray-400">
-                Données indisponibles
-              </div>
-            )}
-          </div>
+          {/* Recent NC controls */}
+          <RecentNcControlsWidget zoneMap={zoneMap} />
         </div>
 
         {/* ── DLC expiry alert widget ── */}
