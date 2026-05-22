@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import {
   AlertTriangle,
   Camera,
@@ -26,17 +25,7 @@ import { showToast } from '@/components/ui/Toast';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTenantId } from '@/hooks/useTenantId';
 import { api } from '@/lib/api';
-
-// ─── Error helpers ────────────────────────────────────────────────────────────
-
-function extractApiMessage(error: unknown): string {
-  if (axios.isAxiosError(error)) {
-    const data = error.response?.data as Record<string, unknown> | undefined;
-    if (typeof data?.message === 'string') return data.message;
-    if (Array.isArray(data?.message))      return (data.message as string[]).join(', ');
-  }
-  return 'Une erreur est survenue. Veuillez réessayer.';
-}
+import { extractApiMessage } from '@/lib/utils';
 
 // ─── Domain types ────────────────────────────────────────────────────────────
 

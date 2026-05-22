@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Edit2, Eye, EyeOff, Filter, Key, Plus, Search, Trash2, UserPlus } from 'lucide-react';
 import { useState } from 'react';
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { api } from '@/lib/api';
+import { extractApiMessage } from '@/lib/utils';
 import { showToast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/store/auth.store';
 import { useTenantId } from '@/hooks/useTenantId';
@@ -51,14 +52,14 @@ const STATUS_FILTER_OPTIONS = [
 
 // ─── API error helper ─────────────────────────────────────────────────────────
 
+// Wraps the shared extractApiMessage with domain-specific HTTP status overrides
+// for the user-creation flow (409 = duplicate email, 400 = validation).
 function apiErrorMessage(err: unknown): string {
-  if (axios.isAxiosError(err)) {
-    const msg = err.response?.data?.message;
-    if (msg) return Array.isArray(msg) ? (msg as string[]).join(', ') : String(msg);
+  if (isAxiosError(err) && !err.response?.data?.message) {
     if (err.response?.status === 409) return 'Cette adresse e-mail est déjà utilisée.';
     if (err.response?.status === 400) return 'Données invalides. Vérifiez le formulaire.';
   }
-  return 'Une erreur est survenue. Réessayez.';
+  return extractApiMessage(err);
 }
 
 // ─── useUsers hook ────────────────────────────────────────────────────────────

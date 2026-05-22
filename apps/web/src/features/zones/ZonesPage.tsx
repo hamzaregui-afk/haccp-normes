@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { showToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
+import { extractApiMessage } from '@/lib/utils';
 import { useTenantId } from '@/hooks/useTenantId';
 import type { ApiResponse } from '@haccp/shared-types';
 
@@ -109,16 +110,6 @@ type ModalState =
   | { kind: 'createZone'; site: Site }
   | { kind: 'editZone';   site: Site; zone: Zone };
 
-// ─── Inline error ──────────────────────────────────────────────────────────────
-
-function apiErrorMessage(err: unknown): string {
-  if (err && typeof err === 'object' && 'response' in err) {
-    const r = (err as { response?: { data?: { message?: string } } }).response;
-    if (r?.data?.message) return String(r.data.message);
-  }
-  return 'Une erreur est survenue.';
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ZonesPage() {
@@ -153,20 +144,20 @@ export default function ZonesPage() {
   const createSiteMutation = useMutation({
     mutationFn: (body: SiteFormValues) => api.post('/api/v1/sites', body),
     onSuccess:  () => { refresh(); closeModal(); },
-    onError:    (e) => setApiError(apiErrorMessage(e)),
+    onError:    (e) => setApiError(extractApiMessage(e)),
   });
 
   const updateSiteMutation = useMutation({
     mutationFn: ({ id, body }: { id: string; body: SiteFormValues }) =>
       api.patch(`/api/v1/sites/${id}`, body),
     onSuccess:  () => { refresh(); closeModal(); },
-    onError:    (e) => setApiError(apiErrorMessage(e)),
+    onError:    (e) => setApiError(extractApiMessage(e)),
   });
 
   const deleteSiteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/sites/${id}`),
     onSuccess:  () => { refresh(); showToast({ title: 'Site supprimé', variant: 'success' }); },
-    onError:    (e) => showToast({ title: apiErrorMessage(e), variant: 'error' }),
+    onError:    (e) => showToast({ title: extractApiMessage(e), variant: 'error' }),
   });
 
   // ── Zone mutations ──────────────────────────────────────────────────────────
@@ -175,21 +166,21 @@ export default function ZonesPage() {
     mutationFn: ({ siteId, name }: { siteId: string; name: string }) =>
       api.post(`/api/v1/sites/${siteId}/zones`, { name }),
     onSuccess:  () => { refresh(); closeModal(); },
-    onError:    (e) => setApiError(apiErrorMessage(e)),
+    onError:    (e) => setApiError(extractApiMessage(e)),
   });
 
   const updateZoneMutation = useMutation({
     mutationFn: ({ siteId, zoneId, name }: { siteId: string; zoneId: string; name: string }) =>
       api.patch(`/api/v1/sites/${siteId}/zones/${zoneId}`, { name }),
     onSuccess:  () => { refresh(); closeModal(); },
-    onError:    (e) => setApiError(apiErrorMessage(e)),
+    onError:    (e) => setApiError(extractApiMessage(e)),
   });
 
   const deleteZoneMutation = useMutation({
     mutationFn: ({ siteId, zoneId }: { siteId: string; zoneId: string }) =>
       api.delete(`/api/v1/sites/${siteId}/zones/${zoneId}`),
     onSuccess:  () => { refresh(); showToast({ title: 'Zone supprimée', variant: 'success' }); },
-    onError:    (e) => showToast({ title: apiErrorMessage(e), variant: 'error' }),
+    onError:    (e) => showToast({ title: extractApiMessage(e), variant: 'error' }),
   });
 
   // ── Modal title ─────────────────────────────────────────────────────────────

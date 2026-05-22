@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
@@ -21,6 +20,7 @@ import { Button } from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
 import { useTenantId } from '@/hooks/useTenantId';
 import { api } from '@/lib/api';
+import { extractApiMessage, isRenderableUrl } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
 import type { ApiResponse } from '@haccp/shared-types';
 import type {
@@ -29,17 +29,6 @@ import type {
   TaskResult,
   TaskResultItem,
 } from './types';
-
-// ─── Error helper ─────────────────────────────────────────────────────────────
-
-function extractApiMessage(error: unknown): string {
-  if (axios.isAxiosError(error)) {
-    const msg = (error.response?.data as { message?: string })?.message;
-    return msg ?? error.message;
-  }
-  if (error instanceof Error) return error.message;
-  return 'Une erreur inattendue est survenue';
-}
 
 // ─── Constants ──────────────────────────────────────────────────────────────────
 
@@ -118,16 +107,23 @@ function hasValue(v: boolean | number | string | null | undefined): boolean {
   return v !== null && v !== undefined && v !== '';
 }
 
-/** Compress an image File to a base64 JPEG at max 800px wide, 70% quality. */
-async function compressImage(file: File, maxWidth = 800): Promise<string> {
+/**
+ * Compress an image File to a JPEG Blob at max 800px wide, 70% quality.
+ *
+ * ARCH-DECISION: Returns a Blob directly via canvas.toBlob() instead of a
+ * base64 data URL. This avoids the toDataURL → atob decode round-trip, which
+ * encodes ~33% more bytes than needed and blocks the main thread while
+ * encoding. Photos go directly into FormData for the MinIO upload.
+ */
+async function compressImageToBlob(file: File, maxWidth = 800): Promise<Blob> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
+    const img    = new Image();
     const reader = new FileReader();
     reader.onerror = reject;
-    reader.onload = (e) => {
-      img.src = e.target?.result as string;
+    reader.onload  = (e) => {
+      img.src     = e.target?.result as string;
       img.onerror = reject;
-      img.onload = () => {
+      img.onload  = () => {
         const ratio = Math.min(maxWidth / img.width, 1);
         const canvas = document.createElement('canvas');
         canvas.width  = Math.round(img.width  * ratio);
@@ -135,27 +131,15 @@ async function compressImage(file: File, maxWidth = 800): Promise<string> {
         const ctx = canvas.getContext('2d');
         if (!ctx) { reject(new Error('canvas 2d not supported')); return; }
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.70));
+        canvas.toBlob(
+          (blob) => (blob ? resolve(blob) : reject(new Error('canvas.toBlob failed'))),
+          'image/jpeg',
+          0.70,
+        );
       };
     };
     reader.readAsDataURL(file);
   });
-}
-
-/**
- * Convert a base64 data URL to a Blob so we can POST it as multipart/form-data.
- * ARCH-DECISION: Photos are uploaded to MinIO via POST /tasks/:id/photos before
- * the checklist is submitted. resultJson stores the presigned URL (a stable
- * string reference) rather than raw base64, keeping the PATCH payload small
- * and the DB row free of binary blobs.
- */
-function dataUrlToBlob(dataUrl: string): Blob {
-  const [header, b64] = dataUrl.split(',');
-  const mime  = header?.match(/:(.*?);/)?.[1] ?? 'image/jpeg';
-  const bytes = atob(b64 ?? '');
-  const arr   = new Uint8Array(bytes.length);
-  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-  return new Blob([arr], { type: mime });
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -228,19 +212,16 @@ function PhotoInput({
     setUploading(true);
     setUploadError(null);
     try {
-      // 1. Compress client-side (keeps upload fast on mobile)
-      const compressed = await compressImage(file);
-      // 2. Convert base64 → Blob → FormData for multipart POST
-      const blob     = dataUrlToBlob(compressed);
+      // Compress client-side first — keeps upload fast on mobile
+      const blob     = await compressImageToBlob(file);
       const formData = new FormData();
       formData.append('file', blob, 'photo.jpg');
-      // 3. Upload to MinIO via control-service
+      // axios detects FormData and sets Content-Type + boundary automatically
       const { data } = await api.post<{ data: { url: string } }>(
         `/api/v1/controls/tasks/${taskId}/photos`,
         formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } },
       );
-      // 4. Store the presigned URL — not base64 — in resultJson
+      // Store presigned URL in resultJson — not raw base64 — to keep the PATCH payload small
       onChange(data.data.url);
     } catch (err) {
       const msg = extractApiMessage(err);
@@ -252,8 +233,8 @@ function PhotoInput({
     }
   };
 
-  // Support both presigned HTTPS URLs (new) and data: URIs (legacy read-only)
-  const photoUrl = typeof value === 'string' && value.length > 0 ? value : null;
+  // Accept presigned HTTPS URLs (new) and legacy base64 data URIs (read-only view)
+  const photoUrl = typeof value === 'string' && isRenderableUrl(value) ? value : null;
 
   return (
     <div>
@@ -586,7 +567,7 @@ function ChecklistItemCard({
 
         {/* PHOTO */}
         {item.type === 'PHOTO' && (
-          <PhotoInput taskId={taskId} value={value} onChange={onChange} />
+          <PhotoInput key={taskId} taskId={taskId} value={value} onChange={onChange} />
         )}
 
         {/* SIGNATURE */}
@@ -686,7 +667,7 @@ function NonConformityPanel({
             </button>
           </div>
         ) : (
-          <PhotoInput taskId={taskId} value={null} onChange={(v) => onPhoto(typeof v === 'string' ? v : null)} />
+          <PhotoInput key={taskId} taskId={taskId} value={null} onChange={(v) => onPhoto(typeof v === 'string' ? v : null)} />
         )}
       </div>
     </div>
@@ -736,8 +717,7 @@ function ResultsView({ result }: { result: TaskResult }) {
             } else if (
               (item.type === 'PHOTO' || item.type === 'SIGNATURE') &&
               typeof item.value === 'string' &&
-              // Support both presigned HTTPS URLs (new) and legacy base64 data URIs
-              (item.value.startsWith('http') || item.value.startsWith('data:'))
+              isRenderableUrl(item.value)
             ) {
               displayValue = <img src={item.value} alt={item.type} className="h-16 rounded-lg border object-contain" />;
             } else if (item.type === 'DATE' && typeof item.value === 'string') {
@@ -784,7 +764,7 @@ function ResultsView({ result }: { result: TaskResult }) {
         <div className="rounded-xl border-2 border-red-200 bg-red-50 px-4 py-3">
           <p className="mb-1 text-xs font-bold uppercase tracking-wide text-red-700">Action corrective</p>
           <p className="text-sm text-red-900">{result.ncComment}</p>
-          {result.ncPhoto && (result.ncPhoto.startsWith('http') || result.ncPhoto.startsWith('data:')) && (
+          {result.ncPhoto && isRenderableUrl(result.ncPhoto) && (
             <img src={result.ncPhoto} alt="Photo NC" className="mt-2 h-24 rounded-xl object-cover border border-red-200" />
           )}
         </div>
