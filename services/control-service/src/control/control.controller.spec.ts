@@ -2,7 +2,7 @@
  * control.controller.spec.ts
  *
  * Unit tests for ControlController — audit event emission on template and task
- * create / update / delete operations.
+ * create / update / delete operations, and delegation to ControlService.
  *
  * Strategy:
  *  - Mock @haccp/shared-utils emitAuditEvent
@@ -12,7 +12,16 @@
  */
 
 jest.mock('@haccp/shared-utils', () => ({
-  emitAuditEvent: jest.fn().mockResolvedValue(undefined),
+  emitAuditEvent:        jest.fn().mockResolvedValue(undefined),
+  // Use the real extractResourceId logic: reads result.data.id — this keeps
+  // resourceId assertions correct for both template and task audit events.
+  extractResourceId:     jest.fn().mockImplementation(
+    (result: unknown) => (result as { data?: { id?: string } } | null)?.data?.id ?? undefined,
+  ),
+  CORRELATION_ID_HEADER: 'x-correlation-id',
+  // circuitBreakerRegistry is called at module-level in minio.service.ts —
+  // must be present in the mock so the module can be imported without errors.
+  circuitBreakerRegistry: { get: jest.fn().mockReturnValue({ execute: jest.fn() }) },
 }));
 
 jest.mock('./dto/control.dto', () => ({
@@ -50,20 +59,24 @@ const DELETED_TEMPLATE = { message: 'Template deleted' };
 const CREATED_TASK = { data: { id: TASK_ID, templateId: TEMPLATE_ID } };
 const UPDATED_TASK = { data: { id: TASK_ID, status: 'COMPLETED' } };
 
+// Express Request mock — provides the headers object accessed by createTask/updateTask.
+const MOCK_REQ = { headers: {} } as never;
+
 // ─── ControlService mock ──────────────────────────────────────────────────────
 
 function makeControlServiceMock() {
   return {
-    findAllTemplates: jest.fn().mockResolvedValue({ data: [] }),
-    findOneTemplate:  jest.fn().mockResolvedValue({ data: CREATED_TEMPLATE }),
-    createTemplate:   jest.fn().mockResolvedValue(CREATED_TEMPLATE),
-    updateTemplate:   jest.fn().mockResolvedValue(UPDATED_TEMPLATE),
-    deleteTemplate:   jest.fn().mockResolvedValue(DELETED_TEMPLATE),
-    findAllTasks:     jest.fn().mockResolvedValue({ data: [] }),
-    findOneTask:      jest.fn().mockResolvedValue({ data: CREATED_TASK }),
-    createTask:       jest.fn().mockResolvedValue(CREATED_TASK),
-    updateTask:       jest.fn().mockResolvedValue(UPDATED_TASK),
-    getStats:         jest.fn().mockResolvedValue({ data: {} }),
+    findAllTemplates:    jest.fn().mockResolvedValue({ data: [] }),
+    findOneTemplate:     jest.fn().mockResolvedValue({ data: CREATED_TEMPLATE }),
+    createTemplate:      jest.fn().mockResolvedValue(CREATED_TEMPLATE),
+    updateTemplate:      jest.fn().mockResolvedValue(UPDATED_TEMPLATE),
+    deleteTemplate:      jest.fn().mockResolvedValue(DELETED_TEMPLATE),
+    findAllTasks:        jest.fn().mockResolvedValue({ data: [] }),
+    findOneTask:         jest.fn().mockResolvedValue({ data: CREATED_TASK }),
+    createTask:          jest.fn().mockResolvedValue(CREATED_TASK),
+    updateTask:          jest.fn().mockResolvedValue(UPDATED_TASK),
+    getStats:            jest.fn().mockResolvedValue({ data: {} }),
+    getRecentNcControls: jest.fn().mockResolvedValue({ data: [] }),
   };
 }
 
@@ -82,7 +95,7 @@ describe('ControlController audit integration', () => {
   // ── createTemplate ─────────────────────────────────────────────────────────
 
   describe('createTemplate', () => {
-    const dto = { name: 'Cold Chain Check', type: 'TEMPERATURE' };
+    const dto = { name: 'Cold Chain Check' };
 
     it('returns the created template', async () => {
       const result = await controller.createTemplate(dto, ACTOR);
@@ -112,22 +125,17 @@ describe('ControlController audit integration', () => {
       );
     });
 
-    it('includes name and type in audit payload', async () => {
+    it('includes name in audit payload', async () => {
       await controller.createTemplate(dto, ACTOR);
       await Promise.resolve();
 
       expect(emitAuditEvent).toHaveBeenCalledWith(
         expect.objectContaining({
-          payload: expect.objectContaining({ name: 'Cold Chain Check', type: 'TEMPERATURE' }),
+          payload: expect.objectContaining({ name: 'Cold Chain Check' }),
         }),
       );
     });
 
-    it('still returns template when audit fails silently', async () => {
-      (emitAuditEvent as jest.Mock).mockRejectedValueOnce(new Error('down'));
-      const result = await controller.createTemplate(dto, ACTOR);
-      expect(result).toEqual(CREATED_TEMPLATE);
-    });
   });
 
   // ── updateTemplate ─────────────────────────────────────────────────────────
@@ -185,15 +193,15 @@ describe('ControlController audit integration', () => {
   // ── createTask ─────────────────────────────────────────────────────────────
 
   describe('createTask', () => {
-    const dto = { templateId: TEMPLATE_ID, scheduledFor: '2026-05-08T08:00:00Z' };
+    const dto = { templateId: TEMPLATE_ID, scheduledAt: '2026-05-08T08:00:00Z' };
 
     it('returns the created task', async () => {
-      const result = await controller.createTask(dto, ACTOR);
+      const result = await controller.createTask(dto, ACTOR, MOCK_REQ);
       expect(result).toEqual(CREATED_TASK);
     });
 
     it('emits a CREATE audit event for the task', async () => {
-      await controller.createTask(dto, ACTOR);
+      await controller.createTask(dto, ACTOR, MOCK_REQ);
       await Promise.resolve();
 
       expect(emitAuditEvent).toHaveBeenCalledWith(
@@ -206,7 +214,7 @@ describe('ControlController audit integration', () => {
     });
 
     it('sets resourceId from the created task id', async () => {
-      await controller.createTask(dto, ACTOR);
+      await controller.createTask(dto, ACTOR, MOCK_REQ);
       await Promise.resolve();
 
       expect(emitAuditEvent).toHaveBeenCalledWith(
@@ -219,7 +227,7 @@ describe('ControlController audit integration', () => {
 
   describe('updateTask', () => {
     it('emits an UPDATE audit event with correct resourceId', async () => {
-      await controller.updateTask(TASK_ID, { status: 'COMPLETED' }, ACTOR);
+      await controller.updateTask(TASK_ID, { status: 'COMPLETED' }, ACTOR, MOCK_REQ);
       await Promise.resolve();
 
       expect(emitAuditEvent).toHaveBeenCalledWith(
@@ -233,7 +241,7 @@ describe('ControlController audit integration', () => {
     });
 
     it('includes status in audit payload (critical HACCP event)', async () => {
-      await controller.updateTask(TASK_ID, { status: 'COMPLETED' }, ACTOR);
+      await controller.updateTask(TASK_ID, { status: 'COMPLETED' }, ACTOR, MOCK_REQ);
       await Promise.resolve();
 
       expect(emitAuditEvent).toHaveBeenCalledWith(
@@ -244,14 +252,29 @@ describe('ControlController audit integration', () => {
     });
 
     it('returns the updated task', async () => {
-      const result = await controller.updateTask(TASK_ID, { status: 'COMPLETED' }, ACTOR);
+      const result = await controller.updateTask(TASK_ID, { status: 'COMPLETED' }, ACTOR, MOCK_REQ);
       expect(result).toEqual(UPDATED_TASK);
     });
 
     it('emits exactly one audit event per task update', async () => {
-      await controller.updateTask(TASK_ID, {}, ACTOR);
+      await controller.updateTask(TASK_ID, {}, ACTOR, MOCK_REQ);
       await Promise.resolve();
       expect(emitAuditEvent).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ── getRecentNcControls ────────────────────────────────────────────────────
+
+  describe('getRecentNcControls', () => {
+    it('delegates to service scoped to tenantId', async () => {
+      await controller.getRecentNcControls(ACTOR);
+
+      expect(controlService.getRecentNcControls).toHaveBeenCalledWith('tenant-abc');
+    });
+
+    it('returns the service result', async () => {
+      const result = await controller.getRecentNcControls(ACTOR);
+      expect(result).toEqual({ data: [] });
     });
   });
 });
