@@ -142,6 +142,22 @@ async function compressImage(file: File, maxWidth = 800): Promise<string> {
   });
 }
 
+/**
+ * Convert a base64 data URL to a Blob so we can POST it as multipart/form-data.
+ * ARCH-DECISION: Photos are uploaded to MinIO via POST /tasks/:id/photos before
+ * the checklist is submitted. resultJson stores the presigned URL (a stable
+ * string reference) rather than raw base64, keeping the PATCH payload small
+ * and the DB row free of binary blobs.
+ */
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, b64] = dataUrl.split(',');
+  const mime  = header?.match(/:(.*?);/)?.[1] ?? 'image/jpeg';
+  const bytes = atob(b64 ?? '');
+  const arr   = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ItemValue = boolean | number | string | null;
@@ -195,29 +211,49 @@ function ChecklistSkeleton() {
 function PhotoInput({
   value,
   onChange,
+  taskId,
 }: {
   value:    ItemValue;
   onChange: (val: ItemValue) => void;
+  /** Task ID is required to upload the photo to MinIO before submit. */
+  taskId:   string;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading]   = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setLoading(true);
+    setUploading(true);
+    setUploadError(null);
     try {
+      // 1. Compress client-side (keeps upload fast on mobile)
       const compressed = await compressImage(file);
-      onChange(compressed);
-    } catch {
-      showToast({ title: 'Erreur lors du traitement de l\'image', variant: 'error' });
+      // 2. Convert base64 → Blob → FormData for multipart POST
+      const blob     = dataUrlToBlob(compressed);
+      const formData = new FormData();
+      formData.append('file', blob, 'photo.jpg');
+      // 3. Upload to MinIO via control-service
+      const { data } = await api.post<{ data: { url: string } }>(
+        `/api/v1/controls/tasks/${taskId}/photos`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } },
+      );
+      // 4. Store the presigned URL — not base64 — in resultJson
+      onChange(data.data.url);
+    } catch (err) {
+      const msg = extractApiMessage(err);
+      setUploadError(msg);
+      showToast({ title: `Photo : ${msg}`, variant: 'error' });
     } finally {
-      setLoading(false);
+      setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
     }
   };
 
-  const photoUrl = typeof value === 'string' && value.startsWith('data:') ? value : null;
+  // Support both presigned HTTPS URLs (new) and data: URIs (legacy read-only)
+  const photoUrl = typeof value === 'string' && value.length > 0 ? value : null;
 
   return (
     <div>
@@ -230,25 +266,35 @@ function PhotoInput({
           />
           <button
             type="button"
-            onClick={() => onChange(null)}
+            onClick={() => { onChange(null); setUploadError(null); }}
             className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-red-500 text-white shadow-lg hover:bg-red-600 transition-colors"
           >
             <Trash2 className="h-4 w-4" />
           </button>
         </div>
       ) : (
-        <button
-          type="button"
-          disabled={loading}
-          onClick={() => fileRef.current?.click()}
-          className="flex w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 py-10 text-sm text-gray-500 transition-all hover:border-brand-medium hover:bg-brand-lighter/20 hover:text-brand-medium active:scale-[0.98] disabled:opacity-50"
-        >
-          <Camera className="h-8 w-8" />
-          <div className="text-center">
-            <p className="font-medium">{loading ? 'Traitement…' : 'Prendre une photo'}</p>
-            <p className="text-xs text-gray-400 mt-0.5">Appuyez pour ouvrir l'appareil photo</p>
-          </div>
-        </button>
+        <div className="space-y-2">
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={() => fileRef.current?.click()}
+            className="flex w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 py-10 text-sm text-gray-500 transition-all hover:border-brand-medium hover:bg-brand-lighter/20 hover:text-brand-medium active:scale-[0.98] disabled:opacity-50"
+          >
+            <Camera className="h-8 w-8" />
+            <div className="text-center">
+              <p className="font-medium">
+                {uploading ? 'Envoi en cours…' : 'Prendre une photo'}
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">Appuyez pour ouvrir l'appareil photo</p>
+            </div>
+          </button>
+          {uploadError && (
+            <p className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              {uploadError}
+            </p>
+          )}
+        </div>
       )}
       <input
         ref={fileRef}
@@ -379,12 +425,14 @@ function ChecklistItemCard({
   onChange,
   measuredTemp,
   onMeasuredTempChange,
+  taskId,
 }: {
   item:                 ChecklistItem;
   value:                ItemValue;
   onChange:             (val: ItemValue) => void;
   measuredTemp:         string;
   onMeasuredTempChange: (v: string) => void;
+  taskId:               string;
 }) {
   const Icon         = TYPE_ICONS[item.type];
   const compliant    = isItemCompliant(item, value);
@@ -538,7 +586,7 @@ function ChecklistItemCard({
 
         {/* PHOTO */}
         {item.type === 'PHOTO' && (
-          <PhotoInput value={value} onChange={onChange} />
+          <PhotoInput taskId={taskId} value={value} onChange={onChange} />
         )}
 
         {/* SIGNATURE */}
@@ -591,11 +639,13 @@ function NonConformityPanel({
   photo,
   onComment,
   onPhoto,
+  taskId,
 }: {
   comment:   string;
   photo:     string | null;
   onComment: (v: string) => void;
   onPhoto:   (v: string | null) => void;
+  taskId:    string;
 }) {
   return (
     <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-4">
@@ -636,7 +686,7 @@ function NonConformityPanel({
             </button>
           </div>
         ) : (
-          <PhotoInput value={null} onChange={(v) => onPhoto(typeof v === 'string' ? v : null)} />
+          <PhotoInput taskId={taskId} value={null} onChange={(v) => onPhoto(typeof v === 'string' ? v : null)} />
         )}
       </div>
     </div>
@@ -683,7 +733,12 @@ function ResultsView({ result }: { result: TaskResult }) {
               displayValue = item.value ? 'Oui / Conforme' : 'Non / Non conforme';
             } else if (item.type === 'TEMPERATURE') {
               displayValue = `${String(item.value)} °C`;
-            } else if ((item.type === 'PHOTO' || item.type === 'SIGNATURE') && typeof item.value === 'string' && item.value.startsWith('data:')) {
+            } else if (
+              (item.type === 'PHOTO' || item.type === 'SIGNATURE') &&
+              typeof item.value === 'string' &&
+              // Support both presigned HTTPS URLs (new) and legacy base64 data URIs
+              (item.value.startsWith('http') || item.value.startsWith('data:'))
+            ) {
               displayValue = <img src={item.value} alt={item.type} className="h-16 rounded-lg border object-contain" />;
             } else if (item.type === 'DATE' && typeof item.value === 'string') {
               displayValue = new Date(item.value).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -729,7 +784,7 @@ function ResultsView({ result }: { result: TaskResult }) {
         <div className="rounded-xl border-2 border-red-200 bg-red-50 px-4 py-3">
           <p className="mb-1 text-xs font-bold uppercase tracking-wide text-red-700">Action corrective</p>
           <p className="text-sm text-red-900">{result.ncComment}</p>
-          {result.ncPhoto && (
+          {result.ncPhoto && (result.ncPhoto.startsWith('http') || result.ncPhoto.startsWith('data:')) && (
             <img src={result.ncPhoto} alt="Photo NC" className="mt-2 h-24 rounded-xl object-cover border border-red-200" />
           )}
         </div>
@@ -1019,6 +1074,7 @@ export function ChecklistExecutionModal({
                 <ChecklistItemCard
                   key={item.id}
                   item={item}
+                  taskId={taskId}
                   value={values[item.id] ?? null}
                   onChange={(val) => handleItemChange(item.id, val)}
                   measuredTemp={measuredTemps[item.id] ?? ''}
@@ -1031,6 +1087,7 @@ export function ChecklistExecutionModal({
               {/* NC panel */}
               {showNcPanel && (
                 <NonConformityPanel
+                  taskId={taskId}
                   comment={ncComment}
                   photo={ncPhoto}
                   onComment={setNcComment}
