@@ -95,7 +95,8 @@ model ControlTemplate {
   tenantId      String?  @map("tenant_id")      // null = system-level template
   createdAt     DateTime @default(now()) @map("created_at")
 
-  tasks ControlTask[]
+  tasks     ControlTask[]
+  schedules ControlSchedule[]
 
   @@index([tenantId])
   @@map("control_templates")
