@@ -46,6 +46,47 @@ enum TaskStatus {
   CANCELLED
 }
 
+enum ScheduleFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+  CUSTOM
+}
+
+// ─── Schedule model ────────────────────────────────────────────────────────────
+// ARCH-DECISION: recurrenceJson (not a normalised table) stores the rule details
+// (interval, daysOfWeek, daysOfMonth, timeSlots, etc.) as a single JSONB column.
+// This keeps the schema flat — the rule structure evolves without migrations as
+// long as the engine reads it schema-less. The ScheduleFrequency enum remains the
+// discriminator for the engine's code paths.
+model ControlSchedule {
+  id              String            @id @default(cuid())
+  tenantId        String            @map("tenant_id")
+  templateId      String            @map("template_id")
+  zoneId          String            @map("zone_id")
+  assigneeId      String?           @map("assignee_id")
+  groupId         String?           @map("group_id")
+  frequency       ScheduleFrequency
+  recurrenceJson  Json              @map("recurrence_json")  // RecurrenceConfig
+  timezone        String            @default("UTC")
+  startDate       DateTime          @map("start_date")
+  endDate         DateTime?         @map("end_date")
+  isActive        Boolean           @default(true) @map("is_active")
+  lastGeneratedAt DateTime?         @map("last_generated_at")
+  nextRunAt       DateTime?         @map("next_run_at")
+  createdBy       String            @map("created_by")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  template ControlTemplate @relation(fields: [templateId], references: [id])
+  tasks    ControlTask[]
+
+  @@index([tenantId])
+  @@index([isActive, nextRunAt])
+  @@map("control_schedules")
+}
+
 model ControlTemplate {
   id            String   @id @default(cuid())
   name          String
@@ -67,6 +108,10 @@ model ControlTask {
   assigneeId  String?    @map("assignee_id")      // FK to user-service.User — null when groupId is set
   groupId     String?    @map("group_id")         // FK to user-service.Group — null when assigneeId is set
   tenantId    String     @map("tenant_id")
+  // ARCH-DECISION: scheduleId links auto-generated tasks back to their ControlSchedule.
+  // Null for one-off tasks created manually. @@unique([scheduleId, scheduledAt]) prevents
+  // duplicate task generation if the TaskGeneratorService runs concurrently or retries.
+  scheduleId        String?    @map("schedule_id")
   status      TaskStatus @default(PLANNED)
   scheduledAt DateTime   @map("scheduled_at")
   startedAt   DateTime?  @map("started_at")
@@ -77,15 +122,18 @@ model ControlTask {
   updatedAt         DateTime   @updatedAt @map("updated_at")
   createdAt         DateTime   @default(now()) @map("created_at")
 
-  template ControlTemplate @relation(fields: [templateId], references: [id])
+  template ControlTemplate  @relation(fields: [templateId], references: [id])
+  schedule ControlSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
   photos   ControlPhoto[]
 
+  @@unique([scheduleId, scheduledAt])  // idempotency: one task per schedule slot (NULL-safe)
   @@index([tenantId])
   @@index([assigneeId])
   @@index([groupId])
   @@index([scheduledAt])
   @@index([status])
   @@index([templateId])
+  @@index([scheduleId])
   @@map("control_tasks")
 }
 
