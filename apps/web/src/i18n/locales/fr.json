@@ -331,6 +331,9 @@
     "markAllRead": "Tout marquer comme lu",
     "ncCreated": "Nouvelle non-conformité",
     "taskCompleted": "Tâche complétée",
+    "taskAssigned": "Nouvelle tâche assignée",
+    "tasksOverdue": "Tâches en retard",
+    "dlcExpiring": "DLC expirant aujourd'hui",
     "reportValidated": "Rapport validé"
   },
   "documents": {

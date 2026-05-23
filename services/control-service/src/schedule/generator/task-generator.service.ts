@@ -176,10 +176,13 @@ export class TaskGeneratorService implements OnModuleInit, OnModuleDestroy {
   ): Promise<boolean> {
     try {
       await this.prisma.$transaction(async (tx) => {
-        // Snapshot the template checklist at generation time for HACCP immutability
+        // Snapshot the template checklist at generation time for HACCP immutability.
+        // Also select name so it can be included in the outbox event payload,
+        // letting the notification-service show a human-readable template name
+        // instead of falling back to the raw taskId.
         const template = await tx.controlTemplate.findFirst({
           where: { id: schedule.templateId },
-          select: { checklistJson: true },
+          select: { checklistJson: true, name: true },
         });
 
         const task = await tx.controlTask.create({
@@ -202,14 +205,15 @@ export class TaskGeneratorService implements OnModuleInit, OnModuleDestroy {
             eventType: 'control.task.assigned.v1',
             tenantId:  schedule.tenantId,
             payload: {
-              taskId:      task.id,
-              scheduleId:  schedule.id,
-              templateId:  schedule.templateId,
-              zoneId:      schedule.zoneId,
-              assigneeId:  schedule.assigneeId ?? null,
-              groupId:     schedule.groupId    ?? null,
-              scheduledAt: scheduledAt.toISOString(),
-              frequency:   schedule.frequency,
+              taskId:       task.id,
+              scheduleId:   schedule.id,
+              templateId:   schedule.templateId,
+              templateName: template?.name ?? null,
+              zoneId:       schedule.zoneId,
+              assigneeId:   schedule.assigneeId ?? null,
+              groupId:      schedule.groupId    ?? null,
+              scheduledAt:  scheduledAt.toISOString(),
+              frequency:    schedule.frequency,
             },
           },
         });
