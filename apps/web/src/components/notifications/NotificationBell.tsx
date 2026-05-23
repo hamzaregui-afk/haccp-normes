@@ -8,6 +8,7 @@ const TYPE_ICONS: Record<string, string> = {
   NC_CREATED:         '⚠️',
   TASK_COMPLETED:     '✅',
   CONTROL_COMPLETED:  '✅',  // legacy alias — kept for backwards-compat with persisted notifications
+  TASK_ASSIGNED:      '📋',
   REPORT_VALIDATED:   '📄',
   DEFAULT:            '🔔',
 };

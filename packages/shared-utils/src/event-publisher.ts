@@ -25,6 +25,7 @@
 import { circuitBreakerRegistry } from './circuit-breaker';
 
 const NOTIFICATION_QUEUE = 'haccp_notification_queue';
+const AUDIT_QUEUE        = 'haccp_audit_queue';
 const DLQ_QUEUE          = 'haccp_notification_dlq';
 
 // ARCH-DECISION: Circuit breaker created once at module load so its failure
@@ -73,8 +74,15 @@ export interface DomainEvent<
  * });
  */
 export async function publishDomainEvent(event: DomainEvent): Promise<void> {
+  // ARCH-DECISION: Publish to both queues in parallel. The notification-service
+  // and audit-service each consume their own dedicated queue so there is no
+  // message contention. This is simpler than a fan-out exchange for the current
+  // queue count; migrate to an exchange binding if a third consumer is added.
   await rabbitCb.execute(
-    () => doPublish(event, NOTIFICATION_QUEUE),
+    () => Promise.all([
+      doPublish(event, NOTIFICATION_QUEUE),
+      doPublish(event, AUDIT_QUEUE),
+    ]).then(() => undefined),
     () => undefined, // fallback: swallow silently — domain events must not block the API
   );
 }

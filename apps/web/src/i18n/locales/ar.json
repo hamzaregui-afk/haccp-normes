@@ -331,6 +331,9 @@
     "markAllRead": "تحديد الكل كمقروء",
     "ncCreated": "عدم مطابقة جديدة",
     "taskCompleted": "اكتملت المهمة",
+    "taskAssigned": "تم تعيين مهمة جديدة",
+    "tasksOverdue": "مهام متأخرة",
+    "dlcExpiring": "تواريخ صلاحية تنتهي اليوم",
     "reportValidated": "تم التحقق من التقرير"
   },
   "documents": {

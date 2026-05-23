@@ -331,6 +331,9 @@
     "markAllRead": "Mark all as read",
     "ncCreated": "New non-conformity",
     "taskCompleted": "Task completed",
+    "taskAssigned": "New task assigned",
+    "tasksOverdue": "Overdue tasks",
+    "dlcExpiring": "Use-by dates expiring today",
     "reportValidated": "Report validated"
   },
   "documents": {
