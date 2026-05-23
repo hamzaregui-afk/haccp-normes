@@ -32,6 +32,8 @@ interface ControlTask {
   scheduledAt: string;   // was scheduledDate — matches Prisma field name
   status: TaskStatus;
   templateId: string;
+  // scheduleId is non-null for auto-generated tasks from a ControlSchedule
+  scheduleId?: string | null;
 }
 
 interface TasksResponse {
@@ -80,12 +82,20 @@ interface TaskCardProps {
 function TaskCard({ task, onStart, starting }: TaskCardProps) {
   // STATUS_STYLES covers every TaskStatus value — no runtime fallback needed.
   const badge = STATUS_STYLES[task.status];
-  const canStart = task.status === 'PLANNED' || task.status === 'IN_PROGRESS';
+  const canStart = task.status === 'PLANNED' || task.status === 'IN_PROGRESS' || task.status === 'OVERDUE';
+  const isRecurring = Boolean(task.scheduleId);
 
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <Text style={styles.taskTitle}>{task.template.name}</Text>
+        <View style={styles.cardTitleRow}>
+          <Text style={styles.taskTitle}>{task.template.name}</Text>
+          {isRecurring && (
+            <View style={styles.recurringBadge}>
+              <Text style={styles.recurringBadgeText}>🔄 Récurrent</Text>
+            </View>
+          )}
+        </View>
         <View style={[styles.badge, { backgroundColor: badge.bg }]}>
           <Text style={[styles.badgeText, { color: badge.text }]}>{badge.label}</Text>
         </View>
@@ -93,7 +103,11 @@ function TaskCard({ task, onStart, starting }: TaskCardProps) {
       <Text style={styles.taskTime}>⏰ {formatDateFR(task.scheduledAt)}</Text>
       {canStart && (
         <TouchableOpacity
-          style={[styles.startButton, starting && styles.startButtonDisabled]}
+          style={[
+            styles.startButton,
+            task.status === 'OVERDUE' && styles.startButtonOverdue,
+            starting && styles.startButtonDisabled,
+          ]}
           onPress={() => onStart(task.id, task.template.name)}
           disabled={starting}
           activeOpacity={0.8}
@@ -102,7 +116,7 @@ function TaskCard({ task, onStart, starting }: TaskCardProps) {
             <ActivityIndicator color="#fff" size="small" />
           ) : (
             <Text style={styles.startButtonText}>
-              {task.status === 'IN_PROGRESS' ? 'Continuer' : 'Commencer'}
+              {task.status === 'IN_PROGRESS' ? 'Continuer' : task.status === 'OVERDUE' ? 'Rattraper' : 'Commencer'}
             </Text>
           )}
         </TouchableOpacity>
@@ -148,17 +162,25 @@ export function AgendaScreen({ navigation }: Props) {
         to:    `${day}T23:59:59.999Z`,
         limit: 100,
       };
-      const [plannedRes, inProgressRes] = await Promise.all([
-        controlClient.get<TasksResponse>('/api/v1/controls/tasks', {
-          params: { ...baseParams, status: 'PLANNED' },
-        }),
+      // ARCH-DECISION: Three parallel requests so operators see:
+      //   IN_PROGRESS — tasks they started but didn't finish
+      //   OVERDUE     — tasks they missed (shown with "Rattraper" CTA)
+      //   PLANNED     — upcoming tasks for the selected day
+      const [inProgressRes, overdueRes, plannedRes] = await Promise.all([
         controlClient.get<TasksResponse>('/api/v1/controls/tasks', {
           params: { ...baseParams, status: 'IN_PROGRESS' },
+        }),
+        controlClient.get<TasksResponse>('/api/v1/controls/tasks', {
+          params: { ...baseParams, status: 'OVERDUE' },
+        }),
+        controlClient.get<TasksResponse>('/api/v1/controls/tasks', {
+          params: { ...baseParams, status: 'PLANNED' },
         }),
       ]);
 
       const merged = [
-        ...inProgressRes.data.data,  // IN_PROGRESS first (higher priority)
+        ...inProgressRes.data.data,  // IN_PROGRESS first (highest priority)
+        ...overdueRes.data.data,     // OVERDUE second — operator must see these
         ...plannedRes.data.data,
       ];
       // Deduplicate by id (shouldn't happen, but defensive)
@@ -177,9 +199,11 @@ export function AgendaScreen({ navigation }: Props) {
       await controlClient.patch(`/api/v1/controls/tasks/${taskId}`, { status: 'IN_PROGRESS' });
     },
     onMutate: ({ taskId }) => setStartingId(taskId),
-    onSettled: () => {
+    onSettled: (_data, _err, { taskId: _id }) => {
       setStartingId(null);
-      qc.invalidateQueries({ queryKey: ['tasks', 'today'] });
+      // ARCH-DECISION: invalidate by date key so the AgendaScreen refetches
+      // the current day's tasks regardless of which day the operator is viewing.
+      void qc.invalidateQueries({ queryKey: ['tasks', dateISO(selectedDate)] });
     },
     onSuccess: (_data, { taskId, taskTitle }) => {
       navigation.navigate('Checklist', { taskId, taskTitle });
@@ -366,12 +390,27 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 8,
   },
+  cardTitleRow: {
+    flex: 1,
+    marginRight: 8,
+  },
   taskTitle: {
     fontSize: 15,
     fontWeight: '600',
     color: '#1A3D2B',
-    flex: 1,
-    marginRight: 8,
+  },
+  recurringBadge: {
+    marginTop: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  recurringBadgeText: {
+    fontSize: 10,
+    color: '#1D4ED8',
+    fontWeight: '600',
   },
   badge: {
     paddingHorizontal: 8,
@@ -392,6 +431,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 10,
     alignItems: 'center',
+  },
+  startButtonOverdue: {
+    backgroundColor: '#B91C1C',
   },
   startButtonDisabled: {
     opacity: 0.6,

@@ -1,5 +1,5 @@
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Calendar, CheckCircle2, Clock, ShieldAlert, ShieldCheck, Tag, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Calendar, CheckCircle2, Clock, Repeat, ShieldAlert, ShieldCheck, Tag, TrendingUp } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -429,7 +429,9 @@ function RecentNcControlsWidget({ zoneMap }: { zoneMap: Record<string, string> }
 
 export default function DashboardPage() {
   const currentUser = useAuthStore((s) => s.user);
-  const tenantId = useTenantId();
+  const tenantId    = useTenantId();
+  const isOperator  = currentUser?.role === 'OPERATOR';
+
   const [controlsQuery, ncStatsQuery, recentNcQuery] = useQueries({
     queries: [
       {
@@ -485,6 +487,19 @@ export default function DashboardPage() {
     refetchInterval: 5 * 60 * 1000,
   });
 
+  // ── Active schedules count ─────────────────────────────────────────────────
+  const activeSchedulesQuery = useQuery({
+    queryKey: ['controls.schedules.active-count', tenantId],
+    queryFn: async () => {
+      const { data } = await api.get<{ data: { isActive: boolean }[] }>(
+        '/api/v1/controls/schedules',
+      );
+      return (data.data ?? []).filter((s) => s.isActive).length;
+    },
+    refetchInterval: 5 * 60 * 1000,
+    enabled: !isOperator,
+  });
+
   // ── Zone map (id → name) for NC controls widget ────────────────────────────
   const zonesQuery = useQuery({
     queryKey: ['zones.list', tenantId],
@@ -522,8 +537,6 @@ export default function DashboardPage() {
   const ns = ncStatsQuery.data;
   const loading = controlsQuery.isLoading || ncStatsQuery.isLoading;
 
-  const isOperator = currentUser?.role === 'OPERATOR';
-
   return (
     <>
       <Header title="Vue d'ensemble" subtitle="Tableau de bord HACCP" />
@@ -540,7 +553,7 @@ export default function DashboardPage() {
         {!isOperator && (
           <>
         {/* ── KPI cards ── */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
           <KpiCard
             label="Contrôles du jour"
             value={cs ? `${cs.todayCompleted} / ${cs.todayTotal}` : '—'}
@@ -584,6 +597,15 @@ export default function DashboardPage() {
             color={cs?.ncControlsThisMonth ? 'text-red-600' : 'text-gray-400'}
             bg={cs?.ncControlsThisMonth ? 'bg-red-50' : 'bg-surface-page'}
             loading={loading}
+          />
+          <KpiCard
+            label="Planifications actives"
+            value={activeSchedulesQuery.data ?? '—'}
+            sub="Tâches auto-générées"
+            icon={Repeat}
+            color="text-brand-medium"
+            bg="bg-brand-lighter"
+            loading={activeSchedulesQuery.isLoading}
           />
         </div>
 
