@@ -11,6 +11,7 @@ import {
   ImageOff,
   ListChecks,
   Plus,
+  Repeat,
   Search,
   TrendingUp,
   Upload,
@@ -36,8 +37,9 @@ import { api } from '@/lib/api';
 import { showToast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/store/auth.store';
 import type { ApiResponse } from '@haccp/shared-types';
-import type { ControlStats, ControlTask, ControlTemplate, TaskResult } from './types';
+import type { ControlSchedule, ControlStats, ControlTask, ControlTemplate, TaskResult } from './types';
 import { ChecklistExecutionModal } from './ChecklistExecutionModal';
+import { ScheduleFormModal } from './ScheduleFormModal';
 
 // ─── Error Boundary ────────────────────────────────────────────────────────────
 
@@ -1270,9 +1272,175 @@ function TemplatesTab() {
   );
 }
 
+// ─── Schedules tab ─────────────────────────────────────────────────────────────
+
+const FREQUENCY_LABELS: Record<string, string> = {
+  DAILY:   'Quotidienne',
+  WEEKLY:  'Hebdomadaire',
+  MONTHLY: 'Mensuelle',
+  YEARLY:  'Annuelle',
+  CUSTOM:  'Personnalisée',
+};
+
+function SchedulesTab({
+  zoneMap,
+  userMap,
+  groupMap,
+}: {
+  zoneMap:  Record<string, string>;
+  userMap:  Record<string, string>;
+  groupMap: Record<string, string>;
+}) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const queryClient               = useQueryClient();
+  const tenantId                  = useTenantId();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['controls.schedules', tenantId],
+    queryFn: async () => {
+      const { data } = await api.get<{ data: ControlSchedule[] }>('/api/v1/controls/schedules');
+      return data.data ?? [];
+    },
+  });
+
+  const deactivateMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/controls/schedules/${id}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['controls.schedules', tenantId] });
+      showToast({ title: 'Planification désactivée', variant: 'success' });
+    },
+    onError: () => showToast({ title: 'Erreur lors de la désactivation', variant: 'error' }),
+  });
+
+  const schedules = data ?? [];
+
+  const handleDeactivate = (id: string) => {
+    if (window.confirm('Désactiver cette planification récurrente ? Les tâches déjà créées ne seront pas supprimées.')) {
+      void deactivateMutation.mutate(id);
+    }
+  };
+
+  return (
+    <>
+      {/* Toolbar */}
+      <div className="mb-4 flex justify-end">
+        <Button size="sm" onClick={() => setModalOpen(true)}>
+          <Plus className="h-4 w-4" /> Créer une planification
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="py-20 text-center text-sm text-gray-400">Chargement…</div>
+      ) : schedules.length === 0 ? (
+        <EmptyState
+          icon={Repeat}
+          title="Aucune planification récurrente"
+          description="Automatisez la génération de tâches de contrôle avec des planifications récurrentes."
+          actionLabel="Créer une planification"
+          onAction={() => setModalOpen(true)}
+        />
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-surface-muted bg-white shadow-sm">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-surface-muted bg-surface-page text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <th className="px-4 py-3">Modèle</th>
+                <th className="px-4 py-3">Zone</th>
+                <th className="px-4 py-3">Fréquence</th>
+                <th className="px-4 py-3">Assigné</th>
+                <th className="px-4 py-3">Prochaine occurrence</th>
+                <th className="px-4 py-3">Statut</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-surface-muted">
+              {schedules.map((schedule) => {
+                const zoneName = zoneMap[schedule.zoneId] ?? (
+                  <span className="font-mono text-xs text-gray-400">{schedule.zoneId.slice(0, 8)}…</span>
+                );
+                const assigneeName = schedule.assigneeId
+                  ? (userMap[schedule.assigneeId] ?? <span className="font-mono text-xs text-gray-400">{schedule.assigneeId.slice(0, 8)}…</span>)
+                  : schedule.groupId
+                    ? (groupMap[schedule.groupId] ?? <span className="font-mono text-xs text-gray-400">{schedule.groupId.slice(0, 8)}…</span>)
+                    : <span className="text-gray-400">—</span>;
+
+                return (
+                  <tr key={schedule.id} className="hover:bg-surface-page transition-colors">
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      {schedule.template?.name ?? (
+                        <span className="font-mono text-xs text-gray-400">{schedule.templateId.slice(0, 8)}…</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">{zoneName}</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-brand-lighter px-2.5 py-0.5 text-xs font-medium text-brand-dark">
+                        <Repeat className="h-3 w-3" />
+                        {FREQUENCY_LABELS[schedule.frequency] ?? schedule.frequency}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      <span className="flex items-center gap-1">
+                        {schedule.groupId
+                          ? <Users className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                          : <User  className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                        }
+                        {assigneeName}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                      {schedule.nextRunAt
+                        ? new Date(schedule.nextRunAt).toLocaleString('fr-FR', {
+                            day: '2-digit', month: '2-digit', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit',
+                          })
+                        : <span className="text-gray-400">—</span>
+                      }
+                    </td>
+                    <td className="px-4 py-3">
+                      {schedule.isActive ? (
+                        <span className="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                          Active
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
+                          Inactive
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {schedule.isActive && (
+                        <button
+                          className="text-xs text-red-500 hover:underline disabled:opacity-40"
+                          disabled={deactivateMutation.isPending}
+                          onClick={() => handleDeactivate(schedule.id)}
+                        >
+                          Désactiver
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <ScheduleFormModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCreated={() => {
+          setModalOpen(false);
+          void queryClient.invalidateQueries({ queryKey: ['controls.schedules', tenantId] });
+        }}
+      />
+    </>
+  );
+}
+
 // ─── Page ───────────────────────────────────────────────────────────────────────
 
-type Tab = 'tasks' | 'templates';
+type Tab = 'tasks' | 'templates' | 'schedules';
 
 export default function ControlsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('tasks');
@@ -1344,11 +1512,12 @@ export default function ControlsPage() {
           />
         </div>
 
-        {/* Tab bar — OPERATOR only sees "Tâches" (no template management) */}
+        {/* Tab bar — OPERATOR only sees "Tâches" (no template or schedule management) */}
         <div className="mb-5 flex border-b border-surface-muted">
           {(([
             { key: 'tasks',     label: 'Tâches planifiées' },
-            ...(!isOperator ? [{ key: 'templates', label: 'Modèles de contrôle' }] : []),
+            ...(!isOperator ? [{ key: 'templates',  label: 'Modèles de contrôle' }] : []),
+            ...(!isOperator ? [{ key: 'schedules',  label: 'Planifications récurrentes' }] : []),
           ]) as { key: Tab; label: string }[]).map(({ key, label }) => (
             <button
               key={key}
@@ -1376,8 +1545,14 @@ export default function ControlsPage() {
             isOperator={isOperator}
             operatorId={operatorId}
           />
-        ) : (
+        ) : activeTab === 'templates' ? (
           <TemplatesTab />
+        ) : (
+          <SchedulesTab
+            zoneMap={zoneMap}
+            userMap={userMap}
+            groupMap={groupMap}
+          />
         )}
 
       </PageWrapper>

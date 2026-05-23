@@ -69,6 +69,41 @@ export interface TaskResult {
   items:            TaskResultItem[];
 }
 
+// ─── Schedule types ───────────────────────────────────────────────────────────
+
+export type ScheduleFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'CUSTOM';
+export type IntervalUnit      = 'HOURS' | 'DAYS' | 'WEEKS';
+
+export interface RecurrenceConfig {
+  interval:            number;
+  daysOfWeek?:         number[];    // 0=Sun..6=Sat
+  daysOfMonth?:        number[];    // 1–31
+  timeSlots:           string[];    // ['08:00', '18:00'] HH:mm UTC
+  advanceGenerateDays?: number;
+  intervalUnit?:       IntervalUnit;
+}
+
+export interface ControlSchedule {
+  id:              string;
+  tenantId:        string;
+  templateId:      string;
+  zoneId:          string;
+  assigneeId:      string | null;
+  groupId:         string | null;
+  frequency:       ScheduleFrequency;
+  recurrenceJson:  RecurrenceConfig;
+  timezone:        string;
+  startDate:       string;
+  endDate:         string | null;
+  isActive:        boolean;
+  lastGeneratedAt: string | null;
+  nextRunAt:       string | null;
+  createdBy:       string;
+  createdAt:       string;
+  updatedAt:       string;
+  template?:       { id: string; name: string };
+}
+
 // Tâche complète retournée par GET /tasks/:id (inclut checklistJson)
 export interface ControlTaskDetail extends Omit<ControlTask, 'template' | 'resultJson'> {
   checklistSnapshot?: unknown;  // Frozen copy of the checklist stored at task creation time
