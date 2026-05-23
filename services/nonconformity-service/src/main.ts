@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { AllExceptionsFilter } from '@haccp/shared-errors';
@@ -13,7 +14,27 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const env = validateEnv();
 
+  // ARCH-DECISION: Hybrid app — serves HTTP AND consumes RabbitMQ messages.
+  // connectMicroservice() registers the AMQP transport before the HTTP server
+  // starts. startAllMicroservices() is awaited first so the queue is active
+  // before any HTTP traffic arrives (avoids message loss during rolling restarts).
   const app = await NestFactory.create(AppModule);
+
+  // ── RabbitMQ consumer transport ─────────────────────────────────────────────
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.RMQ,
+    options: {
+      urls:  [env.RABBITMQ_URL],
+      queue: 'haccp_nonconformity_queue',
+      // ARCH-DECISION: No DLQ arguments on initial queue creation — adding them
+      // later would cause PRECONDITION_FAILED (406) against existing queues.
+      // See notification-service main.ts for the same pattern and rationale.
+      queueOptions: {
+        durable: true,
+      },
+      noAck: false,
+    },
+  });
 
   app.use(correlationIdMiddleware);
   app.use(idempotencyMiddleware);
@@ -42,8 +63,12 @@ async function bootstrap() {
     res.json({ status: 'ok', service: 'nonconformity-service', uptime: process.uptime(), version: '0.1.0' });
   });
 
+  // Start microservice transport first, then HTTP server
+  await app.startAllMicroservices();
   await app.listen(env.PORT);
+
   logger.log(`🚀 nonconformity-service running on port ${env.PORT}`);
+  logger.log(`📨 RabbitMQ consumer active on queue haccp_nonconformity_queue`);
 
   setupGracefulShutdown(app, logger, 'nonconformity-service');
 }

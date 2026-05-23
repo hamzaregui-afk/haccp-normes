@@ -620,6 +620,29 @@ describe('ControlService', () => {
           data: expect.objectContaining({
             eventType: 'control.task.completed.v1',
             tenantId:  TENANT_ID,
+            payload:   expect.objectContaining({
+              overallCompliant: true,
+              ncComment:        null,
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('includes overallCompliant: false and ncComment in outbox payload for NC tasks', async () => {
+      mockControlTask.findFirst.mockResolvedValue(makeTask({ status: 'PLANNED' }));
+      mockControlTask.update.mockResolvedValue(makeTask({ status: 'COMPLETED' }));
+      mockOutboxEvent.create.mockResolvedValue({ id: 'evt-002' });
+
+      await service.updateTask(TASK_ID, { status: 'COMPLETED', resultJson: RESULT_JSON_NC as never }, TENANT_ID);
+
+      expect(mockOutboxEvent.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            payload: expect.objectContaining({
+              overallCompliant: false,
+              ncComment:        'Température trop élevée',
+            }),
           }),
         }),
       );

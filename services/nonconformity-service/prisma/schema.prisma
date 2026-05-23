@@ -45,6 +45,10 @@ model NonConformity {
   // @@unique([reference, tenantId]) matches the per-tenant semantics exactly.
   reference        String                           // NC-YYYY-NNNN format, per-tenant
   tenantId         String      @map("tenant_id")
+  // ARCH-DECISION: sourceTaskId links an auto-created NC back to the control task
+  // that triggered it. @@unique([sourceTaskId, tenantId]) prevents duplicate NCs
+  // from RabbitMQ at-least-once redelivery — idempotent consumer pattern.
+  sourceTaskId     String?     @map("source_task_id")
   siteId           String      @map("site_id")      // FK to tenant-service (no join)
   productId        String?     @map("product_id")   // FK to asset-service (no join)
   reporterId       String      @map("reporter_id")  // FK to user-service (no join)
@@ -61,6 +65,7 @@ model NonConformity {
   photos NCPhoto[]
 
   @@unique([reference, tenantId])           // per-tenant reference uniqueness (see above)
+  @@unique([sourceTaskId, tenantId])        // idempotency: one NC per task per tenant
   @@index([tenantId])
   @@index([status])
   @@index([createdAt])

@@ -258,10 +258,15 @@ export class ControlService {
                 tenantId,
                 correlationId: correlationId ?? null,
                 payload: {
-                  taskId:      id,
-                  zoneId:      existing.zoneId,
-                  assigneeId:  existing.assigneeId,
-                  completedAt: dto.completedAt?.toISOString() ?? new Date().toISOString(),
+                  taskId:           id,
+                  zoneId:           existing.zoneId,
+                  assigneeId:       existing.assigneeId,
+                  completedAt:      dto.completedAt?.toISOString() ?? new Date().toISOString(),
+                  // ARCH-DECISION: overallCompliant and ncComment are forwarded
+                  // from resultJson so the nonconformity-service can auto-create
+                  // an NC without an additional DB query into control's DB.
+                  overallCompliant: dto.resultJson?.overallCompliant ?? true,
+                  ncComment:        dto.resultJson?.ncComment ?? null,
                 },
               },
             }),

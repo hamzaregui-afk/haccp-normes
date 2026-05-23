@@ -226,6 +226,76 @@ export class NonconformityService {
     return toApiResponse(photo, undefined, 'Photo uploaded successfully');
   }
 
+  // ── Auto-create from task event ───────────────────────────────────────────
+
+  /**
+   * Creates a NonConformity automatically when a control task completes with
+   * overallCompliant: false. Called by TaskCompletedConsumer (RabbitMQ).
+   *
+   * ARCH-DECISION: Idempotency — Prisma P2002 on @@unique([sourceTaskId, tenantId])
+   * is caught and swallowed. If RabbitMQ redelivers the same event the NC already
+   * exists and we skip creation silently, preserving exactly-once semantics.
+   *
+   * ARCH-DECISION: reporterId defaults to assigneeId when available (the operator
+   * who ran the control is the de-facto reporter), or 'system' when the task had
+   * no individual assignee (group-assigned or unassigned tasks).
+   */
+  async createFromTaskEvent(args: {
+    tenantId:   string;
+    taskId:     string;
+    zoneId:     string;
+    assigneeId: string | null;
+    ncComment:  string | null;
+    eventId:    string;
+  }): Promise<void> {
+    const { tenantId, taskId, zoneId, assigneeId, ncComment } = args;
+
+    this.logger.log(
+      `[NC auto-create] tenantId=${tenantId} taskId=${taskId} zoneId=${zoneId} reporter=${assigneeId ?? 'system'}`,
+    );
+
+    try {
+      const nc = await this.prisma.$transaction(async (tx) => {
+        const reference = await this.generateReference(tx, tenantId);
+        this.logger.debug(
+          `[NC auto-create] generated reference=${reference} for tenant=${tenantId}`,
+        );
+
+        return tx.nonConformity.create({
+          data: {
+            reference,
+            tenantId,
+            siteId:           zoneId,
+            reporterId:       assigneeId ?? 'system',
+            description:      ncComment ?? 'Contrôle non conforme — créé automatiquement',
+            correctiveAction: null,
+            severity:         NCSeverity.MEDIUM,
+            category:         NCCategory.OTHER,
+            status:           NCStatus.OPEN,
+            sourceTaskId:     taskId,
+          },
+        });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+      this.logger.log(
+        `[NC auto-create] ✅ created ${nc.reference} (id=${nc.id}) for task=${taskId}`,
+      );
+    } catch (err: unknown) {
+      // P2002 = unique constraint violation → NC already exists (idempotency)
+      if (
+        err instanceof Error &&
+        'code' in err &&
+        (err as { code: string }).code === 'P2002'
+      ) {
+        this.logger.debug(
+          `[NC auto-create] duplicate event for taskId=${taskId} — skipping`,
+        );
+        return;
+      }
+      throw err;
+    }
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   /**
