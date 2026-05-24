@@ -51,7 +51,13 @@
     "required": "Required",
     "error": "An error occurred",
     "retry": "Retry",
-    "entries": "entry/entries"
+    "entries": "entry/entries",
+    "errorBoundary": {
+      "title": "An unexpected error occurred",
+      "description": "The application encountered a problem. You can reload the page or contact support if the error persists.",
+      "retry": "Try again",
+      "reload": "Reload page"
+    }
   },
   "auth": {
     "login": "Sign In",

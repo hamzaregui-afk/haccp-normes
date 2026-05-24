@@ -51,7 +51,13 @@
     "required": "Obligatoire",
     "error": "Une erreur est survenue",
     "retry": "Réessayer",
-    "entries": "entrée(s)"
+    "entries": "entrée(s)",
+    "errorBoundary": {
+      "title": "Une erreur inattendue s'est produite",
+      "description": "L'application a rencontré un problème. Vous pouvez recharger la page ou contacter le support si l'erreur persiste.",
+      "retry": "Réessayer",
+      "reload": "Recharger la page"
+    }
   },
   "auth": {
     "login": "Connexion",
