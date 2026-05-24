@@ -120,6 +120,49 @@ const TASKS = [
 
 const PAGE_META = { total: 2, page: 1, limit: 20, lastPage: 1 };
 
+const SCHEDULES = [
+  {
+    id:              'sched-1',
+    tenantId:        'ctenant001testidabc1234',
+    templateId:      'tpl-1',
+    zoneId:          'zone-cuisine',
+    assigneeId:      'user-001',
+    groupId:         null,
+    frequency:       'DAILY'  as const,
+    recurrenceJson:  { interval: 1, timeSlots: ['08:00'], advanceGenerateDays: 7 },
+    timezone:        'UTC',
+    startDate:       '2026-01-01T00:00:00Z',
+    endDate:         null,
+    isActive:        true,
+    lastGeneratedAt: null,
+    nextRunAt:       '2026-05-24T08:00:00Z',
+    createdBy:       'user-001',
+    createdAt:       '2026-01-01T00:00:00Z',
+    updatedAt:       '2026-01-01T00:00:00Z',
+    template:        { id: 'tpl-1', name: 'Contrôle réception viande' },
+  },
+  {
+    id:              'sched-2',
+    tenantId:        'ctenant001testidabc1234',
+    templateId:      'tpl-2',
+    zoneId:          'zone-froide',
+    assigneeId:      null,
+    groupId:         'grp-001',
+    frequency:       'WEEKLY' as const,
+    recurrenceJson:  { interval: 1, timeSlots: ['08:00'], advanceGenerateDays: 7, daysOfWeek: [1] },
+    timezone:        'UTC',
+    startDate:       '2026-01-01T00:00:00Z',
+    endDate:         null,
+    isActive:        false,
+    lastGeneratedAt: null,
+    nextRunAt:       null,
+    createdBy:       'user-001',
+    createdAt:       '2026-01-02T00:00:00Z',
+    updatedAt:       '2026-01-02T00:00:00Z',
+    template:        { id: 'tpl-2', name: 'Relevé température chambre froide' },
+  },
+];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function qr<T>(data: T, isLoading = false) {
@@ -127,7 +170,7 @@ function qr<T>(data: T, isLoading = false) {
 }
 
 function mr(mutateAsync: jest.Mock = jest.fn().mockResolvedValue({}), isPending = false) {
-  return { mutateAsync, isPending, isError: false };
+  return { mutateAsync, mutate: jest.fn(), isPending, isError: false };
 }
 
 /**
@@ -528,6 +571,181 @@ describe('ControlsPage', () => {
           expect.objectContaining({ name: 'Contrôle hygiène mains' }),
         );
       });
+    });
+  });
+
+  // ── Schedules tab ─────────────────────────────────────────────────────────────
+
+  describe('Schedules tab', () => {
+    /**
+     * renderInSchedulesTab — switches to the "Planifications récurrentes" tab.
+     *
+     * Mock strategy: mockReturnValue(qr(schedules)) is the universal catch-all.
+     * All useQuery calls (lookup hooks, stats, tasks, photos, ScheduleFormModal
+     * with enabled:false, and the schedules query itself) receive the same return
+     * value.  The lookup hooks iterate the array with `?? []` guards so they
+     * never crash.  The tasks query resolves to [] (data?.data is undefined for
+     * the schedules array shape).  Only the schedules query reads data directly
+     * (`schedules = data ?? []`), so it gets the SCHEDULES fixture correctly.
+     */
+    async function renderInSchedulesTab(schedules = SCHEDULES) {
+      jest.clearAllMocks();
+      // Universal catch-all: safe for every useQuery call in the component tree
+      mockUseQuery.mockReturnValue(qr(schedules));
+      // Universal catch-all for all useMutation calls; each gets mutate: jest.fn()
+      mockUseMutation.mockReturnValue(mr());
+
+      renderPage();
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Planifications récurrentes' }),
+      );
+      await waitFor(() => {
+        expect(screen.getByRole('table')).toBeInTheDocument();
+      });
+    }
+
+    // ── Tab visibility ──────────────────────────────────────────────────────
+
+    it('shows the "Planifications récurrentes" tab button for non-operators', () => {
+      renderPage();
+      expect(
+        screen.getByRole('button', { name: 'Planifications récurrentes' }),
+      ).toBeInTheDocument();
+    });
+
+    // ── Table content ───────────────────────────────────────────────────────
+
+    it('renders a schedule row for each schedule returned', async () => {
+      await renderInSchedulesTab();
+      // 1 header row + 2 data rows
+      expect(screen.getAllByRole('row')).toHaveLength(1 + SCHEDULES.length);
+    });
+
+    it('renders the template name in each row', async () => {
+      await renderInSchedulesTab();
+      expect(screen.getByText('Contrôle réception viande')).toBeInTheDocument();
+      expect(screen.getByText('Relevé température chambre froide')).toBeInTheDocument();
+    });
+
+    it('renders the frequency badge with translated label', async () => {
+      await renderInSchedulesTab();
+      // DAILY → 'Quotidienne', WEEKLY → 'Hebdomadaire'
+      expect(screen.getByText('Quotidienne')).toBeInTheDocument();
+      expect(screen.getByText('Hebdomadaire')).toBeInTheDocument();
+    });
+
+    it('renders "Active" badge for active schedules', async () => {
+      await renderInSchedulesTab();
+      expect(screen.getByText('Active')).toBeInTheDocument();
+    });
+
+    it('renders "Inactive" badge for inactive schedules', async () => {
+      await renderInSchedulesTab();
+      expect(screen.getByText('Inactive')).toBeInTheDocument();
+    });
+
+    it('renders "Désactiver" button only for active schedules', async () => {
+      await renderInSchedulesTab();
+      // sched-1 is active → 1 Désactiver button; sched-2 is inactive → none
+      const deactivateBtns = screen.getAllByRole('button', { name: /désactiver/i });
+      expect(deactivateBtns).toHaveLength(1);
+    });
+
+    // ── Deactivation ────────────────────────────────────────────────────────
+
+    it('calls window.confirm and deactivate mutation when "Désactiver" is clicked', async () => {
+      const mockMutate = jest.fn();
+      jest.clearAllMocks();
+      mockUseQuery.mockReturnValue(qr(SCHEDULES));
+      // All useMutation calls share the same mockMutate so we can assert on it
+      mockUseMutation.mockReturnValue({
+        mutate:      mockMutate,
+        mutateAsync: jest.fn().mockResolvedValue({}),
+        isPending:   false,
+        isError:     false,
+      });
+
+      jest.spyOn(window, 'confirm').mockReturnValue(true);
+
+      renderPage();
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Planifications récurrentes' }),
+      );
+      await waitFor(() => screen.getByRole('table'));
+
+      await userEvent.click(screen.getByRole('button', { name: /désactiver/i }));
+
+      expect(window.confirm).toHaveBeenCalled();
+      expect(mockMutate).toHaveBeenCalledWith('sched-1');
+
+      jest.restoreAllMocks();
+    });
+
+    it('does NOT call the mutation when the user cancels the confirmation', async () => {
+      const mockMutate = jest.fn();
+      jest.clearAllMocks();
+      mockUseQuery.mockReturnValue(qr(SCHEDULES));
+      mockUseMutation.mockReturnValue({
+        mutate:      mockMutate,
+        mutateAsync: jest.fn().mockResolvedValue({}),
+        isPending:   false,
+        isError:     false,
+      });
+
+      jest.spyOn(window, 'confirm').mockReturnValue(false);
+
+      renderPage();
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Planifications récurrentes' }),
+      );
+      await waitFor(() => screen.getByRole('table'));
+
+      await userEvent.click(screen.getByRole('button', { name: /désactiver/i }));
+
+      expect(window.confirm).toHaveBeenCalled();
+      expect(mockMutate).not.toHaveBeenCalled();
+
+      jest.restoreAllMocks();
+    });
+
+    // ── Toolbar ─────────────────────────────────────────────────────────────
+
+    it('renders the "Créer une planification" toolbar button', async () => {
+      await renderInSchedulesTab();
+      expect(
+        screen.getByRole('button', { name: /créer une planification/i }),
+      ).toBeInTheDocument();
+    });
+
+    // ── Empty state ─────────────────────────────────────────────────────────
+
+    it('shows empty state when no schedules exist', async () => {
+      jest.clearAllMocks();
+      mockUseQuery.mockReturnValue(qr([]));
+      mockUseMutation.mockReturnValue(mr());
+
+      renderPage();
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Planifications récurrentes' }),
+      );
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/aucune planification récurrente/i),
+        ).toBeInTheDocument();
+      });
+    });
+
+    // ── Column headers ───────────────────────────────────────────────────────
+
+    it('renders all schedule table column headers', async () => {
+      await renderInSchedulesTab();
+      expect(screen.getByText('Modèle')).toBeInTheDocument();
+      expect(screen.getByText('Zone')).toBeInTheDocument();
+      expect(screen.getByText('Fréquence')).toBeInTheDocument();
+      expect(screen.getByText('Assigné')).toBeInTheDocument();
+      expect(screen.getByText('Prochaine occurrence')).toBeInTheDocument();
+      expect(screen.getByText('Statut')).toBeInTheDocument();
     });
   });
 });
