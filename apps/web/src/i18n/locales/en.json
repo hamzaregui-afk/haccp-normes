@@ -141,6 +141,10 @@
     "subtitle": "Deviation management and corrective actions",
     "report": "Report NC",
     "close": "Close",
+    "view": "View",
+    "searchPlaceholder": "Search an NC…",
+    "allStatuses": "All statuses",
+    "allSeverities": "All severities",
     "severity": {
       "LOW": "Low",
       "MEDIUM": "Medium",
@@ -162,6 +166,59 @@
       "SUPPLIER": "Supplier",
       "PROCESS": "Process",
       "OTHER": "Other"
+    },
+    "stats": {
+      "total": "Total NCs",
+      "open": "Open",
+      "inProgress": "In progress",
+      "critical": "Critical"
+    },
+    "columns": {
+      "reference": "Reference",
+      "description": "Description",
+      "severity": "Severity",
+      "photos": "Photos"
+    },
+    "empty": {
+      "title": "No non-conformities",
+      "description": "No non-conformities match the current filters."
+    },
+    "pagination": {
+      "info": "Page {{page}} of {{lastPage}} — {{total}} NC(s)"
+    },
+    "modal": {
+      "title": "Report a non-conformity",
+      "description": "Enter the details of the new non-conformity.",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Describe the observed non-conformity…",
+      "siteLabel": "Site",
+      "sitePlaceholder": "Select a site…",
+      "productLabel": "Product (optional)",
+      "productPlaceholder": "Select a product…",
+      "severityLabel": "Severity",
+      "correctiveLabel": "Corrective action",
+      "correctivePlaceholder": "Proposed corrective action (optional)",
+      "submit": "Report"
+    },
+    "detail": {
+      "status": "Status",
+      "severity": "Severity",
+      "correctiveAction": "Corrective action",
+      "reportedAt": "Reported on",
+      "photos": "Photos",
+      "addPhoto": "Add a photo",
+      "uploading": "Uploading…",
+      "noPhotos": "No photos for this NC",
+      "noPhotosSub": "Click \"Add a photo\" to start",
+      "uploadError": "Upload error",
+      "uploadErrorDetail": "Upload error. Please try again."
+    },
+    "error": {
+      "load": "Error loading non-conformities."
+    },
+    "toast": {
+      "created": "Non-conformity reported successfully",
+      "closed": "Non-conformity closed successfully"
     }
   },
   "reports": {

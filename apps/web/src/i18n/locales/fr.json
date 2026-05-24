@@ -141,6 +141,10 @@
     "subtitle": "Gestion des écarts et actions correctives",
     "report": "Signaler une NC",
     "close": "Clôturer",
+    "view": "Voir",
+    "searchPlaceholder": "Rechercher une NC…",
+    "allStatuses": "Tous les statuts",
+    "allSeverities": "Toutes les sévérités",
     "severity": {
       "LOW": "Faible",
       "MEDIUM": "Moyen",
@@ -162,6 +166,59 @@
       "SUPPLIER": "Fournisseur",
       "PROCESS": "Process",
       "OTHER": "Autre"
+    },
+    "stats": {
+      "total": "Total NCs",
+      "open": "Ouvertes",
+      "inProgress": "En cours",
+      "critical": "Critiques"
+    },
+    "columns": {
+      "reference": "Référence",
+      "description": "Description",
+      "severity": "Sévérité",
+      "photos": "Photos"
+    },
+    "empty": {
+      "title": "Aucune non-conformité",
+      "description": "Aucune non-conformité ne correspond aux filtres actuels."
+    },
+    "pagination": {
+      "info": "Page {{page}} sur {{lastPage}} — {{total}} NC(s)"
+    },
+    "modal": {
+      "title": "Signaler une non-conformité",
+      "description": "Renseignez les informations de la nouvelle non-conformité.",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Décrivez la non-conformité observée…",
+      "siteLabel": "Site",
+      "sitePlaceholder": "Sélectionner un site…",
+      "productLabel": "Produit (optionnel)",
+      "productPlaceholder": "Sélectionner un produit…",
+      "severityLabel": "Sévérité",
+      "correctiveLabel": "Action corrective",
+      "correctivePlaceholder": "Action corrective proposée (optionnel)",
+      "submit": "Signaler"
+    },
+    "detail": {
+      "status": "Statut",
+      "severity": "Sévérité",
+      "correctiveAction": "Action corrective",
+      "reportedAt": "Signalée le",
+      "photos": "Photos",
+      "addPhoto": "Ajouter une photo",
+      "uploading": "Upload…",
+      "noPhotos": "Aucune photo pour cette NC",
+      "noPhotosSub": "Cliquez sur \"Ajouter une photo\" pour commencer",
+      "uploadError": "Erreur lors du téléversement",
+      "uploadErrorDetail": "Erreur lors du téléversement. Veuillez réessayer."
+    },
+    "error": {
+      "load": "Erreur lors du chargement des non-conformités."
+    },
+    "toast": {
+      "created": "Non-conformité signalée avec succès",
+      "closed": "Non-conformité clôturée avec succès"
     }
   },
   "reports": {

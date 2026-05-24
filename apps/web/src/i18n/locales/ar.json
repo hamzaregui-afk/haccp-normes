@@ -141,6 +141,10 @@
     "subtitle": "إدارة الانحرافات والإجراءات التصحيحية",
     "report": "الإبلاغ عن حالة",
     "close": "إغلاق",
+    "view": "عرض",
+    "searchPlaceholder": "البحث عن NC…",
+    "allStatuses": "جميع الحالات",
+    "allSeverities": "جميع مستويات الخطورة",
     "severity": {
       "LOW": "منخفض",
       "MEDIUM": "متوسط",
@@ -162,6 +166,59 @@
       "SUPPLIER": "المورد",
       "PROCESS": "العملية",
       "OTHER": "أخرى"
+    },
+    "stats": {
+      "total": "إجمالي NC",
+      "open": "مفتوحة",
+      "inProgress": "جارية",
+      "critical": "حرجة"
+    },
+    "columns": {
+      "reference": "المرجع",
+      "description": "الوصف",
+      "severity": "الخطورة",
+      "photos": "الصور"
+    },
+    "empty": {
+      "title": "لا توجد حالات عدم مطابقة",
+      "description": "لا تتطابق أي حالة مع الفلاتر الحالية."
+    },
+    "pagination": {
+      "info": "صفحة {{page}} من {{lastPage}} — {{total}} NC"
+    },
+    "modal": {
+      "title": "الإبلاغ عن عدم مطابقة",
+      "description": "أدخل تفاصيل حالة عدم المطابقة الجديدة.",
+      "descriptionLabel": "الوصف",
+      "descriptionPlaceholder": "صِف عدم المطابقة المرصودة…",
+      "siteLabel": "الموقع",
+      "sitePlaceholder": "اختر موقعاً…",
+      "productLabel": "المنتج (اختياري)",
+      "productPlaceholder": "اختر منتجاً…",
+      "severityLabel": "الخطورة",
+      "correctiveLabel": "الإجراء التصحيحي",
+      "correctivePlaceholder": "الإجراء التصحيحي المقترح (اختياري)",
+      "submit": "إرسال"
+    },
+    "detail": {
+      "status": "الحالة",
+      "severity": "الخطورة",
+      "correctiveAction": "الإجراء التصحيحي",
+      "reportedAt": "تاريخ الإبلاغ",
+      "photos": "الصور",
+      "addPhoto": "إضافة صورة",
+      "uploading": "جارٍ الرفع…",
+      "noPhotos": "لا توجد صور لهذه NC",
+      "noPhotosSub": "انقر على \"إضافة صورة\" للبدء",
+      "uploadError": "خطأ في الرفع",
+      "uploadErrorDetail": "خطأ في الرفع. يرجى المحاولة مرة أخرى."
+    },
+    "error": {
+      "load": "خطأ في تحميل حالات عدم المطابقة."
+    },
+    "toast": {
+      "created": "تم الإبلاغ عن عدم المطابقة بنجاح",
+      "closed": "تم إغلاق عدم المطابقة بنجاح"
     }
   },
   "reports": {

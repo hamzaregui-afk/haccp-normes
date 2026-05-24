@@ -14,6 +14,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useRef, useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { PageWrapper } from '@/components/layout/AppLayout';
 import { Header } from '@/components/layout/Header';
@@ -70,7 +71,7 @@ interface ApiResponse<T> {
   message?: string;
 }
 
-// ─── Style records ────────────────────────────────────────────────────────────
+// ─── Style records (CSS only — labels come from t()) ─────────────────────────
 
 const STATUS_STYLES: Record<NCStatus, string> = {
   OPEN:        'bg-red-100 text-red-700 border border-red-200',
@@ -79,25 +80,11 @@ const STATUS_STYLES: Record<NCStatus, string> = {
   REJECTED:    'bg-gray-100 text-gray-600 border border-gray-200',
 };
 
-const STATUS_LABELS: Record<NCStatus, string> = {
-  OPEN:        'Ouverte',
-  IN_PROGRESS: 'En cours',
-  CLOSED:      'Clôturée',
-  REJECTED:    'Rejetée',
-};
-
 const SEVERITY_STYLES: Record<NCSeverity, string> = {
   LOW:      'bg-gray-100 text-gray-600 border border-gray-200',
   MEDIUM:   'bg-yellow-100 text-yellow-700 border border-yellow-200',
   HIGH:     'bg-orange-100 text-orange-700 border border-orange-200',
   CRITICAL: 'bg-red-100 text-red-700 border border-red-200',
-};
-
-const SEVERITY_LABELS: Record<NCSeverity, string> = {
-  LOW:      'Faible',
-  MEDIUM:   'Moyen',
-  HIGH:     'Élevé',
-  CRITICAL: 'Critique',
 };
 
 // ─── Query hooks ─────────────────────────────────────────────────────────────
@@ -162,12 +149,13 @@ function StatCard({ label, value, icon, color = 'default' }: StatCardProps) {
 
 interface NCBadgeProps { value: NCStatus | NCSeverity; type: 'status' | 'severity' }
 function NCBadge({ value, type }: NCBadgeProps) {
+  const { t } = useTranslation();
   const style = type === 'status'
     ? STATUS_STYLES[value as NCStatus]
     : SEVERITY_STYLES[value as NCSeverity];
   const label = type === 'status'
-    ? STATUS_LABELS[value as NCStatus]
-    : SEVERITY_LABELS[value as NCSeverity];
+    ? t(`nonconformities.status.${value}` as Parameters<typeof t>[0])
+    : t(`nonconformities.severity.${value}` as Parameters<typeof t>[0]);
   return (
     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${style}`}>
       {label}
@@ -188,6 +176,7 @@ function NCDetailModal({
   onClose:          () => void;
   onPhotosUpdated?: () => void;
 }) {
+  const { t } = useTranslation();
   const queryClient  = useQueryClient();
   const tenantId     = useTenantId();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -204,7 +193,7 @@ function NCDetailModal({
       void queryClient.invalidateQueries({ queryKey: ['nonconformities', tenantId] });
       onPhotosUpdated?.();
     },
-    onError: () => showToast({ title: 'Erreur lors du téléversement', variant: 'error' }),
+    onError: () => showToast({ title: t('nonconformities.detail.uploadError'), variant: 'error' }),
   });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -230,21 +219,21 @@ function NCDetailModal({
         {/* Info grid */}
         <dl className="mb-5 grid grid-cols-2 gap-x-6 gap-y-2 rounded-lg border border-surface-muted bg-surface-page px-4 py-3 text-sm">
           <div>
-            <dt className="font-medium text-gray-500">Statut</dt>
+            <dt className="font-medium text-gray-500">{t('nonconformities.detail.status')}</dt>
             <dd className="mt-0.5"><NCBadge value={nc.status} type="status" /></dd>
           </div>
           <div>
-            <dt className="font-medium text-gray-500">Sévérité</dt>
+            <dt className="font-medium text-gray-500">{t('nonconformities.detail.severity')}</dt>
             <dd className="mt-0.5"><NCBadge value={nc.severity} type="severity" /></dd>
           </div>
           {nc.correctiveAction && (
             <div className="col-span-2">
-              <dt className="font-medium text-gray-500">Action corrective</dt>
+              <dt className="font-medium text-gray-500">{t('nonconformities.detail.correctiveAction')}</dt>
               <dd className="mt-0.5 text-gray-800">{nc.correctiveAction}</dd>
             </div>
           )}
           <div>
-            <dt className="font-medium text-gray-500">Signalée le</dt>
+            <dt className="font-medium text-gray-500">{t('nonconformities.detail.reportedAt')}</dt>
             <dd className="mt-0.5 text-gray-800">
               {new Date(nc.createdAt).toLocaleDateString('fr-FR')}
             </dd>
@@ -255,7 +244,7 @@ function NCDetailModal({
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
             <Camera className="h-4 w-4 text-brand-medium" />
-            Photos ({photos.length})
+            {t('nonconformities.detail.photos')} ({photos.length})
           </h3>
           <button
             type="button"
@@ -264,7 +253,9 @@ function NCDetailModal({
             className="flex items-center gap-1.5 rounded-lg border border-brand-medium bg-white px-3 py-1.5 text-xs font-medium text-brand-medium hover:bg-brand-light transition-colors disabled:opacity-50"
           >
             <Upload className="h-3.5 w-3.5" />
-            {uploadMutation.isPending ? 'Upload…' : 'Ajouter une photo'}
+            {uploadMutation.isPending
+              ? t('nonconformities.detail.uploading')
+              : t('nonconformities.detail.addPhoto')}
           </button>
           {/* Hidden file input — accepts images + allows camera on mobile */}
           <input
@@ -279,15 +270,15 @@ function NCDetailModal({
 
         {uploadMutation.isError && (
           <p className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
-            Erreur lors du téléversement. Veuillez réessayer.
+            {t('nonconformities.detail.uploadErrorDetail')}
           </p>
         )}
 
         {photos.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-surface-muted py-10 text-center">
             <ImageOff className="mb-2 h-8 w-8 text-gray-300" />
-            <p className="text-sm text-gray-400">Aucune photo pour cette NC</p>
-            <p className="text-xs text-gray-300">Cliquez sur "Ajouter une photo" pour commencer</p>
+            <p className="text-sm text-gray-400">{t('nonconformities.detail.noPhotos')}</p>
+            <p className="text-xs text-gray-300">{t('nonconformities.detail.noPhotosSub')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -359,27 +350,6 @@ const INITIAL_FORM: CreateNCValues = {
   correctiveAction: '',
 };
 
-const SEVERITY_OPTIONS = [
-  { value: 'LOW',      label: 'Faible' },
-  { value: 'MEDIUM',   label: 'Moyen' },
-  { value: 'HIGH',     label: 'Élevé' },
-  { value: 'CRITICAL', label: 'Critique' },
-];
-
-const STATUS_FILTER_OPTIONS = [
-  { value: 'OPEN',        label: 'Ouverte' },
-  { value: 'IN_PROGRESS', label: 'En cours' },
-  { value: 'CLOSED',      label: 'Clôturée' },
-  { value: 'REJECTED',    label: 'Rejetée' },
-];
-
-const SEVERITY_FILTER_OPTIONS = [
-  { value: 'LOW',      label: 'Faible' },
-  { value: 'MEDIUM',   label: 'Moyen' },
-  { value: 'HIGH',     label: 'Élevé' },
-  { value: 'CRITICAL', label: 'Critique' },
-];
-
 // ─── Lookup hooks ────────────────────────────────────────────────────────────
 
 interface SiteRaw { id: string; name: string; zones?: unknown[] }
@@ -424,6 +394,7 @@ function useProductOptions() {
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function NonconformitiesPage() {
+  const { t } = useTranslation();
   const [page, setPage]                   = useState(1);
   const [search, setSearch]               = useState('');
   const [statusFilter, setStatusFilter]   = useState('');
@@ -446,6 +417,28 @@ export default function NonconformitiesPage() {
     severityFilter,
   );
 
+  // Dynamic options — must be inside component so t() is available
+  const severityOptions = useMemo(() => [
+    { value: 'LOW',      label: t('nonconformities.severity.LOW') },
+    { value: 'MEDIUM',   label: t('nonconformities.severity.MEDIUM') },
+    { value: 'HIGH',     label: t('nonconformities.severity.HIGH') },
+    { value: 'CRITICAL', label: t('nonconformities.severity.CRITICAL') },
+  ], [t]);
+
+  const statusFilterOptions = useMemo(() => [
+    { value: 'OPEN',        label: t('nonconformities.status.OPEN') },
+    { value: 'IN_PROGRESS', label: t('nonconformities.status.IN_PROGRESS') },
+    { value: 'CLOSED',      label: t('nonconformities.status.CLOSED') },
+    { value: 'REJECTED',    label: t('nonconformities.status.REJECTED') },
+  ], [t]);
+
+  const severityFilterOptions = useMemo(() => [
+    { value: 'LOW',      label: t('nonconformities.severity.LOW') },
+    { value: 'MEDIUM',   label: t('nonconformities.severity.MEDIUM') },
+    { value: 'HIGH',     label: t('nonconformities.severity.HIGH') },
+    { value: 'CRITICAL', label: t('nonconformities.severity.CRITICAL') },
+  ], [t]);
+
   const createMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
       api.post('/api/v1/nonconformities', body),
@@ -453,7 +446,7 @@ export default function NonconformitiesPage() {
       void queryClient.invalidateQueries({ queryKey: ['nonconformities', tenantId] });
       setCreateModalOpen(false);
       setForm(INITIAL_FORM);
-      showToast({ title: 'Non-conformité signalée avec succès', variant: 'success' });
+      showToast({ title: t('nonconformities.toast.created'), variant: 'success' });
     },
     onError: (error) => showToast({ title: extractApiMessage(error), variant: 'error' }),
   });
@@ -463,7 +456,7 @@ export default function NonconformitiesPage() {
       api.patch(`/api/v1/nonconformities/${id}`, { status: 'CLOSED' }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['nonconformities', tenantId] });
-      showToast({ title: 'Non-conformité clôturée avec succès', variant: 'success' });
+      showToast({ title: t('nonconformities.toast.closed'), variant: 'success' });
     },
     onError: (error) => showToast({ title: extractApiMessage(error), variant: 'error' }),
   });
@@ -484,31 +477,31 @@ export default function NonconformitiesPage() {
   return (
     <>
       <Header
-        title="Non-conformités"
-        subtitle="Suivi et traitement des non-conformités HACCP"
+        title={t('nonconformities.title')}
+        subtitle={t('nonconformities.subtitle')}
       />
       <PageWrapper>
         {/* Stats row */}
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard
-            label="Total NCs"
+            label={t('nonconformities.stats.total')}
             value={stats?.total ?? 0}
             icon={<AlertTriangle className="h-5 w-5 text-brand-medium" />}
           />
           <StatCard
-            label="Ouvertes"
+            label={t('nonconformities.stats.open')}
             value={stats?.open ?? 0}
             icon={<Circle className="h-5 w-5 text-red-500" />}
             color={(stats?.open ?? 0) > 0 ? 'red' : 'default'}
           />
           <StatCard
-            label="En cours"
+            label={t('nonconformities.stats.inProgress')}
             value={stats?.inProgress ?? 0}
             icon={<Clock className="h-5 w-5 text-orange-500" />}
             color="orange"
           />
           <StatCard
-            label="Critiques"
+            label={t('nonconformities.stats.critical')}
             value={stats?.critical ?? 0}
             icon={<XCircle className="h-5 w-5 text-red-500" />}
             color={(stats?.critical ?? 0) > 0 ? 'red' : 'default'}
@@ -522,7 +515,7 @@ export default function NonconformitiesPage() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Rechercher une NC…"
+                placeholder={t('nonconformities.searchPlaceholder')}
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 className="h-9 w-64 rounded-lg border border-surface-muted bg-white pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
@@ -531,38 +524,38 @@ export default function NonconformitiesPage() {
             <Select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              placeholder="Tous les statuts"
-              options={STATUS_FILTER_OPTIONS}
+              placeholder={t('nonconformities.allStatuses')}
+              options={statusFilterOptions}
               className="w-44"
             />
             <Select
               value={severityFilter}
               onChange={(e) => { setSeverityFilter(e.target.value); setPage(1); }}
-              placeholder="Toutes les sévérités"
-              options={SEVERITY_FILTER_OPTIONS}
+              placeholder={t('nonconformities.allSeverities')}
+              options={severityFilterOptions}
               className="w-48"
             />
           </div>
 
           <Button size="sm" onClick={() => setCreateModalOpen(true)}>
             <Plus className="h-4 w-4" />
-            Signaler une NC
+            {t('nonconformities.report')}
           </Button>
         </div>
 
         {/* Content */}
         {isLoading ? (
-          <div className="py-20 text-center text-sm text-gray-400">Chargement…</div>
+          <div className="py-20 text-center text-sm text-gray-400">{t('common.loading')}</div>
         ) : isError ? (
           <div className="py-20 text-center text-sm text-red-500">
-            Erreur lors du chargement des non-conformités.
+            {t('nonconformities.error.load')}
           </div>
         ) : ncList.length === 0 ? (
           <EmptyState
             icon={AlertTriangle}
-            title="Aucune non-conformité"
-            description="Aucune non-conformité ne correspond aux filtres actuels."
-            actionLabel="Signaler une NC"
+            title={t('nonconformities.empty.title')}
+            description={t('nonconformities.empty.description')}
+            actionLabel={t('nonconformities.report')}
             onAction={() => setCreateModalOpen(true)}
           />
         ) : (
@@ -572,13 +565,13 @@ export default function NonconformitiesPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-surface-muted bg-surface-page text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                    <th className="px-4 py-3">Référence</th>
-                    <th className="px-4 py-3">Description</th>
-                    <th className="px-4 py-3">Statut</th>
-                    <th className="px-4 py-3">Sévérité</th>
-                    <th className="px-4 py-3">Photos</th>
-                    <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
+                    <th className="px-4 py-3">{t('nonconformities.columns.reference')}</th>
+                    <th className="px-4 py-3">{t('nonconformities.columns.description')}</th>
+                    <th className="px-4 py-3">{t('common.status')}</th>
+                    <th className="px-4 py-3">{t('nonconformities.columns.severity')}</th>
+                    <th className="px-4 py-3">{t('nonconformities.columns.photos')}</th>
+                    <th className="px-4 py-3">{t('common.date')}</th>
+                    <th className="px-4 py-3 text-right">{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-muted">
@@ -617,7 +610,7 @@ export default function NonconformitiesPage() {
                             onClick={(e) => { e.stopPropagation(); setSelectedNC(nc); }}
                           >
                             <Eye className="h-3.5 w-3.5" />
-                            Voir
+                            {t('nonconformities.view')}
                           </button>
                           {(nc.status === 'OPEN' || nc.status === 'IN_PROGRESS') && (
                             <Button
@@ -627,7 +620,7 @@ export default function NonconformitiesPage() {
                               onClick={(e) => { e.stopPropagation(); closeMutation.mutate(nc.id); }}
                             >
                               <CheckCircle2 className="h-3.5 w-3.5" />
-                              Clôturer
+                              {t('nonconformities.close')}
                             </Button>
                           )}
                         </div>
@@ -641,11 +634,19 @@ export default function NonconformitiesPage() {
               {data?.meta && data.meta.lastPage > 1 && (
                 <div className="flex items-center justify-between border-t border-surface-muted px-4 py-3 text-sm text-gray-500">
                   <span>
-                    Page {data.meta.page} sur {data.meta.lastPage} — {data.meta.total} NC(s)
+                    {t('nonconformities.pagination.info', {
+                      page:     data.meta.page,
+                      lastPage: data.meta.lastPage,
+                      total:    data.meta.total,
+                    })}
                   </span>
                   <div className="flex gap-2">
-                    <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Précédent</Button>
-                    <Button variant="secondary" size="sm" disabled={page === data.meta.lastPage} onClick={() => setPage((p) => p + 1)}>Suivant</Button>
+                    <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+                      {t('common.previous')}
+                    </Button>
+                    <Button variant="secondary" size="sm" disabled={page === data.meta.lastPage} onClick={() => setPage((p) => p + 1)}>
+                      {t('common.next')}
+                    </Button>
                   </div>
                 </div>
               )}
@@ -682,11 +683,15 @@ export default function NonconformitiesPage() {
 
               {data?.meta && data.meta.lastPage > 1 && (
                 <div className="flex justify-between pt-2">
-                  <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Précédent</Button>
+                  <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+                    {t('common.previous')}
+                  </Button>
                   <span className="text-xs text-gray-500 self-center">
                     {data.meta.page} / {data.meta.lastPage}
                   </span>
-                  <Button variant="secondary" size="sm" disabled={page === data.meta.lastPage} onClick={() => setPage((p) => p + 1)}>Suivant</Button>
+                  <Button variant="secondary" size="sm" disabled={page === data.meta.lastPage} onClick={() => setPage((p) => p + 1)}>
+                    {t('common.next')}
+                  </Button>
                 </div>
               )}
             </div>
@@ -709,19 +714,19 @@ export default function NonconformitiesPage() {
         <Modal
           open={createModalOpen}
           onClose={() => { setCreateModalOpen(false); setForm(INITIAL_FORM); }}
-          title="Signaler une non-conformité"
-          description="Renseignez les informations de la nouvelle non-conformité."
+          title={t('nonconformities.modal.title')}
+          description={t('nonconformities.modal.description')}
           size="md"
         >
           <form onSubmit={handleCreate} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-gray-700">
-                Description <span className="text-red-500">*</span>
+                {t('nonconformities.modal.descriptionLabel')} <span className="text-red-500">*</span>
               </label>
               <textarea
                 required
                 rows={3}
-                placeholder="Décrivez la non-conformité observée…"
+                placeholder={t('nonconformities.modal.descriptionPlaceholder')}
                 value={form.description}
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                 className="w-full rounded-lg border border-surface-muted bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-medium resize-none"
@@ -729,35 +734,37 @@ export default function NonconformitiesPage() {
             </div>
 
             <Select
-              label="Site"
+              label={t('nonconformities.modal.siteLabel')}
               required
-              placeholder="Sélectionner un site…"
+              placeholder={t('nonconformities.modal.sitePlaceholder')}
               options={siteOptions}
               value={form.siteId}
               onChange={(e) => setForm((f) => ({ ...f, siteId: e.target.value }))}
             />
 
             <Select
-              label="Produit (optionnel)"
-              placeholder="Sélectionner un produit…"
+              label={t('nonconformities.modal.productLabel')}
+              placeholder={t('nonconformities.modal.productPlaceholder')}
               options={productOptions}
               value={form.productId}
               onChange={(e) => setForm((f) => ({ ...f, productId: e.target.value }))}
             />
 
             <Select
-              label="Sévérité"
+              label={t('nonconformities.modal.severityLabel')}
               required
               value={form.severity}
               onChange={(e) => setForm((f) => ({ ...f, severity: e.target.value as NCSeverity }))}
-              options={SEVERITY_OPTIONS}
+              options={severityOptions}
             />
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-gray-700">Action corrective</label>
+              <label className="text-sm font-medium text-gray-700">
+                {t('nonconformities.modal.correctiveLabel')}
+              </label>
               <input
                 type="text"
-                placeholder="Action corrective proposée (optionnel)"
+                placeholder={t('nonconformities.modal.correctivePlaceholder')}
                 value={form.correctiveAction}
                 onChange={(e) => setForm((f) => ({ ...f, correctiveAction: e.target.value }))}
                 className="h-9 w-full rounded-lg border border-surface-muted bg-white px-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-medium"
@@ -775,10 +782,10 @@ export default function NonconformitiesPage() {
                 size="sm"
                 onClick={() => { setCreateModalOpen(false); setForm(INITIAL_FORM); }}
               >
-                Annuler
+                {t('common.cancel')}
               </Button>
               <Button type="submit" size="sm" loading={createMutation.isPending}>
-                Signaler
+                {t('nonconformities.modal.submit')}
               </Button>
             </div>
           </form>
