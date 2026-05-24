@@ -19,8 +19,9 @@ import {
   Package, Plus, RotateCcw, ScrollText, Shield, ToggleLeft,
   Trash2, User2, Users, XCircle,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
 import { Header } from '@/components/layout/Header';
@@ -44,19 +45,12 @@ function extractApiError(err: unknown): string {
   return 'Une erreur est survenue. Veuillez réessayer.';
 }
 
-// ─── Style maps ───────────────────────────────────────────────────────────────
+// ─── Style maps (CSS-only — safe at module level) ─────────────────────────────
 
 const STATUS_STYLES: Record<string, string> = {
   ACTIVE:    'bg-green-100 text-green-800',
   ARCHIVED:  'bg-gray-100  text-gray-600',
   SUSPENDED: 'bg-red-100   text-red-700',
-};
-const STATUS_LABELS: Record<string, string> = {
-  ACTIVE: 'Actif', ARCHIVED: 'Archivé', SUSPENDED: 'Suspendu',
-};
-
-const PLAN_LABELS: Record<string, string> = {
-  trial: 'Essai', standard: 'Standard', premium: 'Premium',
 };
 
 const SUB_STATUS_STYLES: Record<string, string> = {
@@ -66,45 +60,49 @@ const SUB_STATUS_STYLES: Record<string, string> = {
   CANCELLED: 'bg-gray-100  text-gray-600',
   EXPIRED:   'bg-gray-100  text-gray-500',
 };
-const SUB_STATUS_LABELS: Record<string, string> = {
-  TRIAL: 'Essai', ACTIVE: 'Actif', SUSPENDED: 'Suspendu', CANCELLED: 'Annulé', EXPIRED: 'Expiré',
+
+const ACTION_STYLES: Record<string, string> = {
+  CREATE: 'bg-green-50 text-green-700',
+  UPDATE: 'bg-blue-50 text-blue-700',
+  DELETE: 'bg-red-50 text-red-700',
+  LOGIN:  'bg-purple-50 text-purple-700',
+  LOGOUT: 'bg-gray-100 text-gray-600',
+  EXPORT: 'bg-orange-50 text-orange-700',
 };
 
-// ─── Module metadata ──────────────────────────────────────────────────────────
+// ─── Module icon map (icons only — safe at module level) ──────────────────────
 
-const MODULE_META: Record<TenantModuleKey, { label: string; description: string; icon: React.FC<{ className?: string }> }> = {
-  DASHBOARD:       { label: 'Tableau de bord',    description: 'KPIs, graphiques et vue d\'ensemble',       icon: LayoutDashboard },
-  HACCP_CONTROLS:  { label: 'Contrôles HACCP',    description: 'Planification et exécution des contrôles', icon: Shield },
-  NONCONFORMITIES: { label: 'Non-conformités',    description: 'Gestion et clôture des NCs',               icon: XCircle },
-  DLC:             { label: 'DLC',                description: 'Dates limites de consommation',             icon: ToggleLeft },
-  REPORTS:         { label: 'Rapports',           description: 'Génération et validation PDF',              icon: ScrollText },
-  EQUIPMENTS:      { label: 'Équipements',        description: 'Référentiel équipements',                  icon: Cog },
-  PRODUCTS:        { label: 'Produits',           description: 'Catalogue produits',                        icon: Package },
-  SUPPLIERS:       { label: 'Fournisseurs',       description: 'Gestion des fournisseurs',                 icon: Building2 },
-  GED:             { label: 'GED',                description: 'Gestion électronique documents',           icon: ScrollText },
-  NOTIFICATIONS:   { label: 'Notifications',      description: 'Alertes e-mail et push',                   icon: CheckCircle2 },
-  AUDIT:           { label: 'Journal d\'audit',   description: 'Registre immuable des actions',            icon: History },
-  PLANNING:        { label: 'Planning',           description: 'Planification avancée',                    icon: LayoutDashboard },
-  TEMPERATURES:    { label: 'Températures',       description: 'Suivi relevés de température',             icon: Shield },
-  RECEPTIONS:      { label: 'Réceptions',         description: 'Contrôle réceptions fournisseurs',         icon: Package },
-  HYGIENE:         { label: 'Hygiène',            description: 'Contrôles hygiène et nettoyage',           icon: Shield },
-  ANALYTICS:       { label: 'Analytics',          description: 'Rapports avancés et statistiques',         icon: ChevronRight },
-  MOBILE_ACCESS:   { label: 'Accès mobile',       description: 'Application mobile opérateurs',            icon: Users },
+const MODULE_ICONS: Record<TenantModuleKey, React.FC<{ className?: string }>> = {
+  DASHBOARD:       LayoutDashboard,
+  HACCP_CONTROLS:  Shield,
+  NONCONFORMITIES: XCircle,
+  DLC:             ToggleLeft,
+  REPORTS:         ScrollText,
+  EQUIPMENTS:      Cog,
+  PRODUCTS:        Package,
+  SUPPLIERS:       Building2,
+  GED:             ScrollText,
+  NOTIFICATIONS:   CheckCircle2,
+  AUDIT:           History,
+  PLANNING:        LayoutDashboard,
+  TEMPERATURES:    Shield,
+  RECEPTIONS:      Package,
+  HYGIENE:         Shield,
+  ANALYTICS:       ChevronRight,
+  MOBILE_ACCESS:   Users,
 };
 
-// ─── Tab definition ───────────────────────────────────────────────────────────
+const MODULE_KEYS: TenantModuleKey[] = [
+  'DASHBOARD', 'HACCP_CONTROLS', 'NONCONFORMITIES', 'DLC', 'REPORTS',
+  'EQUIPMENTS', 'PRODUCTS', 'SUPPLIERS', 'GED', 'NOTIFICATIONS',
+  'AUDIT', 'PLANNING', 'TEMPERATURES', 'RECEPTIONS', 'HYGIENE',
+  'ANALYTICS', 'MOBILE_ACCESS',
+];
 
-const TABS = [
-  { id: 'info',         label: 'Informations',    icon: Building2  },
-  { id: 'admin',        label: 'Admin principal', icon: User2       },
-  { id: 'modules',      label: 'Modules',         icon: ToggleLeft  },
-  { id: 'subscription', label: 'Abonnement',      icon: CreditCard  },
-  { id: 'sites',        label: 'Sites & Zones',   icon: MapPin      },
-  { id: 'users',        label: 'Utilisateurs',    icon: Users       },
-  { id: 'history',      label: 'Historique',      icon: History     },
-] as const;
+// ─── Tab IDs ──────────────────────────────────────────────────────────────────
 
-type TabId = (typeof TABS)[number]['id'];
+const TAB_IDS = ['info', 'admin', 'modules', 'subscription', 'sites', 'users', 'history'] as const;
+type TabId = (typeof TAB_IDS)[number];
 
 // ─── Data hooks ───────────────────────────────────────────────────────────────
 
@@ -156,6 +154,7 @@ function useTenantSites(id: string) {
 // ─── Tab: Informations ────────────────────────────────────────────────────────
 
 function InfoTab({ tenant, tenantId }: { tenant: Tenant; tenantId: string }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
 
@@ -176,7 +175,7 @@ function InfoTab({ tenant, tenantId }: { tenant: Tenant; tenantId: string }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tenant', tenantId] });
       qc.invalidateQueries({ queryKey: ['tenants'] });
-      showToast({ title: 'Informations mises à jour', variant: 'success' });
+      showToast({ title: t('clients.detail.infoUpdated'), variant: 'success' });
       setEditing(false);
     },
     onError: (err) => showToast({ title: extractApiError(err), variant: 'error' }),
@@ -186,23 +185,23 @@ function InfoTab({ tenant, tenantId }: { tenant: Tenant; tenantId: string }) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-gray-900">Informations générales</h3>
+          <h3 className="text-base font-semibold text-gray-900">{t('clients.detail.generalInfo')}</h3>
           <Button size="sm" variant="secondary" onClick={() => { reset(); setEditing(true); }}>
-            Modifier
+            {t('clients.detail.subscription.edit')}
           </Button>
         </div>
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           {[
-            { label: 'Nom',           value: tenant.name },
-            { label: 'Slug',          value: `/${tenant.slug}`, mono: true },
-            { label: 'Email',         value: tenant.email },
-            { label: 'Téléphone',     value: tenant.phone },
-            { label: 'SIRET',         value: tenant.siret },
-            { label: 'Secteur',       value: tenant.sector },
-            { label: 'Statut',        value: STATUS_LABELS[tenant.status] ?? tenant.status },
-            { label: 'Plan',          value: PLAN_LABELS[tenant.plan] ?? tenant.plan },
-            { label: 'Créé le',       value: new Date(tenant.createdAt).toLocaleDateString('fr-FR', { dateStyle: 'long' }) },
+            { label: t('clients.detail.fields.name'),      value: tenant.name },
+            { label: t('clients.detail.fields.slug'),      value: `/${tenant.slug}`, mono: true },
+            { label: t('clients.detail.fields.email'),     value: tenant.email },
+            { label: t('clients.detail.fields.phone'),     value: tenant.phone },
+            { label: t('clients.detail.fields.siret'),     value: tenant.siret },
+            { label: t('clients.detail.fields.sector'),    value: tenant.sector },
+            { label: t('clients.detail.fields.status'),    value: t(`clients.status.${tenant.status}` as Parameters<typeof t>[0]) },
+            { label: t('clients.detail.fields.plan'),      value: t(`clients.plans.${tenant.plan}` as Parameters<typeof t>[0]) },
+            { label: t('clients.detail.fields.createdAt'), value: new Date(tenant.createdAt).toLocaleDateString('fr-FR', { dateStyle: 'long' }) },
           ].map(({ label, value, mono }) => (
             <div key={label}>
               <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">{label}</dt>
@@ -215,7 +214,9 @@ function InfoTab({ tenant, tenantId }: { tenant: Tenant; tenantId: string }) {
 
         {tenant.address && (
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Adresse</dt>
+            <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">
+              {t('clients.detail.fields.address')}
+            </dt>
             <dd className="mt-1 text-sm text-gray-900 whitespace-pre-line">{tenant.address}</dd>
           </div>
         )}
@@ -225,14 +226,14 @@ function InfoTab({ tenant, tenantId }: { tenant: Tenant; tenantId: string }) {
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-      <h3 className="text-base font-semibold text-gray-900">Modifier les informations</h3>
+      <h3 className="text-base font-semibold text-gray-900">{t('clients.detail.editInfo')}</h3>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {[
-          { key: 'name',   label: 'Nom *',       type: 'text',  placeholder: 'Boulangerie Dupont' },
-          { key: 'email',  label: 'Email',        type: 'email', placeholder: 'contact@client.com' },
-          { key: 'phone',  label: 'Téléphone',    type: 'tel',   placeholder: '+33 1 23 45 67 89' },
-          { key: 'siret',  label: 'SIRET',        type: 'text',  placeholder: '12345678901234' },
+          { key: 'name',  label: `${t('clients.detail.fields.name')} *`, type: 'text',  placeholder: 'Boulangerie Dupont' },
+          { key: 'email', label: t('clients.detail.fields.email'),        type: 'email', placeholder: 'contact@client.com' },
+          { key: 'phone', label: t('clients.detail.fields.phone'),        type: 'tel',   placeholder: '+33 1 23 45 67 89' },
+          { key: 'siret', label: t('clients.detail.fields.siret'),        type: 'text',  placeholder: '12345678901234' },
         ].map(({ key, label, type, placeholder }) => (
           <div key={key} className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">{label}</label>
@@ -247,12 +248,12 @@ function InfoTab({ tenant, tenantId }: { tenant: Tenant; tenantId: string }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-sm font-medium text-gray-700">Secteur d'activité</label>
+        <label className="text-sm font-medium text-gray-700">{t('clients.detail.fields.sector')}</label>
         <select
           {...register('sector')}
           className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
         >
-          <option value="">— Sélectionner —</option>
+          <option value="">{t('clients.detail.sectorSelect')}</option>
           {['RESTAURATION', 'INDUSTRIE_ALIMENTAIRE', 'GRANDE_DISTRIBUTION', 'TRAITEUR', 'AUTRE'].map((s) => (
             <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
           ))}
@@ -260,7 +261,7 @@ function InfoTab({ tenant, tenantId }: { tenant: Tenant; tenantId: string }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-sm font-medium text-gray-700">Adresse</label>
+        <label className="text-sm font-medium text-gray-700">{t('clients.detail.fields.address')}</label>
         <textarea
           {...register('address')}
           rows={3}
@@ -270,20 +271,20 @@ function InfoTab({ tenant, tenantId }: { tenant: Tenant; tenantId: string }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-sm font-medium text-gray-700">Statut</label>
+        <label className="text-sm font-medium text-gray-700">{t('clients.detail.fields.status')}</label>
         <select
           {...register('status')}
           className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
         >
-          <option value="ACTIVE">Actif</option>
-          <option value="SUSPENDED">Suspendu</option>
-          <option value="ARCHIVED">Archivé</option>
+          <option value="ACTIVE">{t('clients.detail.statusOptions.ACTIVE')}</option>
+          <option value="SUSPENDED">{t('clients.detail.statusOptions.SUSPENDED')}</option>
+          <option value="ARCHIVED">{t('clients.detail.statusOptions.ARCHIVED')}</option>
         </select>
       </div>
 
       <div className="flex gap-2 pt-2">
-        <Button type="submit" loading={mutation.isPending}>Enregistrer</Button>
-        <Button type="button" variant="secondary" onClick={() => setEditing(false)}>Annuler</Button>
+        <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
+        <Button type="button" variant="secondary" onClick={() => setEditing(false)}>{t('common.cancel')}</Button>
       </div>
     </form>
   );
@@ -294,6 +295,7 @@ function InfoTab({ tenant, tenantId }: { tenant: Tenant; tenantId: string }) {
 interface AdminTabProps { tenant: Tenant; tenantId: string; }
 
 function AdminTab({ tenant, tenantId }: AdminTabProps) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
 
@@ -315,7 +317,7 @@ function AdminTab({ tenant, tenantId }: AdminTabProps) {
         void api.patch(`/api/v1/tenants/${tenantId}`, { primaryAdminId: userId });
         qc.invalidateQueries({ queryKey: ['tenant', tenantId] });
       }
-      showToast({ title: 'Admin créé avec succès', variant: 'success' });
+      showToast({ title: t('clients.detail.admin.createModal.toast'), variant: 'success' });
       setShowCreate(false);
       reset();
     },
@@ -327,10 +329,10 @@ function AdminTab({ tenant, tenantId }: AdminTabProps) {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold text-gray-900">Admin principal</h3>
+        <h3 className="text-base font-semibold text-gray-900">{t('clients.detail.admin.title')}</h3>
         {!hasAdmin && (
           <Button size="sm" onClick={() => setShowCreate(true)}>
-            <Plus className="mr-1.5 h-4 w-4" /> Créer l'admin
+            <Plus className="mr-1.5 h-4 w-4" /> {t('clients.detail.admin.createBtn')}
           </Button>
         )}
       </div>
@@ -342,7 +344,7 @@ function AdminTab({ tenant, tenantId }: AdminTabProps) {
               <User2 className="h-5 w-5 text-green-700" />
             </div>
             <div>
-              <p className="font-medium text-green-900">Admin assigné</p>
+              <p className="font-medium text-green-900">{t('clients.detail.admin.assigned')}</p>
               <p className="text-xs text-green-600 font-mono">{tenant.primaryAdminId}</p>
             </div>
             <span className="ml-auto rounded-full bg-green-200 px-2.5 py-0.5 text-xs font-medium text-green-800">
@@ -354,46 +356,46 @@ function AdminTab({ tenant, tenantId }: AdminTabProps) {
               size="sm"
               variant="secondary"
               onClick={() => {
-                showToast({ title: 'Lien de réinitialisation envoyé (fonctionnalité à venir)', variant: 'info' });
+                showToast({ title: t('clients.detail.admin.resetPwdToast'), variant: 'info' });
               }}
             >
-              <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Réinitialiser MDP
+              <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> {t('clients.detail.admin.resetPwd')}
             </Button>
           </div>
         </div>
       ) : (
         <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
           <User2 className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-          <p className="font-medium text-gray-500">Aucun admin assigné</p>
+          <p className="font-medium text-gray-500">{t('clients.detail.admin.noAdmin')}</p>
           <p className="mt-1 text-xs text-gray-400">
-            Créez un utilisateur ADMIN pour permettre au client de gérer son instance.
+            {t('clients.detail.admin.noAdminSub')}
           </p>
           <Button className="mt-4" size="sm" onClick={() => setShowCreate(true)}>
-            <Plus className="mr-1.5 h-4 w-4" /> Créer l'admin
+            <Plus className="mr-1.5 h-4 w-4" /> {t('clients.detail.admin.createBtn')}
           </Button>
         </div>
       )}
 
       <div className="rounded-xl border border-blue-50 bg-blue-50/60 p-4 text-sm text-blue-800">
-        <p className="font-medium mb-1">Règles admin tenant :</p>
+        <p className="font-medium mb-1">{t('clients.detail.admin.rulesTitle')}</p>
         <ul className="space-y-0.5 text-xs list-disc list-inside text-blue-700">
-          <li>Appartient automatiquement au tenant <strong>{tenant.name}</strong></li>
-          <li>Reçoit le rôle <strong>ADMIN</strong> — accès à son tenant uniquement</li>
-          <li>Peut gérer les utilisateurs et le référentiel de son instance</li>
-          <li>Ne peut pas voir les autres tenants de la plateforme</li>
+          <li>{t('clients.detail.admin.rules.scope', { name: tenant.name })}</li>
+          <li>{t('clients.detail.admin.rules.role')}</li>
+          <li>{t('clients.detail.admin.rules.can')}</li>
+          <li>{t('clients.detail.admin.rules.cannot')}</li>
         </ul>
       </div>
 
       {showCreate && (
-        <Modal open title="Créer l'administrateur" onClose={() => setShowCreate(false)}>
+        <Modal open title={t('clients.detail.admin.createModal.title')} onClose={() => setShowCreate(false)}>
           <form onSubmit={handleSubmit((v) => createMutation.mutate(v))} className="flex flex-col gap-4">
             <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
-              Cet admin sera créé dans le tenant <strong>{tenant.name}</strong> avec le rôle ADMIN.
+              {t('clients.detail.admin.createModal.warning', { name: tenant.name })}
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-gray-700">Nom complet *</label>
+              <label className="text-sm font-medium text-gray-700">{t('clients.detail.admin.createModal.fullName')}</label>
               <input
-                {...register('name', { required: 'Obligatoire' })}
+                {...register('name', { required: t('clients.detail.admin.createModal.required') })}
                 type="text"
                 placeholder="Jean Dupont"
                 className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
@@ -401,9 +403,9 @@ function AdminTab({ tenant, tenantId }: AdminTabProps) {
               {errors.name && <p className="text-xs text-red-600">{errors.name.message}</p>}
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-gray-700">Email *</label>
+              <label className="text-sm font-medium text-gray-700">{t('clients.detail.admin.createModal.email')}</label>
               <input
-                {...register('email', { required: 'Obligatoire' })}
+                {...register('email', { required: t('clients.detail.admin.createModal.required') })}
                 type="email"
                 placeholder="admin@client.com"
                 className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
@@ -411,18 +413,21 @@ function AdminTab({ tenant, tenantId }: AdminTabProps) {
               {errors.email && <p className="text-xs text-red-600">{errors.email.message}</p>}
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-gray-700">Mot de passe *</label>
+              <label className="text-sm font-medium text-gray-700">{t('clients.detail.admin.createModal.password')}</label>
               <input
-                {...register('password', { required: 'Obligatoire', minLength: { value: 8, message: '8 caractères minimum' } })}
+                {...register('password', {
+                  required:  t('clients.detail.admin.createModal.required'),
+                  minLength: { value: 8, message: t('clients.detail.admin.createModal.passwordMin') },
+                })}
                 type="password"
-                placeholder="Min. 8 caractères"
+                placeholder={t('clients.detail.admin.createModal.passwordPlaceholder')}
                 className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
               />
               {errors.password && <p className="text-xs text-red-600">{errors.password.message}</p>}
             </div>
             <div className="flex justify-end gap-2 pt-1">
-              <Button type="button" variant="secondary" onClick={() => setShowCreate(false)}>Annuler</Button>
-              <Button type="submit" loading={createMutation.isPending}>Créer l'admin</Button>
+              <Button type="button" variant="secondary" onClick={() => setShowCreate(false)}>{t('common.cancel')}</Button>
+              <Button type="submit" loading={createMutation.isPending}>{t('clients.detail.admin.createModal.submit')}</Button>
             </div>
           </form>
         </Modal>
@@ -434,6 +439,7 @@ function AdminTab({ tenant, tenantId }: AdminTabProps) {
 // ─── Tab: Modules ─────────────────────────────────────────────────────────────
 
 function ModulesTab({ tenantId }: { tenantId: string }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data: modules, isLoading } = useTenantModules(tenantId);
   const [localState, setLocalState] = useState<Record<string, boolean>>({});
@@ -446,7 +452,7 @@ function ModulesTab({ tenantId }: { tenantId: string }) {
       qc.invalidateQueries({ queryKey: ['tenant-modules', tenantId] });
       qc.invalidateQueries({ queryKey: ['tenant', tenantId] });
       qc.invalidateQueries({ queryKey: ['tenants'] });
-      showToast({ title: 'Modules mis à jour', variant: 'success' });
+      showToast({ title: t('clients.detail.modules.toast'), variant: 'success' });
       setDirty(false);
       setLocalState({});
     },
@@ -471,10 +477,10 @@ function ModulesTab({ tenantId }: { tenantId: string }) {
     setDirty(true);
   };
 
-  const enabledCount = (Object.keys(MODULE_META) as TenantModuleKey[]).filter((k) => effectiveState(k)).length;
+  const enabledCount = MODULE_KEYS.filter((k) => effectiveState(k)).length;
 
   const handleSave = () => {
-    const changes = (Object.keys(MODULE_META) as TenantModuleKey[]).map((key) => ({
+    const changes = MODULE_KEYS.map((key) => ({
       moduleKey: key,
       enabled:   effectiveState(key),
     }));
@@ -485,59 +491,59 @@ function ModulesTab({ tenantId }: { tenantId: string }) {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-semibold text-gray-900">Modules activés</h3>
+          <h3 className="text-base font-semibold text-gray-900">{t('clients.detail.modules.title')}</h3>
           <p className="text-xs text-gray-400 mt-0.5">
-            {enabledCount} / 17 modules actifs
+            {t('clients.detail.modules.count', { count: enabledCount })}
           </p>
         </div>
         {dirty && (
           <Button onClick={handleSave} loading={mutation.isPending} size="sm">
-            Enregistrer les modifications
+            {t('clients.detail.modules.save')}
           </Button>
         )}
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {(Object.entries(MODULE_META) as [TenantModuleKey, (typeof MODULE_META)[TenantModuleKey]][]).map(
-          ([key, meta]) => {
-            const enabled = effectiveState(key);
-            const Icon    = meta.icon;
+        {MODULE_KEYS.map((key) => {
+          const enabled = effectiveState(key);
+          const Icon    = MODULE_ICONS[key];
+          const label   = t(`clients.detail.modulesMeta.${key}.label` as Parameters<typeof t>[0]);
+          const desc    = t(`clients.detail.modulesMeta.${key}.description` as Parameters<typeof t>[0]);
 
-            return (
-              <button
-                key={key}
-                onClick={() => toggle(key)}
-                className={`group flex items-start gap-3 rounded-xl border p-4 text-left transition-all ${
-                  enabled
-                    ? 'border-brand-medium/30 bg-brand-lighter/60 shadow-sm'
-                    : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                  enabled ? 'bg-brand-medium text-white' : 'bg-gray-100 text-gray-400'
-                }`}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className={`text-sm font-medium ${enabled ? 'text-brand-dark' : 'text-gray-600'}`}>
-                      {meta.label}
-                    </span>
-                    {/* Toggle pill */}
-                    <div className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
-                      enabled ? 'bg-brand-medium' : 'bg-gray-200'
-                    }`}>
-                      <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                        enabled ? 'translate-x-4' : 'translate-x-0.5'
-                      }`} />
-                    </div>
+          return (
+            <button
+              key={key}
+              onClick={() => toggle(key)}
+              className={`group flex items-start gap-3 rounded-xl border p-4 text-left transition-all ${
+                enabled
+                  ? 'border-brand-medium/30 bg-brand-lighter/60 shadow-sm'
+                  : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                enabled ? 'bg-brand-medium text-white' : 'bg-gray-100 text-gray-400'
+              }`}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <span className={`text-sm font-medium ${enabled ? 'text-brand-dark' : 'text-gray-600'}`}>
+                    {label}
+                  </span>
+                  {/* Toggle pill */}
+                  <div className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+                    enabled ? 'bg-brand-medium' : 'bg-gray-200'
+                  }`}>
+                    <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                      enabled ? 'translate-x-4' : 'translate-x-0.5'
+                    }`} />
                   </div>
-                  <p className="mt-0.5 text-xs text-gray-400 leading-tight">{meta.description}</p>
                 </div>
-              </button>
-            );
-          },
-        )}
+                <p className="mt-0.5 text-xs text-gray-400 leading-tight">{desc}</p>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -546,6 +552,7 @@ function ModulesTab({ tenantId }: { tenantId: string }) {
 // ─── Tab: Abonnement ──────────────────────────────────────────────────────────
 
 function SubscriptionTab({ tenantId, tenant }: { tenantId: string; tenant: Tenant }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data: sub, isLoading } = useTenantSubscription(tenantId);
   const [editing, setEditing] = useState(false);
@@ -567,7 +574,7 @@ function SubscriptionTab({ tenantId, tenant }: { tenantId: string; tenant: Tenan
       qc.invalidateQueries({ queryKey: ['tenant-subscription', tenantId] });
       qc.invalidateQueries({ queryKey: ['tenant', tenantId] });
       qc.invalidateQueries({ queryKey: ['tenants'] });
-      showToast({ title: 'Abonnement mis à jour', variant: 'success' });
+      showToast({ title: t('clients.detail.subscription.toast'), variant: 'success' });
       setEditing(false);
     },
     onError: (err) => showToast({ title: extractApiError(err), variant: 'error' }),
@@ -585,42 +592,42 @@ function SubscriptionTab({ tenantId, tenant }: { tenantId: string; tenant: Tenan
     return (
       <div className="space-y-5">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-gray-900">Abonnement</h3>
+          <h3 className="text-base font-semibold text-gray-900">{t('clients.detail.subscription.title')}</h3>
           <Button size="sm" variant="secondary" onClick={() => { reset(); setEditing(true); }}>
-            Modifier
+            {t('clients.detail.subscription.edit')}
           </Button>
         </div>
 
         {!sub ? (
           <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
             <CreditCard className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-            <p className="font-medium text-gray-500">Aucun abonnement configuré</p>
+            <p className="font-medium text-gray-500">{t('clients.detail.subscription.none')}</p>
             <Button className="mt-4" size="sm" onClick={() => setEditing(true)}>
-              <Plus className="mr-1.5 h-4 w-4" /> Configurer l'abonnement
+              <Plus className="mr-1.5 h-4 w-4" /> {t('clients.detail.subscription.configure')}
             </Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { label: 'Plan',    value: PLAN_LABELS[sub.plan] ?? sub.plan },
+              { label: t('clients.detail.subscription.fields.plan'),   value: t(`clients.plans.${sub.plan}` as Parameters<typeof t>[0]) },
               {
-                label: 'Statut',
+                label: t('clients.detail.subscription.fields.status'),
                 value: (
                   <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${SUB_STATUS_STYLES[sub.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                    {SUB_STATUS_LABELS[sub.status] ?? sub.status}
+                    {t(`clients.subStatus.${sub.status}` as Parameters<typeof t>[0])}
                   </span>
                 ),
               },
-              { label: 'Utilisateurs max', value: sub.maxUsers },
-              { label: 'Sites max',        value: sub.maxSites },
+              { label: t('clients.detail.subscription.fields.maxUsers'), value: sub.maxUsers },
+              { label: t('clients.detail.subscription.fields.maxSites'), value: sub.maxSites },
               {
-                label: 'Fin d\'essai',
+                label: t('clients.detail.subscription.fields.trialEndsAt'),
                 value: sub.trialEndsAt
-                  ? `${new Date(sub.trialEndsAt).toLocaleDateString('fr-FR')} (${trialDays}j restants)`
+                  ? `${new Date(sub.trialEndsAt).toLocaleDateString('fr-FR')} (${t('clients.detail.subscription.fields.trialDaysLeft', { count: trialDays })})`
                   : '—',
               },
               {
-                label: 'Début',
+                label: t('clients.detail.subscription.fields.startedAt'),
                 value: new Date(sub.startedAt).toLocaleDateString('fr-FR', { dateStyle: 'long' }),
               },
             ].map(({ label, value }) => (
@@ -636,7 +643,9 @@ function SubscriptionTab({ tenantId, tenant }: { tenantId: string; tenant: Tenan
 
         {sub?.notes && (
           <div className="rounded-lg bg-gray-50 border border-gray-100 p-4 text-sm text-gray-700">
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Notes</p>
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">
+              {t('clients.detail.subscription.fields.notes')}
+            </p>
             {sub.notes}
           </div>
         )}
@@ -646,49 +655,54 @@ function SubscriptionTab({ tenantId, tenant }: { tenantId: string; tenant: Tenan
 
   return (
     <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-      <h3 className="text-base font-semibold text-gray-900">Modifier l'abonnement</h3>
+      <h3 className="text-base font-semibold text-gray-900">{t('clients.detail.subscription.editTitle')}</h3>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700">Plan</label>
+          <label className="text-sm font-medium text-gray-700">{t('clients.detail.subscription.fields.plan')}</label>
           <select {...register('plan')} className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium">
-            <option value="trial">Essai (14 jours)</option>
-            <option value="standard">Standard</option>
-            <option value="premium">Premium</option>
+            <option value="trial">{t('clients.form.planOptions.trial')}</option>
+            <option value="standard">{t('clients.form.planOptions.standard')}</option>
+            <option value="premium">{t('clients.form.planOptions.premium')}</option>
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700">Statut</label>
+          <label className="text-sm font-medium text-gray-700">{t('clients.detail.subscription.fields.status')}</label>
           <select {...register('status')} className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium">
-            <option value="TRIAL">Essai</option>
-            <option value="ACTIVE">Actif</option>
-            <option value="SUSPENDED">Suspendu</option>
-            <option value="CANCELLED">Annulé</option>
-            <option value="EXPIRED">Expiré</option>
+            <option value="TRIAL">{t('clients.subStatus.TRIAL')}</option>
+            <option value="ACTIVE">{t('clients.subStatus.ACTIVE')}</option>
+            <option value="SUSPENDED">{t('clients.subStatus.SUSPENDED')}</option>
+            <option value="CANCELLED">{t('clients.subStatus.CANCELLED')}</option>
+            <option value="EXPIRED">{t('clients.subStatus.EXPIRED')}</option>
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700">Utilisateurs max</label>
+          <label className="text-sm font-medium text-gray-700">{t('clients.detail.subscription.fields.maxUsers')}</label>
           <input {...register('maxUsers', { valueAsNumber: true })} type="number" min={1} className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium" />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700">Sites max</label>
+          <label className="text-sm font-medium text-gray-700">{t('clients.detail.subscription.fields.maxSites')}</label>
           <input {...register('maxSites', { valueAsNumber: true })} type="number" min={1} className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium" />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700">Fin d'essai</label>
+          <label className="text-sm font-medium text-gray-700">{t('clients.detail.subscription.fields.trialEndsAt')}</label>
           <input {...register('trialEndsAt')} type="date" className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium" />
         </div>
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-sm font-medium text-gray-700">Notes internes</label>
-        <textarea {...register('notes')} rows={3} className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium" placeholder="Notes sur cet abonnement…" />
+        <label className="text-sm font-medium text-gray-700">{t('clients.detail.subscription.fields.notes')}</label>
+        <textarea
+          {...register('notes')}
+          rows={3}
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
+          placeholder={t('clients.detail.subscription.fields.notesPlaceholder')}
+        />
       </div>
 
       <div className="flex gap-2 pt-1">
-        <Button type="submit" loading={mutation.isPending}>Enregistrer</Button>
-        <Button type="button" variant="secondary" onClick={() => setEditing(false)}>Annuler</Button>
+        <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
+        <Button type="button" variant="secondary" onClick={() => setEditing(false)}>{t('common.cancel')}</Button>
       </div>
     </form>
   );
@@ -697,6 +711,7 @@ function SubscriptionTab({ tenantId, tenant }: { tenantId: string; tenant: Tenan
 // ─── Tab: Sites & Zones ───────────────────────────────────────────────────────
 
 function SitesTab({ tenantId }: { tenantId: string }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data: sites, isLoading } = useTenantSites(tenantId);
   const [showAdd, setShowAdd] = useState(false);
@@ -708,7 +723,7 @@ function SitesTab({ tenantId }: { tenantId: string }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tenant-sites', tenantId] });
       qc.invalidateQueries({ queryKey: ['tenant', tenantId] });
-      showToast({ title: 'Site créé', variant: 'success' });
+      showToast({ title: t('clients.detail.sites.toast.created'), variant: 'success' });
       setShowAdd(false);
       setNewSiteName('');
       setNewSiteAddr('');
@@ -721,7 +736,7 @@ function SitesTab({ tenantId }: { tenantId: string }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tenant-sites', tenantId] });
       qc.invalidateQueries({ queryKey: ['tenant', tenantId] });
-      showToast({ title: 'Site supprimé', variant: 'success' });
+      showToast({ title: t('clients.detail.sites.toast.deleted'), variant: 'success' });
     },
     onError: (err) => showToast({ title: extractApiError(err), variant: 'error' }),
   });
@@ -729,9 +744,9 @@ function SitesTab({ tenantId }: { tenantId: string }) {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold text-gray-900">Sites & Zones</h3>
+        <h3 className="text-base font-semibold text-gray-900">{t('clients.detail.sites.title')}</h3>
         <Button size="sm" onClick={() => setShowAdd(true)}>
-          <Plus className="mr-1.5 h-4 w-4" /> Ajouter un site
+          <Plus className="mr-1.5 h-4 w-4" /> {t('clients.detail.sites.add')}
         </Button>
       </div>
 
@@ -744,9 +759,9 @@ function SitesTab({ tenantId }: { tenantId: string }) {
       ) : (sites ?? []).length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
           <MapPin className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-          <p className="font-medium text-gray-500">Aucun site</p>
+          <p className="font-medium text-gray-500">{t('clients.detail.sites.none')}</p>
           <Button className="mt-4" size="sm" onClick={() => setShowAdd(true)}>
-            <Plus className="mr-1.5 h-4 w-4" /> Ajouter un site
+            <Plus className="mr-1.5 h-4 w-4" /> {t('clients.detail.sites.add')}
           </Button>
         </div>
       ) : (
@@ -765,7 +780,7 @@ function SitesTab({ tenantId }: { tenantId: string }) {
                 </div>
                 <button
                   onClick={() => {
-                    if (window.confirm(`Supprimer le site « ${site.name} » et toutes ses zones ?`))
+                    if (window.confirm(t('clients.detail.sites.deleteConfirm', { name: site.name })))
                       deleteMutation.mutate(site.id);
                   }}
                   className="rounded p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
@@ -789,36 +804,36 @@ function SitesTab({ tenantId }: { tenantId: string }) {
       )}
 
       {showAdd && (
-        <Modal open title="Nouveau site" onClose={() => setShowAdd(false)}>
+        <Modal open title={t('clients.detail.sites.modal.title')} onClose={() => setShowAdd(false)}>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-gray-700">Nom du site *</label>
+              <label className="text-sm font-medium text-gray-700">{t('clients.detail.sites.modal.name')}</label>
               <input
                 value={newSiteName}
                 onChange={(e) => setNewSiteName(e.target.value)}
                 type="text"
-                placeholder="Cuisine principale"
+                placeholder={t('clients.detail.sites.modal.namePlaceholder')}
                 className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-gray-700">Adresse</label>
+              <label className="text-sm font-medium text-gray-700">{t('clients.detail.sites.modal.address')}</label>
               <input
                 value={newSiteAddr}
                 onChange={(e) => setNewSiteAddr(e.target.value)}
                 type="text"
-                placeholder="12 rue des Boulangers, Paris"
+                placeholder={t('clients.detail.sites.modal.addressPlaceholder')}
                 className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
               />
             </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="secondary" onClick={() => setShowAdd(false)}>Annuler</Button>
+              <Button type="button" variant="secondary" onClick={() => setShowAdd(false)}>{t('common.cancel')}</Button>
               <Button
                 onClick={() => newSiteName.trim() && addMutation.mutate()}
                 loading={addMutation.isPending}
                 disabled={!newSiteName.trim()}
               >
-                Créer le site
+                {t('clients.detail.sites.modal.submit')}
               </Button>
             </div>
           </div>
@@ -831,14 +846,15 @@ function SitesTab({ tenantId }: { tenantId: string }) {
 // ─── Tab: Utilisateurs ────────────────────────────────────────────────────────
 
 function UsersTab({ tenant }: { tenant: Tenant }) {
+  const { t } = useTranslation();
+
   return (
     <div className="space-y-5">
-      <h3 className="text-base font-semibold text-gray-900">Utilisateurs du tenant</h3>
+      <h3 className="text-base font-semibold text-gray-900">{t('clients.detail.users.title')}</h3>
       <div className="rounded-xl border border-blue-50 bg-blue-50/60 p-5 text-sm text-blue-800">
-        <p className="font-medium mb-2">Gestion des utilisateurs du tenant</p>
+        <p className="font-medium mb-2">{t('clients.detail.users.infoTitle')}</p>
         <p className="text-xs text-blue-700 mb-3">
-          Les utilisateurs du tenant <strong>{tenant.name}</strong> sont gérés via le module Utilisateurs
-          accessible à l'ADMIN de ce tenant. En tant que SUPER_ADMIN, vous pouvez voir la liste via l'API.
+          {t('clients.detail.users.infoBody', { name: tenant.name })}
         </p>
         <div className="rounded-lg bg-white/80 border border-blue-100 p-3 font-mono text-xs text-blue-600">
           GET /api/v1/users  <span className="text-gray-400">→ scoped to JWT tenantId</span>
@@ -847,13 +863,13 @@ function UsersTab({ tenant }: { tenant: Tenant }) {
 
       <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-700">Admin principal</span>
+          <span className="text-sm font-medium text-gray-700">{t('clients.detail.users.primaryAdmin')}</span>
           <span className="font-mono text-xs text-gray-400">
             {tenant.primaryAdminId ?? '—'}
           </span>
         </div>
         <div className="mt-3 flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-700">Limite utilisateurs</span>
+          <span className="text-sm font-medium text-gray-700">{t('clients.detail.users.userLimit')}</span>
           <span className="text-sm font-semibold text-gray-900">
             {(tenant.subscription as TenantSubscription | null | undefined)?.maxUsers ?? '—'}
           </span>
@@ -875,16 +891,8 @@ interface AuditEntry {
   createdAt:  string;
 }
 
-const ACTION_STYLES: Record<string, string> = {
-  CREATE: 'bg-green-50 text-green-700',
-  UPDATE: 'bg-blue-50 text-blue-700',
-  DELETE: 'bg-red-50 text-red-700',
-  LOGIN:  'bg-purple-50 text-purple-700',
-  LOGOUT: 'bg-gray-100 text-gray-600',
-  EXPORT: 'bg-orange-50 text-orange-700',
-};
-
 function HistoryTab({ tenantId }: { tenantId: string }) {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const LIMIT = 20;
 
@@ -907,10 +915,10 @@ function HistoryTab({ tenantId }: { tenantId: string }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold text-gray-900">Historique d'audit</h3>
+        <h3 className="text-base font-semibold text-gray-900">{t('clients.detail.history.title')}</h3>
         {meta && (
           <span className="text-xs text-gray-400">
-            {meta.total} entrée{meta.total !== 1 ? 's' : ''}
+            {t('clients.detail.history.pagination.entries', { total: meta.total })}
           </span>
         )}
       </div>
@@ -925,14 +933,14 @@ function HistoryTab({ tenantId }: { tenantId: string }) {
 
       {isError && (
         <div className="rounded-xl border border-red-100 bg-red-50 p-6 text-center">
-          <p className="text-sm text-red-600">Impossible de charger le journal d'audit.</p>
+          <p className="text-sm text-red-600">{t('clients.detail.history.error')}</p>
         </div>
       )}
 
       {!isLoading && !isError && entries.length === 0 && (
         <div className="rounded-xl border border-gray-100 bg-gray-50 p-8 text-center">
           <History className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-          <p className="text-sm text-gray-500">Aucune entrée d'audit pour ce tenant.</p>
+          <p className="text-sm text-gray-500">{t('clients.detail.history.noEntries')}</p>
         </div>
       )}
 
@@ -942,11 +950,11 @@ function HistoryTab({ tenantId }: { tenantId: string }) {
             <table className="w-full text-sm">
               <thead className="bg-surface-page text-xs font-semibold uppercase tracking-wide text-gray-500">
                 <tr>
-                  <th className="px-4 py-3 text-left">Action</th>
-                  <th className="px-4 py-3 text-left">Ressource</th>
-                  <th className="px-4 py-3 text-left">Utilisateur</th>
-                  <th className="px-4 py-3 text-left">IP</th>
-                  <th className="px-4 py-3 text-left">Date</th>
+                  <th className="px-4 py-3 text-left">{t('clients.detail.history.columns.action')}</th>
+                  <th className="px-4 py-3 text-left">{t('clients.detail.history.columns.resource')}</th>
+                  <th className="px-4 py-3 text-left">{t('clients.detail.history.columns.user')}</th>
+                  <th className="px-4 py-3 text-left">{t('clients.detail.history.columns.ip')}</th>
+                  <th className="px-4 py-3 text-left">{t('clients.detail.history.columns.date')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-muted">
@@ -990,15 +998,17 @@ function HistoryTab({ tenantId }: { tenantId: string }) {
                 disabled={page <= 1}
                 className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40"
               >
-                ← Précédent
+                {t('clients.detail.history.pagination.prev')}
               </button>
-              <span className="text-xs text-gray-500">Page {page} sur {lastPage}</span>
+              <span className="text-xs text-gray-500">
+                {t('clients.detail.history.pagination.page', { page, lastPage })}
+              </span>
               <button
                 onClick={() => setPage((p) => Math.min(lastPage, p + 1))}
                 disabled={page >= lastPage}
                 className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40"
               >
-                Suivant →
+                {t('clients.detail.history.pagination.next')}
               </button>
             </div>
           )}
@@ -1011,10 +1021,22 @@ function HistoryTab({ tenantId }: { tenantId: string }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ClientDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState<TabId>('info');
 
   const { data: tenant, isLoading, error } = useTenant(id ?? '');
+
+  // TABS are computed with useMemo so labels re-render on language change
+  const TABS = useMemo(() => [
+    { id: 'info'         as const, label: t('clients.detail.tabs.info'),         icon: Building2  },
+    { id: 'admin'        as const, label: t('clients.detail.tabs.admin'),        icon: User2       },
+    { id: 'modules'      as const, label: t('clients.detail.tabs.modules'),      icon: ToggleLeft  },
+    { id: 'subscription' as const, label: t('clients.detail.tabs.subscription'), icon: CreditCard  },
+    { id: 'sites'        as const, label: t('clients.detail.tabs.sites'),        icon: MapPin      },
+    { id: 'users'        as const, label: t('clients.detail.tabs.users'),        icon: Users       },
+    { id: 'history'      as const, label: t('clients.detail.tabs.history'),      icon: History     },
+  ], [t]);
 
   if (isLoading) {
     return (
@@ -1028,21 +1050,23 @@ export default function ClientDetailPage() {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3">
         <XCircle className="h-12 w-12 text-red-300" />
-        <p className="font-medium text-gray-500">Client introuvable</p>
+        <p className="font-medium text-gray-500">{t('clients.detail.notFound')}</p>
         <Link to="/clients" className="text-sm text-brand-medium hover:underline">
-          ← Retour à la liste
+          {t('clients.detail.history.pagination.prev')}
         </Link>
       </div>
     );
   }
 
-  const statusCfg = { classes: STATUS_STYLES[tenant.status] ?? 'bg-gray-100 text-gray-600', label: STATUS_LABELS[tenant.status] ?? tenant.status };
+  const statusClasses = STATUS_STYLES[tenant.status] ?? 'bg-gray-100 text-gray-600';
+  const statusLabel   = t(`clients.status.${tenant.status}` as Parameters<typeof t>[0]);
+  const planLabel     = t(`clients.plans.${tenant.plan}` as Parameters<typeof t>[0]);
 
   return (
     <>
       <Header
         title={tenant.name}
-        subtitle={`/${tenant.slug} · ${PLAN_LABELS[tenant.plan] ?? tenant.plan}`}
+        subtitle={`/${tenant.slug} · ${planLabel}`}
         icon={Building2}
         iconColor="bg-brand-light text-brand-dark"
         extra={
@@ -1050,7 +1074,7 @@ export default function ClientDetailPage() {
             to="/clients"
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
           >
-            <ArrowLeft className="h-4 w-4" /> Retour
+            <ArrowLeft className="h-4 w-4" /> {t('clients.detail.back')}
           </Link>
         }
       />
@@ -1064,18 +1088,18 @@ export default function ClientDetailPage() {
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-semibold text-gray-900 text-lg">{tenant.name}</p>
-              <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusCfg.classes}`}>
-                {statusCfg.label}
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusClasses}`}>
+                {statusLabel}
               </span>
               <span className="rounded-full bg-brand-lighter px-2.5 py-0.5 text-xs font-medium text-brand-dark">
-                {PLAN_LABELS[tenant.plan] ?? tenant.plan}
+                {planLabel}
               </span>
             </div>
             <div className="flex flex-wrap gap-4 mt-1 text-xs text-gray-400">
               {tenant.email && <span>{tenant.email}</span>}
               {tenant.phone && <span>{tenant.phone}</span>}
-              <span>{tenant._count?.sites ?? 0} site(s)</span>
-              <span>Créé le {new Date(tenant.createdAt).toLocaleDateString('fr-FR')}</span>
+              <span>{t('clients.detail.summaryBar.sites', { count: tenant._count?.sites ?? 0 })}</span>
+              <span>{t('clients.detail.summaryBar.createdAt', { date: new Date(tenant.createdAt).toLocaleDateString('fr-FR') })}</span>
             </div>
           </div>
         </div>
