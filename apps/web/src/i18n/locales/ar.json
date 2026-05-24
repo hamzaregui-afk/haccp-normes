@@ -1045,6 +1045,27 @@
       "importDone": "اكتمل الاستيراد: {{ok}} صف(وف) مستوردة",
       "importDoneWithFail": "اكتمل الاستيراد: {{ok}} صف(وف) مستوردة، {{fail}} مُتجاهَلة",
       "importReadError": "خطأ في قراءة الملف."
+    },
+    "form": {
+      "code": "كود المنتج",
+      "codePlaceholder": "EX-001",
+      "name": "اسم المنتج",
+      "namePlaceholder": "شرائح اللحم البقري",
+      "category": "الفئة",
+      "categoryPlaceholder": "لحوم، منتجات الألبان…",
+      "packaging": "التعبئة",
+      "packagingPlaceholder": "سائب، 1 كغ، 5 ل…",
+      "dlcDays": "مدة الصلاحية (أيام)",
+      "dlcPlaceholder": "3",
+      "tempStorage": "درجة حرارة التخزين (°م)",
+      "tempPlaceholder": "4",
+      "supplier": "المورد",
+      "supplierPlaceholder": "— اختر موردًا —",
+      "errors": {
+        "code": "الكود مطلوب",
+        "name": "الاسم مطلوب",
+        "category": "الفئة مطلوبة"
+      }
     }
   },
   "equipments": {

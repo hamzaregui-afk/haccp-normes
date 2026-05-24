@@ -1045,6 +1045,27 @@
       "importDone": "Import complete: {{ok}} row(s) imported",
       "importDoneWithFail": "Import complete: {{ok}} row(s) imported, {{fail}} skipped",
       "importReadError": "Error reading the file."
+    },
+    "form": {
+      "code": "Product code",
+      "codePlaceholder": "EX-001",
+      "name": "Product name",
+      "namePlaceholder": "Beef fillet",
+      "category": "Category",
+      "categoryPlaceholder": "Meat, Dairy…",
+      "packaging": "Packaging",
+      "packagingPlaceholder": "Bulk, 1 kg, 5 L…",
+      "dlcDays": "Use-by (days)",
+      "dlcPlaceholder": "3",
+      "tempStorage": "Storage temperature (°C)",
+      "tempPlaceholder": "4",
+      "supplier": "Supplier",
+      "supplierPlaceholder": "— Select a supplier —",
+      "errors": {
+        "code": "Code is required",
+        "name": "Name is required",
+        "category": "Category is required"
+      }
     }
   },
   "equipments": {

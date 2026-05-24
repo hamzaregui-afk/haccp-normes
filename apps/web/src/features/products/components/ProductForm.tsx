@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -25,6 +26,7 @@ interface ProductFormProps {
 }
 
 export function ProductForm({ onSubmit, loading, defaultValues }: ProductFormProps) {
+  const { t } = useTranslation();
   const { register, handleSubmit, formState: { errors } } = useForm<ProductFormValues>({
     defaultValues: { code: '', name: '', category: '', ...defaultValues },
   });
@@ -44,61 +46,61 @@ export function ProductForm({ onSubmit, loading, defaultValues }: ProductFormPro
     <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <Input
-          label="Code produit"
-          placeholder="EX-001"
+          label={t('products.form.code')}
+          placeholder={t('products.form.codePlaceholder')}
           required
           error={errors.code?.message}
-          {...register('code', { required: 'Code obligatoire' })}
+          {...register('code', { required: t('products.form.errors.code') })}
         />
         <Input
-          label="Nom du produit"
-          placeholder="Filet de bœuf"
+          label={t('products.form.name')}
+          placeholder={t('products.form.namePlaceholder')}
           required
           error={errors.name?.message}
-          {...register('name', { required: 'Nom obligatoire' })}
+          {...register('name', { required: t('products.form.errors.name') })}
         />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Input
-          label="Catégorie"
-          placeholder="Viande, Produits laitiers…"
+          label={t('products.form.category')}
+          placeholder={t('products.form.categoryPlaceholder')}
           required
           error={errors.category?.message}
-          {...register('category', { required: 'Catégorie obligatoire' })}
+          {...register('category', { required: t('products.form.errors.category') })}
         />
         <Input
-          label="Conditionnement"
-          placeholder="Vrac, 1kg, 5L…"
+          label={t('products.form.packaging')}
+          placeholder={t('products.form.packagingPlaceholder')}
           {...register('packaging')}
         />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Input
-          label="DLC (jours)"
+          label={t('products.form.dlcDays')}
           type="number"
-          placeholder="3"
+          placeholder={t('products.form.dlcPlaceholder')}
           {...register('dlcDays')}
         />
         <Input
-          label="Température de stockage (°C)"
+          label={t('products.form.tempStorage')}
           type="number"
-          placeholder="4"
+          placeholder={t('products.form.tempPlaceholder')}
           {...register('tempStorage')}
         />
       </div>
 
       <Select
-        label="Fournisseur"
-        placeholder="— Sélectionner un fournisseur —"
+        label={t('products.form.supplier')}
+        placeholder={t('products.form.supplierPlaceholder')}
         options={supplierOptions}
         {...register('supplierId')}
       />
 
       <div className="flex justify-end gap-3 border-t border-surface-muted pt-4">
         <Button type="submit" loading={loading}>
-          Enregistrer
+          {t('common.save')}
         </Button>
       </div>
     </form>

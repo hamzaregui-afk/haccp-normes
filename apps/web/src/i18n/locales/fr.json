@@ -1045,6 +1045,27 @@
       "importDone": "Import terminé : {{ok}} ligne(s) importée(s)",
       "importDoneWithFail": "Import terminé : {{ok}} ligne(s) importée(s), {{fail}} ignorée(s)",
       "importReadError": "Erreur lors de la lecture du fichier."
+    },
+    "form": {
+      "code": "Code produit",
+      "codePlaceholder": "EX-001",
+      "name": "Nom du produit",
+      "namePlaceholder": "Filet de bœuf",
+      "category": "Catégorie",
+      "categoryPlaceholder": "Viande, Produits laitiers…",
+      "packaging": "Conditionnement",
+      "packagingPlaceholder": "Vrac, 1 kg, 5 L…",
+      "dlcDays": "DLC (jours)",
+      "dlcPlaceholder": "3",
+      "tempStorage": "Température de stockage (°C)",
+      "tempPlaceholder": "4",
+      "supplier": "Fournisseur",
+      "supplierPlaceholder": "— Sélectionner un fournisseur —",
+      "errors": {
+        "code": "Code obligatoire",
+        "name": "Nom obligatoire",
+        "category": "Catégorie obligatoire"
+      }
     }
   },
   "equipments": {
