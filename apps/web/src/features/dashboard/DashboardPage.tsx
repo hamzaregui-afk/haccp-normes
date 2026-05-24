@@ -1,5 +1,6 @@
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { AlertTriangle, Calendar, CheckCircle2, Clock, Repeat, ShieldAlert, ShieldCheck, Tag, TrendingUp } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   BarChart,
   Bar,
@@ -153,7 +154,7 @@ function computeComplianceByMonth(
   }));
 }
 
-// ─── KPI skeleton ─────────────────────────────────────────────────────────────
+// ─── KPI card ─────────────────────────────────────────────────────────────────
 
 function KpiCard({
   label,
@@ -196,23 +197,27 @@ function KpiCard({
 
 // ─── Role-aware banner ────────────────────────────────────────────────────────
 
-const ROLE_CONFIG: Record<UserRole, { label: string; desc: string; color: string; iconColor: string }> = {
-  SUPER_ADMIN:     { label: 'Super Administrateur', desc: 'Accès complet à toutes les organisations.',            color: 'bg-purple-50 border-purple-200', iconColor: 'text-purple-600' },
-  ADMIN:           { label: 'Administrateur',        desc: 'Gestion complète de votre organisation.',              color: 'bg-brand-lighter border-brand-lighter', iconColor: 'text-brand-dark' },
-  MANAGER:         { label: 'Manager',               desc: 'Supervision des opérations et des équipes.',           color: 'bg-blue-50 border-blue-200',   iconColor: 'text-blue-600' },
-  QUALITY_OFFICER: { label: 'Responsable Qualité',   desc: 'Suivi de la conformité et des non-conformités.',       color: 'bg-amber-50 border-amber-200', iconColor: 'text-amber-600' },
-  OPERATOR:        { label: 'Opérateur',             desc: 'Vos tâches de contrôle planifiées pour aujourd\'hui.', color: 'bg-green-50 border-green-200', iconColor: 'text-green-600' },
-  VIEWER:          { label: 'Lecteur',               desc: 'Accès en lecture seule aux données HACCP.',            color: 'bg-gray-50 border-gray-200',   iconColor: 'text-gray-500' },
+// CSS-only — labels/descriptions come from t() inside the component
+const ROLE_CSS: Record<UserRole, { color: string; iconColor: string }> = {
+  SUPER_ADMIN:     { color: 'bg-purple-50 border-purple-200',         iconColor: 'text-purple-600' },
+  ADMIN:           { color: 'bg-brand-lighter border-brand-lighter',   iconColor: 'text-brand-dark' },
+  MANAGER:         { color: 'bg-blue-50 border-blue-200',             iconColor: 'text-blue-600' },
+  QUALITY_OFFICER: { color: 'bg-amber-50 border-amber-200',           iconColor: 'text-amber-600' },
+  OPERATOR:        { color: 'bg-green-50 border-green-200',           iconColor: 'text-green-600' },
+  VIEWER:          { color: 'bg-gray-50 border-gray-200',             iconColor: 'text-gray-500' },
 };
 
 function RoleBanner({ role, email }: { role: UserRole; email: string }) {
-  const cfg = ROLE_CONFIG[role] ?? ROLE_CONFIG.VIEWER;
+  const { t } = useTranslation();
+  const cfg = ROLE_CSS[role] ?? ROLE_CSS.VIEWER;
   return (
     <div className={`mb-6 flex items-center gap-4 rounded-xl border px-5 py-4 ${cfg.color}`}>
       <ShieldCheck className={`h-8 w-8 shrink-0 ${cfg.iconColor}`} />
       <div>
-        <p className="text-sm font-semibold text-gray-800">{cfg.label} — <span className="font-normal text-gray-600">{email}</span></p>
-        <p className="mt-0.5 text-xs text-gray-500">{cfg.desc}</p>
+        <p className="text-sm font-semibold text-gray-800">
+          {t(`users.roles.${role}`)} — <span className="font-normal text-gray-600">{email}</span>
+        </p>
+        <p className="mt-0.5 text-xs text-gray-500">{t(`dashboard.roleDesc.${role}`)}</p>
       </div>
     </div>
   );
@@ -228,6 +233,7 @@ interface DlcLabel {
 }
 
 function DlcAlertWidget() {
+  const { t } = useTranslation();
   const tenantId = useTenantId();
   const { data, isLoading } = useQuery({
     queryKey: ['dlc.expiring-today', tenantId],
@@ -247,7 +253,7 @@ function DlcAlertWidget() {
       <div className="mb-3 flex items-center gap-2">
         <Tag className="h-4 w-4 text-red-600" />
         <span className="text-sm font-semibold text-red-700">
-          {count} étiquette{count > 1 ? 's' : ''} DLC expire{count > 1 ? 'nt' : ''} aujourd'hui
+          {t('dashboard.dlcExpiring', { count })}
         </span>
       </div>
       <ul className="flex flex-wrap gap-2">
@@ -277,15 +283,17 @@ interface MyTask {
   template?: { name: string; type: string };
 }
 
-const MY_TASK_STATUS: Record<string, { label: string; color: string }> = {
-  PLANNED:     { label: 'Planifiée',  color: 'bg-gray-100 text-gray-700' },
-  IN_PROGRESS: { label: 'En cours',  color: 'bg-blue-50 text-blue-700' },
-  COMPLETED:   { label: 'Terminée',  color: 'bg-green-50 text-green-700' },
-  OVERDUE:     { label: 'En retard', color: 'bg-red-50 text-red-700' },
-  CANCELLED:   { label: 'Annulée',   color: 'bg-gray-100 text-gray-400' },
+// CSS-only — status labels come from t('controls.status.*')
+const MY_TASK_CSS: Record<string, string> = {
+  PLANNED:     'bg-gray-100 text-gray-700',
+  IN_PROGRESS: 'bg-blue-50 text-blue-700',
+  COMPLETED:   'bg-green-50 text-green-700',
+  OVERDUE:     'bg-red-50 text-red-700',
+  CANCELLED:   'bg-gray-100 text-gray-400',
 };
 
 function OperatorTasksWidget({ assigneeId }: { assigneeId: string }) {
+  const { t } = useTranslation();
   const tenantId = useTenantId();
   const { data, isLoading } = useQuery({
     queryKey: ['my.tasks.today', tenantId, assigneeId],
@@ -304,16 +312,19 @@ function OperatorTasksWidget({ assigneeId }: { assigneeId: string }) {
     <div className="rounded-xl border border-surface-muted bg-white p-6 shadow-sm">
       <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-700">
         <Calendar className="h-4 w-4 text-brand-medium" />
-        Mes tâches du jour
+        {t('dashboard.myTasksToday')}
       </h3>
       {isLoading ? (
         <div className="space-y-2">{[...Array(3)].map((_, i) => <div key={i} className="h-8 animate-pulse rounded bg-surface-page" />)}</div>
       ) : (data ?? []).length === 0 ? (
-        <div className="flex h-24 items-center justify-center text-sm text-gray-400">Aucune tâche planifiée aujourd'hui ✅</div>
+        <div className="flex h-24 items-center justify-center text-sm text-gray-400">
+          {t('dashboard.noTasksToday')}
+        </div>
       ) : (
         <ul className="divide-y divide-surface-muted">
           {(data ?? []).map((task) => {
-            const s = MY_TASK_STATUS[task.status] ?? { label: task.status, color: 'bg-gray-100 text-gray-600' };
+            const color = MY_TASK_CSS[task.status] ?? 'bg-gray-100 text-gray-600';
+            const label = t(`controls.status.${task.status}` as Parameters<typeof t>[0]);
             return (
               <li key={task.id} className="flex items-center justify-between py-2.5">
                 <div>
@@ -322,7 +333,7 @@ function OperatorTasksWidget({ assigneeId }: { assigneeId: string }) {
                     {new Date(task.scheduledAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${s.color}`}>{s.label}</span>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${color}`}>{label}</span>
               </li>
             );
           })}
@@ -348,16 +359,11 @@ const NC_STATUS_STYLE: Record<string, string> = {
   CLOSED:      'bg-green-50 text-green-700',
   REJECTED:    'bg-gray-100 text-gray-600',
 };
-const NC_STATUS_LABEL: Record<string, string> = {
-  OPEN:        'Ouverte',
-  IN_PROGRESS: 'En cours',
-  CLOSED:      'Clôturée',
-  REJECTED:    'Rejetée',
-};
 
 // ─── Recent NC Controls widget ────────────────────────────────────────────────
 
 function RecentNcControlsWidget({ zoneMap }: { zoneMap: Record<string, string> }) {
+  const { t } = useTranslation();
   const tenantId = useTenantId();
   const { data, isLoading } = useQuery({
     queryKey: ['controls.nc-controls', tenantId],
@@ -372,7 +378,7 @@ function RecentNcControlsWidget({ zoneMap }: { zoneMap: Record<string, string> }
     <div className="rounded-xl border border-surface-muted bg-white p-6 shadow-sm">
       <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-700">
         <ShieldAlert className="h-4 w-4 text-red-500" />
-        Derniers contrôles non conformes
+        {t('dashboard.recentNcControls')}
       </h3>
       {isLoading ? (
         <div className="space-y-2">
@@ -383,7 +389,7 @@ function RecentNcControlsWidget({ zoneMap }: { zoneMap: Record<string, string> }
       ) : (data ?? []).length === 0 ? (
         <div className="flex h-32 items-center justify-center gap-2 text-sm text-green-600">
           <CheckCircle2 className="h-4 w-4" />
-          Aucun contrôle non conforme récent ✅
+          {t('dashboard.noNcControls')}
         </div>
       ) : (
         <ul className="divide-y divide-surface-muted">
@@ -404,7 +410,7 @@ function RecentNcControlsWidget({ zoneMap }: { zoneMap: Record<string, string> }
                       {ctrl.template?.name ?? 'Contrôle'}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-400">
-                      Zone : {zone} · {completedAt}
+                      {t('dashboard.zone')} : {zone} · {completedAt}
                     </p>
                     {ncComment && (
                       <p className="mt-1 line-clamp-1 text-xs text-red-600">
@@ -428,6 +434,7 @@ function RecentNcControlsWidget({ zoneMap }: { zoneMap: Record<string, string> }
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const currentUser = useAuthStore((s) => s.user);
   const tenantId    = useTenantId();
   const isOperator  = currentUser?.role === 'OPERATOR';
@@ -539,7 +546,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <Header title="Vue d'ensemble" subtitle="Tableau de bord HACCP" />
+      <Header title={t('dashboard.title')} subtitle={t('dashboard.subtitle')} />
       <PageWrapper>
         {/* ── Role banner ── */}
         {currentUser && <RoleBanner role={currentUser.role} email={currentUser.email} />}
@@ -555,25 +562,25 @@ export default function DashboardPage() {
         {/* ── KPI cards ── */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
           <KpiCard
-            label="Contrôles du jour"
+            label={t('dashboard.todayControls')}
             value={cs ? `${cs.todayCompleted} / ${cs.todayTotal}` : '—'}
-            sub={cs?.todayTotal ? `${cs.todayTotal} planifié(s)` : undefined}
+            sub={cs?.todayTotal ? t('dashboard.todayPlannedCount', { count: cs.todayTotal }) : undefined}
             icon={CheckCircle2}
             color="text-green-600"
             bg="bg-brand-light"
             loading={loading}
           />
           <KpiCard
-            label="Non-conformités ouvertes"
+            label={t('dashboard.openNc')}
             value={ns?.open ?? '—'}
-            sub={ns?.critical ? `dont ${ns.critical} critique(s)` : undefined}
+            sub={ns?.critical ? t('dashboard.criticalNcCount', { count: ns.critical }) : undefined}
             icon={AlertTriangle}
             color={ns?.open ? 'text-red-600' : 'text-gray-400'}
             bg={ns?.open ? 'bg-red-50' : 'bg-surface-page'}
             loading={loading}
           />
           <KpiCard
-            label="Tâches en retard"
+            label={t('dashboard.overdueTask')}
             value={cs?.openOverdue ?? '—'}
             icon={Clock}
             color={cs?.openOverdue ? 'text-gold' : 'text-gray-400'}
@@ -581,27 +588,27 @@ export default function DashboardPage() {
             loading={loading}
           />
           <KpiCard
-            label="Taux de conformité"
+            label={t('dashboard.complianceRate')}
             value={cs ? `${cs.complianceRate}%` : '—'}
-            sub="Tâches du jour"
+            sub={t('dashboard.complianceRateSub')}
             icon={TrendingUp}
             color="text-brand-dark"
             bg="bg-brand-lighter"
             loading={loading}
           />
           <KpiCard
-            label="Contrôles NC ce mois"
+            label={t('dashboard.ncControlsMonth')}
             value={cs?.ncControlsThisMonth ?? '—'}
-            sub="Contrôles complétés non conformes"
+            sub={t('dashboard.ncControlsMonthSub')}
             icon={ShieldAlert}
             color={cs?.ncControlsThisMonth ? 'text-red-600' : 'text-gray-400'}
             bg={cs?.ncControlsThisMonth ? 'bg-red-50' : 'bg-surface-page'}
             loading={loading}
           />
           <KpiCard
-            label="Planifications actives"
+            label={t('dashboard.activeSchedules')}
             value={activeSchedulesQuery.data ?? '—'}
-            sub="Tâches auto-générées"
+            sub={t('dashboard.activeSchedulesSub')}
             icon={Repeat}
             color="text-brand-medium"
             bg="bg-brand-lighter"
@@ -614,7 +621,7 @@ export default function DashboardPage() {
           {/* Recent open NCs */}
           <div className="rounded-xl border border-surface-muted bg-white p-6 shadow-sm">
             <h3 className="mb-4 text-sm font-semibold text-gray-700">
-              Non-conformités ouvertes récentes
+              {t('dashboard.recentNc')}
             </h3>
             {recentNcQuery.isLoading ? (
               <div className="space-y-2">
@@ -624,7 +631,7 @@ export default function DashboardPage() {
               </div>
             ) : (recentNcQuery.data ?? []).length === 0 ? (
               <div className="flex h-32 items-center justify-center text-sm text-gray-400">
-                Aucune non-conformité ouverte ✅
+                {t('dashboard.noOpenNc')}
               </div>
             ) : (
               <ul className="divide-y divide-surface-muted">
@@ -635,7 +642,7 @@ export default function DashboardPage() {
                       <p className="mt-0.5 text-sm text-gray-700 line-clamp-1">{nc.description}</p>
                     </div>
                     <span className={`ml-3 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${NC_STATUS_STYLE[nc.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {NC_STATUS_LABEL[nc.status] ?? nc.status}
+                      {t(`nonconformities.status.${nc.status}` as Parameters<typeof t>[0])}
                     </span>
                   </li>
                 ))}
@@ -656,7 +663,7 @@ export default function DashboardPage() {
           {/* Chart 1 — NC par mois (bar) */}
           <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
             <h2 className="text-sm font-semibold text-gray-700 mb-4">
-              Non-conformités par mois
+              {t('dashboard.ncByMonth')}
             </h2>
             {ncChartQuery.isLoading ? (
               <div className="h-[280px] animate-pulse rounded bg-surface-page" />
@@ -685,7 +692,7 @@ export default function DashboardPage() {
                       border: '1px solid #E5E7EB',
                       fontSize: 12,
                     }}
-                    formatter={(value: number) => [value, 'Non-conformités']}
+                    formatter={(value: number) => [value, t('dashboard.ncTooltip')]}
                   />
                   <Bar
                     dataKey="count"
@@ -701,7 +708,7 @@ export default function DashboardPage() {
           {/* Chart 2 — Taux de conformité (line) */}
           <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
             <h2 className="text-sm font-semibold text-gray-700 mb-4">
-              Taux de conformité (%)
+              {t('dashboard.complianceByMonth')}
             </h2>
             {complianceChartQuery.isLoading ? (
               <div className="h-[280px] animate-pulse rounded bg-surface-page" />
@@ -733,7 +740,7 @@ export default function DashboardPage() {
                     }}
                     formatter={(value: number) => [
                       `${value.toFixed(1)}%`,
-                      'Conformité',
+                      t('dashboard.complianceTooltip'),
                     ]}
                   />
                   <ReferenceLine
@@ -741,7 +748,7 @@ export default function DashboardPage() {
                     stroke="#DC2626"
                     strokeDasharray="3 3"
                     label={{
-                      value: 'Objectif 80%',
+                      value: t('dashboard.target'),
                       position: 'right',
                       fill: '#DC2626',
                       fontSize: 11,
