@@ -429,6 +429,15 @@
     "title": "Utilisateurs",
     "subtitle": "Gestion des comptes et des accès",
     "new": "Inviter un utilisateur",
+    "invite": "Inviter",
+    "create": "Créer",
+    "searchPlaceholder": "Rechercher par nom ou email…",
+    "allRoles": "Tous les rôles",
+    "allStatuses": "Tous les statuts",
+    "empty": "Aucun utilisateur trouvé.",
+    "readonly": "Lecture seule",
+    "superAdminBanner": "Mode Super Admin : vous voyez uniquement les comptes de la plateforme. Pour gérer les utilisateurs d'un client, accédez à la section Clients puis ouvrez la fiche du client concerné.",
+    "deleteConfirm": "Supprimer l'utilisateur « {{name}} » ? Cette action est irréversible.",
     "roles": {
       "SUPER_ADMIN": "Super Admin",
       "ADMIN": "Admin",
@@ -436,6 +445,70 @@
       "QUALITY_OFFICER": "Qualité",
       "OPERATOR": "Opérateur",
       "VIEWER": "Lecteur"
+    },
+    "status": {
+      "ACTIVE": "Actif",
+      "INVITED": "Invité",
+      "INACTIVE": "Inactif"
+    },
+    "columns": {
+      "user": "Utilisateur",
+      "email": "Email",
+      "role": "Rôle",
+      "status": "Statut",
+      "created": "Créé le"
+    },
+    "pagination": {
+      "info": "Page {{page}} sur {{lastPage}} — {{total}} utilisateur(s)"
+    },
+    "inviteModal": {
+      "title": "Inviter un utilisateur",
+      "description": "Un email d'invitation sera envoyé à l'adresse indiquée.",
+      "submit": "Envoyer l'invitation"
+    },
+    "createModal": {
+      "title": "Créer un utilisateur",
+      "description": "Le compte sera actif immédiatement sans email d'invitation.",
+      "submit": "Créer l'utilisateur"
+    },
+    "editModal": {
+      "title": "Modifier l'utilisateur",
+      "submit": "Enregistrer"
+    },
+    "passwordModal": {
+      "title": "Changer le mot de passe",
+      "desc": "Modifier le mot de passe de {{name}}.",
+      "newPassword": "Nouveau mot de passe",
+      "confirmPassword": "Confirmer le mot de passe",
+      "submit": "Changer le mot de passe"
+    },
+    "form": {
+      "fullName": "Nom complet",
+      "fullNamePlaceholder": "Prénom Nom",
+      "email": "Adresse e-mail",
+      "emailPlaceholder": "prenom.nom@example.com",
+      "role": "Rôle",
+      "status": "Statut",
+      "password": "Mot de passe",
+      "showPassword": "Afficher le mot de passe",
+      "hidePassword": "Masquer le mot de passe",
+      "validation": {
+        "nameRequired": "Nom obligatoire",
+        "emailRequired": "Email obligatoire",
+        "emailInvalid": "Email invalide",
+        "roleRequired": "Rôle obligatoire",
+        "statusRequired": "Statut obligatoire",
+        "passwordRequired": "Mot de passe obligatoire",
+        "passwordMin": "Minimum 8 caractères",
+        "confirmRequired": "Confirmation obligatoire",
+        "confirmMatch": "Les mots de passe ne correspondent pas"
+      }
+    },
+    "error": {
+      "load": "Erreur lors du chargement des utilisateurs.",
+      "delete": "Erreur lors de la suppression",
+      "duplicate": "Cette adresse e-mail est déjà utilisée.",
+      "validation": "Données invalides. Vérifiez le formulaire."
     }
   },
   "notifications": {

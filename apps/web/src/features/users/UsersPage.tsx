@@ -1,8 +1,9 @@
 import { isAxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Edit2, Eye, EyeOff, Filter, Key, Plus, Search, Trash2, UserPlus } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm, type UseFormRegisterReturn } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 
 import { Header } from '@/components/layout/Header';
 import { PageWrapper } from '@/components/layout/AppLayout';
@@ -17,50 +18,6 @@ import { showToast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/store/auth.store';
 import { useTenantId } from '@/hooks/useTenantId';
 import type { ApiResponse, User, UserRole, UserStatus } from '@haccp/shared-types';
-
-// ─── Shared constants ─────────────────────────────────────────────────────────
-
-const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
-  { value: 'ADMIN',           label: 'Admin' },
-  { value: 'MANAGER',         label: 'Manager' },
-  { value: 'QUALITY_OFFICER', label: 'Responsable qualité' },
-  { value: 'OPERATOR',        label: 'Opérateur' },
-  { value: 'VIEWER',          label: 'Lecteur' },
-];
-
-const STATUS_OPTIONS: { value: UserStatus; label: string }[] = [
-  { value: 'ACTIVE',   label: 'Actif' },
-  { value: 'INVITED',  label: 'Invité' },
-  { value: 'INACTIVE', label: 'Inactif' },
-];
-
-const ROLE_FILTER_OPTIONS = [
-  { value: '',               label: 'Tous les rôles' },
-  { value: 'ADMIN',          label: 'Admin' },
-  { value: 'MANAGER',        label: 'Manager' },
-  { value: 'QUALITY_OFFICER',label: 'Responsable qualité' },
-  { value: 'OPERATOR',       label: 'Opérateur' },
-  { value: 'VIEWER',         label: 'Lecteur' },
-];
-
-const STATUS_FILTER_OPTIONS = [
-  { value: '',         label: 'Tous les statuts' },
-  { value: 'ACTIVE',   label: 'Actif' },
-  { value: 'INVITED',  label: 'Invité' },
-  { value: 'INACTIVE', label: 'Inactif' },
-];
-
-// ─── API error helper ─────────────────────────────────────────────────────────
-
-// Wraps the shared extractApiMessage with domain-specific HTTP status overrides
-// for the user-creation flow (409 = duplicate email, 400 = validation).
-function apiErrorMessage(err: unknown): string {
-  if (isAxiosError(err) && !err.response?.data?.message) {
-    if (err.response?.status === 409) return 'Cette adresse e-mail est déjà utilisée.';
-    if (err.response?.status === 400) return 'Données invalides. Vérifiez le formulaire.';
-  }
-  return extractApiMessage(err);
-}
 
 // ─── useUsers hook ────────────────────────────────────────────────────────────
 
@@ -79,6 +36,20 @@ function useUsers(page: number, search: string, role: string, status: string) {
   });
 }
 
+// ─── API error helper ─────────────────────────────────────────────────────────
+
+// Wraps the shared extractApiMessage with domain-specific HTTP status overrides
+// for the user-creation flow (409 = duplicate email, 400 = validation).
+function makeApiErrorMessage(t: ReturnType<typeof useTranslation>['t']) {
+  return (err: unknown): string => {
+    if (isAxiosError(err) && !err.response?.data?.message) {
+      if (err.response?.status === 409) return t('users.error.duplicate');
+      if (err.response?.status === 400) return t('users.error.validation');
+    }
+    return extractApiMessage(err);
+  };
+}
+
 // ─── PasswordField ────────────────────────────────────────────────────────────
 
 interface PasswordFieldProps {
@@ -89,6 +60,7 @@ interface PasswordFieldProps {
 }
 
 function PasswordField({ label, required, error, registration }: PasswordFieldProps) {
+  const { t } = useTranslation();
   const [show, setShow] = useState(false);
   return (
     <div className="relative">
@@ -105,7 +77,7 @@ function PasswordField({ label, required, error, registration }: PasswordFieldPr
         onClick={() => setShow((v) => !v)}
         className="absolute right-2 top-8 text-gray-400 hover:text-gray-600"
         tabIndex={-1}
-        aria-label={show ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+        aria-label={show ? t('users.form.hidePassword') : t('users.form.showPassword')}
       >
         {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
       </button>
@@ -127,7 +99,17 @@ interface InviteUserModalProps {
 }
 
 function InviteUserModal({ onClose, onSuccess }: InviteUserModalProps) {
+  const { t } = useTranslation();
+  const apiError_ = makeApiErrorMessage(t);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  const roleOptions = useMemo(() => [
+    { value: 'ADMIN',           label: t('users.roles.ADMIN') },
+    { value: 'MANAGER',         label: t('users.roles.MANAGER') },
+    { value: 'QUALITY_OFFICER', label: t('users.roles.QUALITY_OFFICER') },
+    { value: 'OPERATOR',        label: t('users.roles.OPERATOR') },
+    { value: 'VIEWER',          label: t('users.roles.VIEWER') },
+  ], [t]);
 
   const { register, handleSubmit, formState: { errors } } = useForm<InviteFormValues>({
     defaultValues: { role: 'VIEWER' },
@@ -136,7 +118,7 @@ function InviteUserModal({ onClose, onSuccess }: InviteUserModalProps) {
   const mutation = useMutation({
     mutationFn: (body: InviteFormValues) => api.post('/api/v1/users', body),
     onSuccess:  () => { onSuccess(); onClose(); },
-    onError:    (e) => setApiError(apiErrorMessage(e)),
+    onError:    (e) => setApiError(apiError_(e)),
   });
 
   return (
@@ -145,36 +127,36 @@ function InviteUserModal({ onClose, onSuccess }: InviteUserModalProps) {
       className="space-y-4"
     >
       <Input
-        label="Nom complet"
-        placeholder="Prénom Nom"
+        label={t('users.form.fullName')}
+        placeholder={t('users.form.fullNamePlaceholder')}
         required
         error={errors.name?.message}
-        {...register('name', { required: 'Nom obligatoire' })}
+        {...register('name', { required: t('users.form.validation.nameRequired') })}
       />
       <Input
-        label="Adresse e-mail"
+        label={t('users.form.email')}
         type="email"
-        placeholder="prenom.nom@example.com"
+        placeholder={t('users.form.emailPlaceholder')}
         required
         error={errors.email?.message}
         {...register('email', {
-          required: 'Email obligatoire',
-          pattern: { value: /\S+@\S+\.\S+/, message: 'Email invalide' },
+          required: t('users.form.validation.emailRequired'),
+          pattern: { value: /\S+@\S+\.\S+/, message: t('users.form.validation.emailInvalid') },
         })}
       />
       <Select
-        label="Rôle"
-        options={ROLE_OPTIONS}
+        label={t('users.form.role')}
+        options={roleOptions}
         error={errors.role?.message}
-        {...register('role', { required: 'Rôle obligatoire' })}
+        {...register('role', { required: t('users.form.validation.roleRequired') })}
       />
 
       {apiError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{apiError}</p>}
 
       <div className="flex justify-end gap-3 border-t border-surface-muted pt-4">
-        <Button type="button" variant="secondary" onClick={onClose}>Annuler</Button>
+        <Button type="button" variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
         <Button type="submit" loading={mutation.isPending}>
-          <UserPlus className="h-4 w-4" /> Envoyer l'invitation
+          <UserPlus className="h-4 w-4" /> {t('users.inviteModal.submit')}
         </Button>
       </div>
     </form>
@@ -197,7 +179,17 @@ interface CreateUserModalProps {
 }
 
 function CreateUserModal({ onClose, onSuccess }: CreateUserModalProps) {
+  const { t } = useTranslation();
+  const apiError_ = makeApiErrorMessage(t);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  const roleOptions = useMemo(() => [
+    { value: 'ADMIN',           label: t('users.roles.ADMIN') },
+    { value: 'MANAGER',         label: t('users.roles.MANAGER') },
+    { value: 'QUALITY_OFFICER', label: t('users.roles.QUALITY_OFFICER') },
+    { value: 'OPERATOR',        label: t('users.roles.OPERATOR') },
+    { value: 'VIEWER',          label: t('users.roles.VIEWER') },
+  ], [t]);
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm<CreateFormValues>({
     defaultValues: { role: 'VIEWER' },
@@ -207,7 +199,7 @@ function CreateUserModal({ onClose, onSuccess }: CreateUserModalProps) {
     mutationFn: ({ name, email, password, role }: CreateFormValues) =>
       api.post('/api/v1/users', { name, email, password, role }),
     onSuccess:  () => { onSuccess(); onClose(); },
-    onError:    (e) => setApiError(apiErrorMessage(e)),
+    onError:    (e) => setApiError(apiError_(e)),
   });
 
   return (
@@ -216,54 +208,54 @@ function CreateUserModal({ onClose, onSuccess }: CreateUserModalProps) {
       className="space-y-4"
     >
       <Input
-        label="Nom complet"
-        placeholder="Prénom Nom"
+        label={t('users.form.fullName')}
+        placeholder={t('users.form.fullNamePlaceholder')}
         required
         error={errors.name?.message}
-        {...register('name', { required: 'Nom obligatoire' })}
+        {...register('name', { required: t('users.form.validation.nameRequired') })}
       />
       <Input
-        label="Adresse e-mail"
+        label={t('users.form.email')}
         type="email"
-        placeholder="prenom.nom@example.com"
+        placeholder={t('users.form.emailPlaceholder')}
         required
         error={errors.email?.message}
         {...register('email', {
-          required: 'Email obligatoire',
-          pattern: { value: /\S+@\S+\.\S+/, message: 'Email invalide' },
+          required: t('users.form.validation.emailRequired'),
+          pattern: { value: /\S+@\S+\.\S+/, message: t('users.form.validation.emailInvalid') },
         })}
       />
       <PasswordField
-        label="Mot de passe"
+        label={t('users.form.password')}
         required
         error={errors.password?.message}
         registration={register('password', {
-          required: 'Mot de passe obligatoire',
-          minLength: { value: 8, message: 'Minimum 8 caractères' },
+          required: t('users.form.validation.passwordRequired'),
+          minLength: { value: 8, message: t('users.form.validation.passwordMin') },
         })}
       />
       <PasswordField
-        label="Confirmer le mot de passe"
+        label={t('users.passwordModal.confirmPassword')}
         required
         error={errors.confirmPassword?.message}
         registration={register('confirmPassword', {
-          required: 'Confirmation obligatoire',
-          validate: (v) => v === watch('password') || 'Les mots de passe ne correspondent pas',
+          required: t('users.form.validation.confirmRequired'),
+          validate: (v) => v === watch('password') || t('users.form.validation.confirmMatch'),
         })}
       />
       <Select
-        label="Rôle"
-        options={ROLE_OPTIONS}
+        label={t('users.form.role')}
+        options={roleOptions}
         error={errors.role?.message}
-        {...register('role', { required: 'Rôle obligatoire' })}
+        {...register('role', { required: t('users.form.validation.roleRequired') })}
       />
 
       {apiError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{apiError}</p>}
 
       <div className="flex justify-end gap-3 border-t border-surface-muted pt-4">
-        <Button type="button" variant="secondary" onClick={onClose}>Annuler</Button>
+        <Button type="button" variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
         <Button type="submit" loading={mutation.isPending}>
-          <Plus className="h-4 w-4" /> Créer l'utilisateur
+          <Plus className="h-4 w-4" /> {t('users.createModal.submit')}
         </Button>
       </div>
     </form>
@@ -285,7 +277,23 @@ interface EditUserModalProps {
 }
 
 function EditUserModal({ user, onClose, onSuccess }: EditUserModalProps) {
+  const { t } = useTranslation();
+  const apiError_ = makeApiErrorMessage(t);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  const roleOptions = useMemo(() => [
+    { value: 'ADMIN',           label: t('users.roles.ADMIN') },
+    { value: 'MANAGER',         label: t('users.roles.MANAGER') },
+    { value: 'QUALITY_OFFICER', label: t('users.roles.QUALITY_OFFICER') },
+    { value: 'OPERATOR',        label: t('users.roles.OPERATOR') },
+    { value: 'VIEWER',          label: t('users.roles.VIEWER') },
+  ], [t]);
+
+  const statusOptions = useMemo(() => [
+    { value: 'ACTIVE',   label: t('users.status.ACTIVE') },
+    { value: 'INVITED',  label: t('users.status.INVITED') },
+    { value: 'INACTIVE', label: t('users.status.INACTIVE') },
+  ], [t]);
 
   const { register, handleSubmit, formState: { errors } } = useForm<EditFormValues>({
     defaultValues: { name: user.name, role: user.role, status: user.status },
@@ -294,7 +302,7 @@ function EditUserModal({ user, onClose, onSuccess }: EditUserModalProps) {
   const mutation = useMutation({
     mutationFn: (body: EditFormValues) => api.patch(`/api/v1/users/${user.id}`, body),
     onSuccess:  () => { onSuccess(); onClose(); },
-    onError:    (e) => setApiError(apiErrorMessage(e)),
+    onError:    (e) => setApiError(apiError_(e)),
   });
 
   return (
@@ -303,30 +311,30 @@ function EditUserModal({ user, onClose, onSuccess }: EditUserModalProps) {
       className="space-y-4"
     >
       <Input
-        label="Nom complet"
+        label={t('users.form.fullName')}
         required
         error={errors.name?.message}
-        {...register('name', { required: 'Nom obligatoire' })}
+        {...register('name', { required: t('users.form.validation.nameRequired') })}
       />
       <Select
-        label="Rôle"
-        options={ROLE_OPTIONS}
+        label={t('users.form.role')}
+        options={roleOptions}
         error={errors.role?.message}
-        {...register('role', { required: 'Rôle obligatoire' })}
+        {...register('role', { required: t('users.form.validation.roleRequired') })}
       />
       <Select
-        label="Statut"
-        options={STATUS_OPTIONS}
+        label={t('users.form.status')}
+        options={statusOptions}
         error={errors.status?.message}
-        {...register('status', { required: 'Statut obligatoire' })}
+        {...register('status', { required: t('users.form.validation.statusRequired') })}
       />
 
       {apiError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{apiError}</p>}
 
       <div className="flex justify-end gap-3 border-t border-surface-muted pt-4">
-        <Button type="button" variant="secondary" onClick={onClose}>Annuler</Button>
+        <Button type="button" variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
         <Button type="submit" loading={mutation.isPending}>
-          <Edit2 className="h-4 w-4" /> Enregistrer
+          <Edit2 className="h-4 w-4" /> {t('users.editModal.submit')}
         </Button>
       </div>
     </form>
@@ -348,6 +356,8 @@ interface ChangePasswordModalProps {
 }
 
 function ChangePasswordModal({ userId, userName, onClose, onSuccess }: ChangePasswordModalProps) {
+  const { t } = useTranslation();
+  const apiError_ = makeApiErrorMessage(t);
   const [apiError, setApiError] = useState<string | null>(null);
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm<ChangePasswordFormValues>();
@@ -356,7 +366,7 @@ function ChangePasswordModal({ userId, userName, onClose, onSuccess }: ChangePas
     mutationFn: ({ password }: ChangePasswordFormValues) =>
       api.patch(`/api/v1/users/${userId}/password`, { password }),
     onSuccess:  () => { onSuccess(); onClose(); },
-    onError:    (e) => setApiError(apiErrorMessage(e)),
+    onError:    (e) => setApiError(apiError_(e)),
   });
 
   return (
@@ -365,33 +375,33 @@ function ChangePasswordModal({ userId, userName, onClose, onSuccess }: ChangePas
       className="space-y-4"
     >
       <p className="text-sm text-gray-600">
-        Modifier le mot de passe de <span className="font-semibold">{userName}</span>.
+        {t('users.passwordModal.desc', { name: userName })}
       </p>
       <PasswordField
-        label="Nouveau mot de passe"
+        label={t('users.passwordModal.newPassword')}
         required
         error={errors.password?.message}
         registration={register('password', {
-          required: 'Mot de passe obligatoire',
-          minLength: { value: 8, message: 'Minimum 8 caractères' },
+          required: t('users.form.validation.passwordRequired'),
+          minLength: { value: 8, message: t('users.form.validation.passwordMin') },
         })}
       />
       <PasswordField
-        label="Confirmer le mot de passe"
+        label={t('users.passwordModal.confirmPassword')}
         required
         error={errors.confirmPassword?.message}
         registration={register('confirmPassword', {
-          required: 'Confirmation obligatoire',
-          validate: (v) => v === watch('password') || 'Les mots de passe ne correspondent pas',
+          required: t('users.form.validation.confirmRequired'),
+          validate: (v) => v === watch('password') || t('users.form.validation.confirmMatch'),
         })}
       />
 
       {apiError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{apiError}</p>}
 
       <div className="flex justify-end gap-3 border-t border-surface-muted pt-4">
-        <Button type="button" variant="secondary" onClick={onClose}>Annuler</Button>
+        <Button type="button" variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
         <Button type="submit" loading={mutation.isPending}>
-          <Key className="h-4 w-4" /> Changer le mot de passe
+          <Key className="h-4 w-4" /> {t('users.passwordModal.submit')}
         </Button>
       </div>
     </form>
@@ -410,6 +420,7 @@ type ModalState =
 // ─── UsersPage ────────────────────────────────────────────────────────────────
 
 export default function UsersPage() {
+  const { t } = useTranslation();
   const [page, setPage]       = useState(1);
   const [search, setSearch]   = useState('');
   const [roleFilter, setRole] = useState('');
@@ -428,31 +439,44 @@ export default function UsersPage() {
   const isSuperAdmin   = currentUser?.role === 'SUPER_ADMIN';
   const canManageUsers = currentUser?.role === 'ADMIN';
 
+  const roleFilterOptions = useMemo(() => [
+    { value: '',               label: t('users.allRoles') },
+    { value: 'ADMIN',          label: t('users.roles.ADMIN') },
+    { value: 'MANAGER',        label: t('users.roles.MANAGER') },
+    { value: 'QUALITY_OFFICER',label: t('users.roles.QUALITY_OFFICER') },
+    { value: 'OPERATOR',       label: t('users.roles.OPERATOR') },
+    { value: 'VIEWER',         label: t('users.roles.VIEWER') },
+  ], [t]);
+
+  const statusFilterOptions = useMemo(() => [
+    { value: '',         label: t('users.allStatuses') },
+    { value: 'ACTIVE',   label: t('users.status.ACTIVE') },
+    { value: 'INVITED',  label: t('users.status.INVITED') },
+    { value: 'INACTIVE', label: t('users.status.INACTIVE') },
+  ], [t]);
+
   const closeModal = () => setModal({ kind: 'none' });
   const refresh    = () => { void queryClient.invalidateQueries({ queryKey: ['users', tenantId] }); };
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/users/${id}`),
     onSuccess:  refresh,
-    onError: () => showToast({ title: 'Erreur lors de la suppression', variant: 'error' }),
+    onError: () => showToast({ title: t('users.error.delete'), variant: 'error' }),
   });
 
   const handleDelete = (user: User) => {
-    if (!window.confirm(`Supprimer l'utilisateur « ${user.name} » ? Cette action est irréversible.`)) return;
+    if (!window.confirm(t('users.deleteConfirm', { name: user.name }))) return;
     void deleteMutation.mutateAsync(user.id);
   };
 
   return (
     <>
-      <Header title="Utilisateurs" subtitle="Gérez les membres de votre équipe" />
+      <Header title={t('users.title')} subtitle={t('users.subtitle')} />
       <PageWrapper>
         {/* SUPER_ADMIN info banner */}
         {isSuperAdmin && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            <strong>Mode Super Admin :</strong> vous voyez uniquement les comptes de la plateforme.
-            Pour gérer les utilisateurs d'un client, accédez à la section{' '}
-            <a href="/clients" className="font-semibold underline hover:text-amber-900">Clients</a>{' '}
-            puis ouvrez la fiche du client concerné.
+            <strong>Mode Super Admin :</strong> {t('users.superAdminBanner')}
           </div>
         )}
 
@@ -463,7 +487,7 @@ export default function UsersPage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Rechercher par nom ou email…"
+              placeholder={t('users.searchPlaceholder')}
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               className="h-9 w-full sm:w-64 rounded-lg border border-surface-muted bg-white pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
@@ -478,7 +502,7 @@ export default function UsersPage() {
               onChange={(e) => { setRole(e.target.value); setPage(1); }}
               className="h-9 rounded-lg border border-surface-muted bg-white px-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-medium"
             >
-              {ROLE_FILTER_OPTIONS.map((o) => (
+              {roleFilterOptions.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
@@ -487,7 +511,7 @@ export default function UsersPage() {
               onChange={(e) => { setStatus(e.target.value); setPage(1); }}
               className="h-9 rounded-lg border border-surface-muted bg-white px-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-medium"
             >
-              {STATUS_FILTER_OPTIONS.map((o) => (
+              {statusFilterOptions.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
@@ -498,11 +522,11 @@ export default function UsersPage() {
             <div className="flex gap-2">
               <Button size="sm" variant="secondary" onClick={() => setModal({ kind: 'invite' })}>
                 <UserPlus className="h-4 w-4" />
-                <span className="hidden sm:inline">Inviter</span>
+                <span className="hidden sm:inline">{t('users.invite')}</span>
               </Button>
               <Button size="sm" onClick={() => setModal({ kind: 'create' })}>
                 <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Créer</span>
+                <span className="hidden sm:inline">{t('users.create')}</span>
               </Button>
             </div>
           )}
@@ -511,11 +535,11 @@ export default function UsersPage() {
         {/* Table — desktop / Card — mobile */}
         <div className="overflow-hidden rounded-xl border border-surface-muted bg-white shadow-sm">
           {isLoading && (
-            <div className="flex h-40 items-center justify-center text-sm text-gray-400">Chargement…</div>
+            <div className="flex h-40 items-center justify-center text-sm text-gray-400">{t('common.loading')}</div>
           )}
           {isError && (
             <div className="flex h-40 items-center justify-center text-sm text-red-500">
-              Erreur lors du chargement des utilisateurs.
+              {t('users.error.load')}
             </div>
           )}
           {!isLoading && !isError && (
@@ -525,12 +549,12 @@ export default function UsersPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-surface-muted bg-surface-page text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                      <th className="px-4 py-3">Utilisateur</th>
-                      <th className="px-4 py-3">Email</th>
-                      <th className="px-4 py-3">Rôle</th>
-                      <th className="px-4 py-3">Statut</th>
-                      <th className="px-4 py-3">Créé le</th>
-                      <th className="px-4 py-3 text-right">Actions</th>
+                      <th className="px-4 py-3">{t('users.columns.user')}</th>
+                      <th className="px-4 py-3">{t('users.columns.email')}</th>
+                      <th className="px-4 py-3">{t('users.columns.role')}</th>
+                      <th className="px-4 py-3">{t('users.columns.status')}</th>
+                      <th className="px-4 py-3">{t('users.columns.created')}</th>
+                      <th className="px-4 py-3 text-right">{t('common.actions')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-surface-muted">
@@ -555,16 +579,16 @@ export default function UsersPage() {
                           <td className="px-4 py-3">
                             {canManageUsers ? (
                               <div className="flex items-center justify-end gap-1">
-                                <button title="Modifier" onClick={() => setModal({ kind: 'edit', user })}
+                                <button title={t('common.edit')} onClick={() => setModal({ kind: 'edit', user })}
                                   className="rounded-md p-1.5 text-gray-400 hover:bg-brand-lighter hover:text-brand-dark transition-colors">
                                   <Edit2 className="h-4 w-4" />
                                 </button>
-                                <button title="Mot de passe" onClick={() => setModal({ kind: 'changePassword', user })}
+                                <button title={t('users.passwordModal.title')} onClick={() => setModal({ kind: 'changePassword', user })}
                                   className="rounded-md p-1.5 text-gray-400 hover:bg-brand-lighter hover:text-brand-dark transition-colors">
                                   <Key className="h-4 w-4" />
                                 </button>
                                 {!isSelf && (
-                                  <button title="Supprimer" onClick={() => handleDelete(user)}
+                                  <button title={t('common.delete')} onClick={() => handleDelete(user)}
                                     disabled={deleteMutation.isPending}
                                     className="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50">
                                     <Trash2 className="h-4 w-4" />
@@ -572,7 +596,7 @@ export default function UsersPage() {
                                 )}
                               </div>
                             ) : (
-                              <span className="block text-right text-xs text-gray-400">Lecture seule</span>
+                              <span className="block text-right text-xs text-gray-400">{t('users.readonly')}</span>
                             )}
                           </td>
                         </tr>
@@ -580,7 +604,7 @@ export default function UsersPage() {
                     })}
                     {(data?.data ?? []).length === 0 && (
                       <tr>
-                        <td colSpan={6} className="py-12 text-center text-sm text-gray-400">Aucun utilisateur trouvé.</td>
+                        <td colSpan={6} className="py-12 text-center text-sm text-gray-400">{t('users.empty')}</td>
                       </tr>
                     )}
                   </tbody>
@@ -628,7 +652,7 @@ export default function UsersPage() {
                   );
                 })}
                 {(data?.data ?? []).length === 0 && (
-                  <p className="py-10 text-center text-sm text-gray-400">Aucun utilisateur trouvé.</p>
+                  <p className="py-10 text-center text-sm text-gray-400">{t('users.empty')}</p>
                 )}
               </div>
             </>
@@ -638,14 +662,18 @@ export default function UsersPage() {
           {data?.meta && data.meta.lastPage > 1 && (
             <div className="flex items-center justify-between border-t border-surface-muted px-4 py-3 text-sm text-gray-500">
               <span className="hidden sm:inline">
-                Page {data.meta.page} sur {data.meta.lastPage} — {data.meta.total} utilisateur(s)
+                {t('users.pagination.info', {
+                  page:     data.meta.page,
+                  lastPage: data.meta.lastPage,
+                  total:    data.meta.total,
+                })}
               </span>
               <div className="flex gap-2 ml-auto">
                 <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
-                  Précédent
+                  {t('common.previous')}
                 </Button>
                 <Button variant="secondary" size="sm" disabled={page === data.meta.lastPage} onClick={() => setPage((p) => p + 1)}>
-                  Suivant
+                  {t('common.next')}
                 </Button>
               </div>
             </div>
@@ -655,30 +683,30 @@ export default function UsersPage() {
 
       {/* ── Invite modal ─────────────────────────────────────────────────────── */}
       <Modal open={modal.kind === 'invite'} onClose={closeModal}
-        title="Inviter un utilisateur"
-        description="Un email d'invitation sera envoyé à l'adresse indiquée."
+        title={t('users.inviteModal.title')}
+        description={t('users.inviteModal.description')}
         size="sm">
         <InviteUserModal onClose={closeModal} onSuccess={refresh} />
       </Modal>
 
       {/* ── Create modal ─────────────────────────────────────────────────────── */}
       <Modal open={modal.kind === 'create'} onClose={closeModal}
-        title="Créer un utilisateur"
-        description="Le compte sera actif immédiatement sans email d'invitation."
+        title={t('users.createModal.title')}
+        description={t('users.createModal.description')}
         size="sm">
         <CreateUserModal onClose={closeModal} onSuccess={refresh} />
       </Modal>
 
       {/* ── Edit modal ───────────────────────────────────────────────────────── */}
       {modal.kind === 'edit' && (
-        <Modal open onClose={closeModal} title="Modifier l'utilisateur" size="sm">
+        <Modal open onClose={closeModal} title={t('users.editModal.title')} size="sm">
           <EditUserModal user={modal.user} onClose={closeModal} onSuccess={refresh} />
         </Modal>
       )}
 
       {/* ── Change password modal ────────────────────────────────────────────── */}
       {modal.kind === 'changePassword' && (
-        <Modal open onClose={closeModal} title="Changer le mot de passe" size="sm">
+        <Modal open onClose={closeModal} title={t('users.passwordModal.title')} size="sm">
           <ChangePasswordModal userId={modal.user.id} userName={modal.user.name} onClose={closeModal} onSuccess={refresh} />
         </Modal>
       )}

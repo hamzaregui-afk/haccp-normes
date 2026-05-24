@@ -429,6 +429,15 @@
     "title": "المستخدمون",
     "subtitle": "إدارة الحسابات والصلاحيات",
     "new": "دعوة مستخدم",
+    "invite": "دعوة",
+    "create": "إنشاء",
+    "searchPlaceholder": "البحث بالاسم أو البريد الإلكتروني…",
+    "allRoles": "جميع الأدوار",
+    "allStatuses": "جميع الحالات",
+    "empty": "لم يُعثر على مستخدمين.",
+    "readonly": "قراءة فقط",
+    "superAdminBanner": "وضع المدير العام: تظهر لك حسابات المنصة فقط. لإدارة مستخدمي عميل، انتقل إلى قسم العملاء وافتح ملف العميل المعني.",
+    "deleteConfirm": "حذف المستخدم «{{name}}»؟ هذا الإجراء لا يمكن التراجع عنه.",
     "roles": {
       "SUPER_ADMIN": "مدير النظام",
       "ADMIN": "مدير",
@@ -436,6 +445,70 @@
       "QUALITY_OFFICER": "ضابط جودة",
       "OPERATOR": "مشغّل",
       "VIEWER": "مشاهد"
+    },
+    "status": {
+      "ACTIVE": "نشط",
+      "INVITED": "مدعوّ",
+      "INACTIVE": "غير نشط"
+    },
+    "columns": {
+      "user": "المستخدم",
+      "email": "البريد الإلكتروني",
+      "role": "الدور",
+      "status": "الحالة",
+      "created": "تاريخ الإنشاء"
+    },
+    "pagination": {
+      "info": "صفحة {{page}} من {{lastPage}} — {{total}} مستخدم"
+    },
+    "inviteModal": {
+      "title": "دعوة مستخدم",
+      "description": "سيُرسَل بريد إلكتروني للدعوة إلى العنوان المحدد.",
+      "submit": "إرسال الدعوة"
+    },
+    "createModal": {
+      "title": "إنشاء مستخدم",
+      "description": "سيكون الحساب نشطاً فوراً دون إرسال دعوة.",
+      "submit": "إنشاء المستخدم"
+    },
+    "editModal": {
+      "title": "تعديل المستخدم",
+      "submit": "حفظ"
+    },
+    "passwordModal": {
+      "title": "تغيير كلمة المرور",
+      "desc": "تغيير كلمة مرور {{name}}.",
+      "newPassword": "كلمة المرور الجديدة",
+      "confirmPassword": "تأكيد كلمة المرور",
+      "submit": "تغيير كلمة المرور"
+    },
+    "form": {
+      "fullName": "الاسم الكامل",
+      "fullNamePlaceholder": "الاسم الأول واسم العائلة",
+      "email": "البريد الإلكتروني",
+      "emailPlaceholder": "first.last@example.com",
+      "role": "الدور",
+      "status": "الحالة",
+      "password": "كلمة المرور",
+      "showPassword": "إظهار كلمة المرور",
+      "hidePassword": "إخفاء كلمة المرور",
+      "validation": {
+        "nameRequired": "الاسم مطلوب",
+        "emailRequired": "البريد الإلكتروني مطلوب",
+        "emailInvalid": "بريد إلكتروني غير صالح",
+        "roleRequired": "الدور مطلوب",
+        "statusRequired": "الحالة مطلوبة",
+        "passwordRequired": "كلمة المرور مطلوبة",
+        "passwordMin": "8 أحرف على الأقل",
+        "confirmRequired": "التأكيد مطلوب",
+        "confirmMatch": "كلمتا المرور غير متطابقتين"
+      }
+    },
+    "error": {
+      "load": "خطأ في تحميل المستخدمين.",
+      "delete": "خطأ في حذف المستخدم",
+      "duplicate": "هذا البريد الإلكتروني مستخدم بالفعل.",
+      "validation": "بيانات غير صالحة. يرجى مراجعة النموذج."
     }
   },
   "notifications": {

@@ -429,6 +429,15 @@
     "title": "Users",
     "subtitle": "Account and access management",
     "new": "Invite user",
+    "invite": "Invite",
+    "create": "Create",
+    "searchPlaceholder": "Search by name or email…",
+    "allRoles": "All roles",
+    "allStatuses": "All statuses",
+    "empty": "No users found.",
+    "readonly": "Read-only",
+    "superAdminBanner": "Super Admin mode: you see only platform accounts. To manage users for a client, go to the Clients section and open the relevant client.",
+    "deleteConfirm": "Delete user \"{{name}}\"? This action is irreversible.",
     "roles": {
       "SUPER_ADMIN": "Super Admin",
       "ADMIN": "Admin",
@@ -436,6 +445,70 @@
       "QUALITY_OFFICER": "Quality",
       "OPERATOR": "Operator",
       "VIEWER": "Viewer"
+    },
+    "status": {
+      "ACTIVE": "Active",
+      "INVITED": "Invited",
+      "INACTIVE": "Inactive"
+    },
+    "columns": {
+      "user": "User",
+      "email": "Email",
+      "role": "Role",
+      "status": "Status",
+      "created": "Created on"
+    },
+    "pagination": {
+      "info": "Page {{page}} of {{lastPage}} — {{total}} user(s)"
+    },
+    "inviteModal": {
+      "title": "Invite a user",
+      "description": "An invitation email will be sent to the provided address.",
+      "submit": "Send invitation"
+    },
+    "createModal": {
+      "title": "Create a user",
+      "description": "The account will be active immediately without an invitation email.",
+      "submit": "Create user"
+    },
+    "editModal": {
+      "title": "Edit user",
+      "submit": "Save"
+    },
+    "passwordModal": {
+      "title": "Change password",
+      "desc": "Change password for {{name}}.",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm password",
+      "submit": "Change password"
+    },
+    "form": {
+      "fullName": "Full name",
+      "fullNamePlaceholder": "First Last",
+      "email": "Email address",
+      "emailPlaceholder": "first.last@example.com",
+      "role": "Role",
+      "status": "Status",
+      "password": "Password",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "validation": {
+        "nameRequired": "Name required",
+        "emailRequired": "Email required",
+        "emailInvalid": "Invalid email",
+        "roleRequired": "Role required",
+        "statusRequired": "Status required",
+        "passwordRequired": "Password required",
+        "passwordMin": "Minimum 8 characters",
+        "confirmRequired": "Confirmation required",
+        "confirmMatch": "Passwords do not match"
+      }
+    },
+    "error": {
+      "load": "Error loading users.",
+      "delete": "Error deleting user",
+      "duplicate": "This email address is already in use.",
+      "validation": "Invalid data. Please check the form."
     }
   },
   "notifications": {
