@@ -9,27 +9,27 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 
 // ─── Service catalog ──────────────────────────────────────────────────────────
 
 interface ServiceMeta {
-  key:   string;
-  label: string;
-  path:  string;
+  key:  string;
+  path: string;
 }
 
 const SERVICES: ServiceMeta[] = [
-  { key: 'auth',             label: 'Auth',              path: '/api/health/auth' },
-  { key: 'users',            label: 'Utilisateurs',      path: '/api/health/users' },
-  { key: 'controls',         label: 'Contrôles',         path: '/api/health/controls' },
-  { key: 'nonconformities',  label: 'Non-conformités',   path: '/api/health/nonconformities' },
-  { key: 'assets',           label: 'Actifs / GED',      path: '/api/health/assets' },
-  { key: 'notifications',    label: 'Notifications',     path: '/api/health/notifications' },
-  { key: 'reports',          label: 'Rapports',          path: '/api/health/reports' },
-  { key: 'dlc',              label: 'DLC',               path: '/api/health/dlc' },
-  { key: 'tenants',          label: 'Tenants',           path: '/api/health/tenants' },
-  { key: 'audit',            label: 'Audit',             path: '/api/health/audit' },
+  { key: 'auth',            path: '/api/health/auth' },
+  { key: 'users',           path: '/api/health/users' },
+  { key: 'controls',        path: '/api/health/controls' },
+  { key: 'nonconformities', path: '/api/health/nonconformities' },
+  { key: 'assets',          path: '/api/health/assets' },
+  { key: 'notifications',   path: '/api/health/notifications' },
+  { key: 'reports',         path: '/api/health/reports' },
+  { key: 'dlc',             path: '/api/health/dlc' },
+  { key: 'tenants',         path: '/api/health/tenants' },
+  { key: 'audit',           path: '/api/health/audit' },
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -60,29 +60,30 @@ function useServiceHealth(path: string): ServiceState {
   return { status: 'ok', uptime: data.uptime, version: data.version };
 }
 
-// ─── Style map ────────────────────────────────────────────────────────────────
+// ─── Style map (CSS-only — no labels) ────────────────────────────────────────
 
-const STATUS_CONFIG: Record<ServiceStatus, { icon: React.ReactNode; label: string; dot: string }> = {
+const STATUS_CONFIG: Record<ServiceStatus, { icon: React.ReactNode; dot: string; textClass: string }> = {
   ok: {
-    icon:  <CheckCircle2 className="h-4 w-4 text-green-500" />,
-    label: 'En ligne',
-    dot:   'bg-green-500',
+    icon:      <CheckCircle2 className="h-4 w-4 text-green-500" />,
+    dot:       'bg-green-500',
+    textClass: 'text-green-600',
   },
   down: {
-    icon:  <AlertTriangle className="h-4 w-4 text-red-500" />,
-    label: 'Hors ligne',
-    dot:   'bg-red-500',
+    icon:      <AlertTriangle className="h-4 w-4 text-red-500" />,
+    dot:       'bg-red-500',
+    textClass: 'text-red-600',
   },
   loading: {
-    icon:  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />,
-    label: 'Vérification…',
-    dot:   'bg-gray-300',
+    icon:      <Loader2 className="h-4 w-4 animate-spin text-gray-400" />,
+    dot:       'bg-gray-300',
+    textClass: 'text-gray-500',
   },
 };
 
 // ─── Service row ──────────────────────────────────────────────────────────────
 
 function ServiceRow({ service }: { service: ServiceMeta }) {
+  const { t } = useTranslation();
   const health = useServiceHealth(service.path);
   const cfg    = STATUS_CONFIG[health.status];
 
@@ -90,7 +91,9 @@ function ServiceRow({ service }: { service: ServiceMeta }) {
     <div className="flex items-center justify-between py-2.5">
       <div className="flex items-center gap-2.5">
         <span className={`h-2 w-2 shrink-0 rounded-full ${cfg.dot}`} />
-        <span className="text-sm text-gray-700">{service.label}</span>
+        <span className="text-sm text-gray-700">
+          {t(`settings.services.names.${service.key}` as Parameters<typeof t>[0])}
+        </span>
       </div>
       <div className="flex items-center gap-2">
         {health.version && (
@@ -102,8 +105,8 @@ function ServiceRow({ service }: { service: ServiceMeta }) {
           </span>
         )}
         {cfg.icon}
-        <span className={`text-xs font-medium ${health.status === 'ok' ? 'text-green-600' : health.status === 'down' ? 'text-red-600' : 'text-gray-500'}`}>
-          {cfg.label}
+        <span className={`text-xs font-medium ${cfg.textClass}`}>
+          {t(`settings.services.status.${health.status}` as Parameters<typeof t>[0])}
         </span>
       </div>
     </div>
@@ -113,15 +116,17 @@ function ServiceRow({ service }: { service: ServiceMeta }) {
 // ─── Main widget ──────────────────────────────────────────────────────────────
 
 export function ServicesHealth() {
+  const { t } = useTranslation();
+
   return (
     <div className="rounded-xl border border-surface-muted bg-white p-6 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-base font-semibold text-brand-dark">
-          État des microservices
+          {t('settings.services.title')}
         </h2>
         <div className="flex items-center gap-1.5 text-xs text-gray-400">
           <RefreshCw className="h-3 w-3" />
-          Rafraîchissement toutes les 30 s
+          {t('settings.services.refreshNote')}
         </div>
       </div>
       <div className="divide-y divide-surface-muted">

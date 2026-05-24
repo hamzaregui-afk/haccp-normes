@@ -687,6 +687,27 @@
       "required": "هذا الحقل مطلوب",
       "passwordMin": "8 أحرف على الأقل",
       "confirmMatch": "كلمتا المرور غير متطابقتين"
+    },
+    "services": {
+      "title": "حالة الخدمات الدقيقة",
+      "refreshNote": "يتجدد كل 30 ث",
+      "status": {
+        "ok": "متصل",
+        "down": "غير متصل",
+        "loading": "جارٍ الفحص…"
+      },
+      "names": {
+        "auth": "المصادقة",
+        "users": "المستخدمون",
+        "controls": "الضوابط",
+        "nonconformities": "عدم المطابقة",
+        "assets": "الأصول / نظام إدارة الوثائق",
+        "notifications": "الإشعارات",
+        "reports": "التقارير",
+        "dlc": "تاريخ الصلاحية",
+        "tenants": "المستأجرون",
+        "audit": "سجل التدقيق"
+      }
     }
   },
   "clients": {
@@ -901,23 +922,74 @@
         }
       },
       "modulesMeta": {
-        "DASHBOARD":       { "label": "لوحة التحكم",         "description": "مؤشرات الأداء والرسوم البيانية والنظرة العامة" },
-        "HACCP_CONTROLS":  { "label": "ضوابط HACCP",         "description": "تخطيط وتنفيذ الضوابط" },
-        "NONCONFORMITIES": { "label": "عدم المطابقة",        "description": "إدارة وإغلاق حالات عدم المطابقة" },
-        "DLC":             { "label": "تواريخ الصلاحية",     "description": "متابعة تواريخ انتهاء الصلاحية" },
-        "REPORTS":         { "label": "التقارير",            "description": "إنشاء التقارير واعتمادها بصيغة PDF" },
-        "EQUIPMENTS":      { "label": "المعدات",             "description": "بيانات مرجعية للمعدات" },
-        "PRODUCTS":        { "label": "المنتجات",            "description": "كتالوج المنتجات" },
-        "SUPPLIERS":       { "label": "الموردون",            "description": "إدارة الموردين" },
-        "GED":             { "label": "إدارة الوثائق",       "description": "الإدارة الإلكترونية للوثائق" },
-        "NOTIFICATIONS":   { "label": "الإشعارات",           "description": "تنبيهات البريد الإلكتروني والدفع" },
-        "AUDIT":           { "label": "سجل التدقيق",         "description": "سجل الإجراءات غير قابل للتعديل" },
-        "PLANNING":        { "label": "التخطيط",             "description": "الجدولة المتقدمة" },
-        "TEMPERATURES":    { "label": "درجات الحرارة",       "description": "متابعة قراءات درجات الحرارة" },
-        "RECEPTIONS":      { "label": "الاستقبالات",         "description": "مراقبة استقبالات الموردين" },
-        "HYGIENE":         { "label": "النظافة",             "description": "ضوابط النظافة والتنظيف" },
-        "ANALYTICS":       { "label": "التحليلات",           "description": "تقارير وإحصاءات متقدمة" },
-        "MOBILE_ACCESS":   { "label": "وصول الجوال",         "description": "تطبيق الجوال للمشغّلين" }
+        "DASHBOARD": {
+          "label": "لوحة التحكم",
+          "description": "مؤشرات الأداء والرسوم البيانية والنظرة العامة"
+        },
+        "HACCP_CONTROLS": {
+          "label": "ضوابط HACCP",
+          "description": "تخطيط وتنفيذ الضوابط"
+        },
+        "NONCONFORMITIES": {
+          "label": "عدم المطابقة",
+          "description": "إدارة وإغلاق حالات عدم المطابقة"
+        },
+        "DLC": {
+          "label": "تواريخ الصلاحية",
+          "description": "متابعة تواريخ انتهاء الصلاحية"
+        },
+        "REPORTS": {
+          "label": "التقارير",
+          "description": "إنشاء التقارير واعتمادها بصيغة PDF"
+        },
+        "EQUIPMENTS": {
+          "label": "المعدات",
+          "description": "بيانات مرجعية للمعدات"
+        },
+        "PRODUCTS": {
+          "label": "المنتجات",
+          "description": "كتالوج المنتجات"
+        },
+        "SUPPLIERS": {
+          "label": "الموردون",
+          "description": "إدارة الموردين"
+        },
+        "GED": {
+          "label": "إدارة الوثائق",
+          "description": "الإدارة الإلكترونية للوثائق"
+        },
+        "NOTIFICATIONS": {
+          "label": "الإشعارات",
+          "description": "تنبيهات البريد الإلكتروني والدفع"
+        },
+        "AUDIT": {
+          "label": "سجل التدقيق",
+          "description": "سجل الإجراءات غير قابل للتعديل"
+        },
+        "PLANNING": {
+          "label": "التخطيط",
+          "description": "الجدولة المتقدمة"
+        },
+        "TEMPERATURES": {
+          "label": "درجات الحرارة",
+          "description": "متابعة قراءات درجات الحرارة"
+        },
+        "RECEPTIONS": {
+          "label": "الاستقبالات",
+          "description": "مراقبة استقبالات الموردين"
+        },
+        "HYGIENE": {
+          "label": "النظافة",
+          "description": "ضوابط النظافة والتنظيف"
+        },
+        "ANALYTICS": {
+          "label": "التحليلات",
+          "description": "تقارير وإحصاءات متقدمة"
+        },
+        "MOBILE_ACCESS": {
+          "label": "وصول الجوال",
+          "description": "تطبيق الجوال للمشغّلين"
+        }
       },
       "genericError": "حدث خطأ. يرجى المحاولة مرة أخرى.",
       "infoUpdated": "تم تحديث المعلومات",

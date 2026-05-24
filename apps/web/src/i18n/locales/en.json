@@ -687,6 +687,27 @@
       "required": "Required field",
       "passwordMin": "Minimum 8 characters",
       "confirmMatch": "Passwords do not match"
+    },
+    "services": {
+      "title": "Microservices Status",
+      "refreshNote": "Refreshed every 30 s",
+      "status": {
+        "ok": "Online",
+        "down": "Offline",
+        "loading": "Checking…"
+      },
+      "names": {
+        "auth": "Auth",
+        "users": "Users",
+        "controls": "Controls",
+        "nonconformities": "Non-conformities",
+        "assets": "Assets / DMS",
+        "notifications": "Notifications",
+        "reports": "Reports",
+        "dlc": "DLC",
+        "tenants": "Tenants",
+        "audit": "Audit"
+      }
     }
   },
   "clients": {
@@ -901,23 +922,74 @@
         }
       },
       "modulesMeta": {
-        "DASHBOARD":       { "label": "Dashboard",           "description": "KPIs, charts and overview" },
-        "HACCP_CONTROLS":  { "label": "HACCP Controls",      "description": "Planning and execution of controls" },
-        "NONCONFORMITIES": { "label": "Non-conformities",    "description": "Management and closure of NCs" },
-        "DLC":             { "label": "Use-by dates",        "description": "Use-by date tracking" },
-        "REPORTS":         { "label": "Reports",             "description": "PDF generation and validation" },
-        "EQUIPMENTS":      { "label": "Equipment",           "description": "Equipment reference data" },
-        "PRODUCTS":        { "label": "Products",            "description": "Product catalogue" },
-        "SUPPLIERS":       { "label": "Suppliers",           "description": "Supplier management" },
-        "GED":             { "label": "DMS",                 "description": "Electronic document management" },
-        "NOTIFICATIONS":   { "label": "Notifications",       "description": "Email and push alerts" },
-        "AUDIT":           { "label": "Audit log",           "description": "Immutable action register" },
-        "PLANNING":        { "label": "Planning",            "description": "Advanced scheduling" },
-        "TEMPERATURES":    { "label": "Temperatures",        "description": "Temperature reading tracking" },
-        "RECEPTIONS":      { "label": "Receptions",          "description": "Supplier reception control" },
-        "HYGIENE":         { "label": "Hygiene",             "description": "Hygiene and cleaning controls" },
-        "ANALYTICS":       { "label": "Analytics",           "description": "Advanced reports and statistics" },
-        "MOBILE_ACCESS":   { "label": "Mobile access",       "description": "Operator mobile application" }
+        "DASHBOARD": {
+          "label": "Dashboard",
+          "description": "KPIs, charts and overview"
+        },
+        "HACCP_CONTROLS": {
+          "label": "HACCP Controls",
+          "description": "Planning and execution of controls"
+        },
+        "NONCONFORMITIES": {
+          "label": "Non-conformities",
+          "description": "Management and closure of NCs"
+        },
+        "DLC": {
+          "label": "Use-by dates",
+          "description": "Use-by date tracking"
+        },
+        "REPORTS": {
+          "label": "Reports",
+          "description": "PDF generation and validation"
+        },
+        "EQUIPMENTS": {
+          "label": "Equipment",
+          "description": "Equipment reference data"
+        },
+        "PRODUCTS": {
+          "label": "Products",
+          "description": "Product catalogue"
+        },
+        "SUPPLIERS": {
+          "label": "Suppliers",
+          "description": "Supplier management"
+        },
+        "GED": {
+          "label": "DMS",
+          "description": "Electronic document management"
+        },
+        "NOTIFICATIONS": {
+          "label": "Notifications",
+          "description": "Email and push alerts"
+        },
+        "AUDIT": {
+          "label": "Audit log",
+          "description": "Immutable action register"
+        },
+        "PLANNING": {
+          "label": "Planning",
+          "description": "Advanced scheduling"
+        },
+        "TEMPERATURES": {
+          "label": "Temperatures",
+          "description": "Temperature reading tracking"
+        },
+        "RECEPTIONS": {
+          "label": "Receptions",
+          "description": "Supplier reception control"
+        },
+        "HYGIENE": {
+          "label": "Hygiene",
+          "description": "Hygiene and cleaning controls"
+        },
+        "ANALYTICS": {
+          "label": "Analytics",
+          "description": "Advanced reports and statistics"
+        },
+        "MOBILE_ACCESS": {
+          "label": "Mobile access",
+          "description": "Operator mobile application"
+        }
       },
       "genericError": "An error occurred. Please try again.",
       "infoUpdated": "Information updated",

@@ -687,6 +687,27 @@
       "required": "Champ obligatoire",
       "passwordMin": "8 caractères minimum",
       "confirmMatch": "Les mots de passe ne correspondent pas"
+    },
+    "services": {
+      "title": "État des microservices",
+      "refreshNote": "Rafraîchissement toutes les 30 s",
+      "status": {
+        "ok": "En ligne",
+        "down": "Hors ligne",
+        "loading": "Vérification…"
+      },
+      "names": {
+        "auth": "Auth",
+        "users": "Utilisateurs",
+        "controls": "Contrôles",
+        "nonconformities": "Non-conformités",
+        "assets": "Actifs / GED",
+        "notifications": "Notifications",
+        "reports": "Rapports",
+        "dlc": "DLC",
+        "tenants": "Tenants",
+        "audit": "Audit"
+      }
     }
   },
   "clients": {
@@ -901,23 +922,74 @@
         }
       },
       "modulesMeta": {
-        "DASHBOARD":       { "label": "Tableau de bord",     "description": "KPIs, graphiques et vue d'ensemble" },
-        "HACCP_CONTROLS":  { "label": "Contrôles HACCP",     "description": "Planification et exécution des contrôles" },
-        "NONCONFORMITIES": { "label": "Non-conformités",     "description": "Gestion et clôture des NCs" },
-        "DLC":             { "label": "DLC",                 "description": "Dates limites de consommation" },
-        "REPORTS":         { "label": "Rapports",            "description": "Génération et validation PDF" },
-        "EQUIPMENTS":      { "label": "Équipements",         "description": "Référentiel équipements" },
-        "PRODUCTS":        { "label": "Produits",            "description": "Catalogue produits" },
-        "SUPPLIERS":       { "label": "Fournisseurs",        "description": "Gestion des fournisseurs" },
-        "GED":             { "label": "GED",                 "description": "Gestion électronique documents" },
-        "NOTIFICATIONS":   { "label": "Notifications",       "description": "Alertes e-mail et push" },
-        "AUDIT":           { "label": "Journal d'audit",     "description": "Registre immuable des actions" },
-        "PLANNING":        { "label": "Planning",            "description": "Planification avancée" },
-        "TEMPERATURES":    { "label": "Températures",        "description": "Suivi relevés de température" },
-        "RECEPTIONS":      { "label": "Réceptions",          "description": "Contrôle réceptions fournisseurs" },
-        "HYGIENE":         { "label": "Hygiène",             "description": "Contrôles hygiène et nettoyage" },
-        "ANALYTICS":       { "label": "Analytics",           "description": "Rapports avancés et statistiques" },
-        "MOBILE_ACCESS":   { "label": "Accès mobile",        "description": "Application mobile opérateurs" }
+        "DASHBOARD": {
+          "label": "Tableau de bord",
+          "description": "KPIs, graphiques et vue d'ensemble"
+        },
+        "HACCP_CONTROLS": {
+          "label": "Contrôles HACCP",
+          "description": "Planification et exécution des contrôles"
+        },
+        "NONCONFORMITIES": {
+          "label": "Non-conformités",
+          "description": "Gestion et clôture des NCs"
+        },
+        "DLC": {
+          "label": "DLC",
+          "description": "Dates limites de consommation"
+        },
+        "REPORTS": {
+          "label": "Rapports",
+          "description": "Génération et validation PDF"
+        },
+        "EQUIPMENTS": {
+          "label": "Équipements",
+          "description": "Référentiel équipements"
+        },
+        "PRODUCTS": {
+          "label": "Produits",
+          "description": "Catalogue produits"
+        },
+        "SUPPLIERS": {
+          "label": "Fournisseurs",
+          "description": "Gestion des fournisseurs"
+        },
+        "GED": {
+          "label": "GED",
+          "description": "Gestion électronique documents"
+        },
+        "NOTIFICATIONS": {
+          "label": "Notifications",
+          "description": "Alertes e-mail et push"
+        },
+        "AUDIT": {
+          "label": "Journal d'audit",
+          "description": "Registre immuable des actions"
+        },
+        "PLANNING": {
+          "label": "Planning",
+          "description": "Planification avancée"
+        },
+        "TEMPERATURES": {
+          "label": "Températures",
+          "description": "Suivi relevés de température"
+        },
+        "RECEPTIONS": {
+          "label": "Réceptions",
+          "description": "Contrôle réceptions fournisseurs"
+        },
+        "HYGIENE": {
+          "label": "Hygiène",
+          "description": "Contrôles hygiène et nettoyage"
+        },
+        "ANALYTICS": {
+          "label": "Analytics",
+          "description": "Rapports avancés et statistiques"
+        },
+        "MOBILE_ACCESS": {
+          "label": "Accès mobile",
+          "description": "Application mobile opérateurs"
+        }
       },
       "genericError": "Une erreur est survenue. Veuillez réessayer.",
       "infoUpdated": "Informations mises à jour",
