@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, Filter, Package, Plus, Search, Snowflake, Thermometer, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Header } from '@/components/layout/Header';
 import { PageWrapper } from '@/components/layout/AppLayout';
@@ -53,6 +54,7 @@ interface ProductFormValues {
 }
 
 export default function ProductsPage() {
+  const { t } = useTranslation();
   const [page, setPage]             = useState(1);
   const [search, setSearch]         = useState('');
   const [categoryFilter, setCategory] = useState('');
@@ -98,7 +100,7 @@ export default function ProductsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/products/${id}`),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['products', tenantId] }),
-    onError: () => showToast({ title: 'Erreur lors de la suppression', variant: 'error' }),
+    onError: () => showToast({ title: t('products.toast.deleteError'), variant: 'error' }),
   });
 
   // Helpers
@@ -110,7 +112,7 @@ export default function ProductsPage() {
   });
 
   const handleDelete = (product: ProductWithSupplier) => {
-    if (!window.confirm(`Supprimer le produit « ${product.name} » ? Cette action est irréversible.`))
+    if (!window.confirm(t('products.confirm.delete', { name: product.name })))
       return;
     deleteMutation.mutate(product.id);
   };
@@ -159,11 +161,13 @@ export default function ProductsPage() {
       }
       void queryClient.invalidateQueries({ queryKey: ['products', tenantId] });
       showToast({
-        title: `Import terminé : ${ok} ligne(s) importée(s)${fail ? `, ${fail} ignorée(s)` : ''}`,
+        title: fail
+          ? t('products.toast.importDoneWithFail', { ok, fail })
+          : t('products.toast.importDone', { ok }),
         variant: fail && ok === 0 ? 'error' : fail ? 'warning' : 'success',
       });
     } catch {
-      showToast({ title: 'Erreur lors de la lecture du fichier.', variant: 'error' });
+      showToast({ title: t('products.toast.importReadError'), variant: 'error' });
     } finally {
       setImporting(false);
       if (importRef.current) importRef.current.value = '';
@@ -185,7 +189,7 @@ export default function ProductsPage() {
 
   return (
     <>
-      <Header title="Produits" subtitle="Catalogue des produits et matières premières" />
+      <Header title={t('products.title')} subtitle={t('products.subtitle')} />
       <PageWrapper>
         {/* Toolbar */}
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
@@ -193,7 +197,7 @@ export default function ProductsPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
-                placeholder="Rechercher un produit…"
+                placeholder={t('products.searchPlaceholder')}
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 className="h-9 w-full sm:w-60 rounded-lg border border-surface-muted bg-white pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
@@ -205,16 +209,16 @@ export default function ProductsPage() {
               onChange={(e) => { setCategory(e.target.value); setPage(1); }}
               className="h-9 rounded-lg border border-surface-muted bg-white px-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-medium"
             >
-              <option value="">Toutes les catégories</option>
-              <option value="Viande">Viande</option>
-              <option value="Poisson">Poisson</option>
-              <option value="Légume">Légume</option>
-              <option value="Fruit">Fruit</option>
-              <option value="Produit laitier">Produit laitier</option>
-              <option value="Épicerie">Épicerie</option>
-              <option value="Boulangerie">Boulangerie</option>
-              <option value="Boisson">Boisson</option>
-              <option value="Autre">Autre</option>
+              <option value="">{t('products.allCategories')}</option>
+              <option value="Viande">{t('products.categories.Viande')}</option>
+              <option value="Poisson">{t('products.categories.Poisson')}</option>
+              <option value="Légume">{t('products.categories.Légume' as Parameters<typeof t>[0])}</option>
+              <option value="Fruit">{t('products.categories.Fruit')}</option>
+              <option value="Produit laitier">{t('products.categories.Produit laitier' as Parameters<typeof t>[0])}</option>
+              <option value="Épicerie">{t('products.categories.Épicerie' as Parameters<typeof t>[0])}</option>
+              <option value="Boulangerie">{t('products.categories.Boulangerie')}</option>
+              <option value="Boisson">{t('products.categories.Boisson')}</option>
+              <option value="Autre">{t('products.categories.Autre')}</option>
             </select>
           </div>
           <div className="flex items-center gap-2">
@@ -224,7 +228,7 @@ export default function ProductsPage() {
               onClick={handleExport}
               disabled={(data?.data ?? []).length === 0}
             >
-              <Download className="h-4 w-4" /> Exporter
+              <Download className="h-4 w-4" /> {t('products.export')}
             </Button>
             <Button
               variant="secondary"
@@ -232,7 +236,7 @@ export default function ProductsPage() {
               loading={importing}
               onClick={() => importRef.current?.click()}
             >
-              <Upload className="h-4 w-4" /> Importer
+              <Upload className="h-4 w-4" /> {t('products.import')}
             </Button>
             <input
               ref={importRef}
@@ -242,20 +246,20 @@ export default function ProductsPage() {
               onChange={(e) => void handleImportFile(e)}
             />
             <Button size="sm" onClick={() => setCreateOpen(true)}>
-              <Plus className="h-4 w-4" /> Nouveau produit
+              <Plus className="h-4 w-4" /> {t('products.new')}
             </Button>
           </div>
         </div>
 
         {/* Content */}
         {isLoading ? (
-          <div className="py-20 text-center text-sm text-gray-400">Chargement…</div>
+          <div className="py-20 text-center text-sm text-gray-400">{t('common.loading')}</div>
         ) : (data?.data ?? []).length === 0 ? (
           <EmptyState
             icon={Package}
-            title="Aucun produit"
-            description="Commencez par ajouter vos produits et matières premières pour les associer à vos contrôles et non-conformités."
-            actionLabel="Créer un produit"
+            title={t('products.empty.title')}
+            description={t('products.empty.description')}
+            actionLabel={t('products.empty.action')}
             onAction={() => setCreateOpen(true)}
           />
         ) : (
@@ -263,12 +267,12 @@ export default function ProductsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-surface-muted bg-surface-page text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  <th className="px-4 py-3">Code</th>
-                  <th className="px-4 py-3">Produit</th>
-                  <th className="px-4 py-3">Catégorie</th>
-                  <th className="px-4 py-3">Fournisseur</th>
-                  <th className="px-4 py-3">DLC</th>
-                  <th className="px-4 py-3">Stockage</th>
+                  <th className="px-4 py-3">{t('products.columns.code')}</th>
+                  <th className="px-4 py-3">{t('products.columns.product')}</th>
+                  <th className="px-4 py-3">{t('products.columns.category')}</th>
+                  <th className="px-4 py-3">{t('products.columns.supplier')}</th>
+                  <th className="px-4 py-3">{t('products.columns.dlc')}</th>
+                  <th className="px-4 py-3">{t('products.columns.storage')}</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -308,7 +312,7 @@ export default function ProductsPage() {
                           className="text-xs text-brand-medium hover:underline"
                           onClick={() => setEditProduct(product)}
                         >
-                          Modifier
+                          {t('common.edit')}
                         </button>
                         <span className="text-gray-300">·</span>
                         <button
@@ -316,7 +320,7 @@ export default function ProductsPage() {
                           onClick={() => handleDelete(product)}
                           disabled={deleteMutation.isPending}
                         >
-                          Supprimer
+                          {t('common.delete')}
                         </button>
                       </div>
                     </td>
@@ -329,7 +333,11 @@ export default function ProductsPage() {
             {data?.meta && data.meta.lastPage > 1 && (
               <div className="flex items-center justify-between border-t border-surface-muted px-4 py-3 text-sm text-gray-500">
                 <span>
-                  Page {data.meta.page} sur {data.meta.lastPage} — {data.meta.total} produit(s)
+                  {t('products.pagination.info', {
+                    page: data.meta.page,
+                    lastPage: data.meta.lastPage,
+                    total: data.meta.total,
+                  })}
                 </span>
                 <div className="flex gap-2">
                   <Button
@@ -338,7 +346,7 @@ export default function ProductsPage() {
                     disabled={page === 1}
                     onClick={() => setPage((p) => p - 1)}
                   >
-                    Précédent
+                    {t('common.previous')}
                   </Button>
                   <Button
                     variant="secondary"
@@ -346,7 +354,7 @@ export default function ProductsPage() {
                     disabled={page === data.meta.lastPage}
                     onClick={() => setPage((p) => p + 1)}
                   >
-                    Suivant
+                    {t('common.next')}
                   </Button>
                 </div>
               </div>
@@ -355,7 +363,7 @@ export default function ProductsPage() {
         )}
 
         {/* Create modal */}
-        <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Nouveau produit" size="lg">
+        <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t('products.modal.create')} size="lg">
           <ProductForm
             loading={createMutation.isPending}
             onSubmit={(values) => createMutation.mutateAsync(buildBody(values))}
@@ -366,7 +374,7 @@ export default function ProductsPage() {
         <Modal
           open={editProduct !== null}
           onClose={() => setEditProduct(null)}
-          title={`Modifier — ${editProduct?.name ?? ''}`}
+          title={t('products.modal.edit', { name: editProduct?.name ?? '' })}
           size="lg"
         >
           {editProduct && (

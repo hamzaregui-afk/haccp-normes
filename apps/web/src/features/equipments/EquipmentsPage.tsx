@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Cog, Download, Filter, Plus, Search, Thermometer, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 
 import { Header } from '@/components/layout/Header';
 import { PageWrapper } from '@/components/layout/AppLayout';
@@ -19,8 +20,9 @@ import type { ApiResponse, Equipment } from '@haccp/shared-types';
 // ─── Temperature badge ────────────────────────────────────────────────────────
 
 function TempRange({ min, max }: { min?: number | null; max?: number | null }) {
+  const { t } = useTranslation();
   if (min == null && max == null)
-    return <span className="text-gray-400 text-xs">Non défini</span>;
+    return <span className="text-gray-400 text-xs">{t('equipments.notDefined')}</span>;
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
       <Thermometer className="h-3 w-3" />
@@ -48,6 +50,7 @@ interface EquipmentFormProps {
 }
 
 function EquipmentForm({ onSubmit, loading, defaultValues }: EquipmentFormProps) {
+  const { t } = useTranslation();
   const { register, handleSubmit } = useForm<EquipmentFormValues>({
     defaultValues: {
       code: '',
@@ -64,21 +67,21 @@ function EquipmentForm({ onSubmit, loading, defaultValues }: EquipmentFormProps)
   return (
     <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        <Input label="Code" placeholder="FRIGO-01" required {...register('code')} />
-        <Input label="Nom" placeholder="Chambre froide positive" required {...register('name')} />
+        <Input label={t('equipments.form.code')} placeholder={t('equipments.form.codePlaceholder')} required {...register('code')} />
+        <Input label={t('equipments.form.name')} placeholder={t('equipments.form.namePlaceholder')} required {...register('name')} />
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Input label="Type" placeholder="Réfrigérateur, Four…" {...register('type')} />
-        <Input label="Marque" placeholder="Liebherr, Rational…" {...register('brand')} />
+        <Input label={t('equipments.form.type')} placeholder={t('equipments.form.typePlaceholder')} {...register('type')} />
+        <Input label={t('equipments.form.brand')} placeholder={t('equipments.form.brandPlaceholder')} {...register('brand')} />
       </div>
-      <Input label="N° de série" placeholder="SN-0000000" {...register('serialNumber')} />
+      <Input label={t('equipments.form.serialNumber')} placeholder={t('equipments.form.serialNumberPlaceholder')} {...register('serialNumber')} />
       <div className="grid grid-cols-2 gap-3">
-        <Input label="Temp. min (°C)" type="number" placeholder="-2" {...register('tempMin')} />
-        <Input label="Temp. max (°C)" type="number" placeholder="4" {...register('tempMax')} />
+        <Input label={t('equipments.form.tempMin')} type="number" placeholder={t('equipments.form.tempMinPlaceholder')} {...register('tempMin')} />
+        <Input label={t('equipments.form.tempMax')} type="number" placeholder={t('equipments.form.tempMaxPlaceholder')} {...register('tempMax')} />
       </div>
       <div className="flex justify-end gap-3 border-t border-surface-muted pt-4">
         <Button type="submit" loading={loading}>
-          Enregistrer
+          {t('common.save')}
         </Button>
       </div>
     </form>
@@ -88,15 +91,16 @@ function EquipmentForm({ onSubmit, loading, defaultValues }: EquipmentFormProps)
 // ─── Detail modal ─────────────────────────────────────────────────────────────
 
 function EquipmentDetail({ equipment }: { equipment: Equipment }) {
+  const { t } = useTranslation();
   const rows: { label: string; value: string | number | null | undefined }[] = [
-    { label: 'Code', value: equipment.code },
-    { label: 'Nom', value: equipment.name },
-    { label: 'Type', value: equipment.type },
-    { label: 'Marque', value: equipment.brand },
-    { label: 'N° de série', value: equipment.serialNumber },
-    { label: 'Temp. min', value: equipment.tempMin != null ? `${equipment.tempMin}°C` : null },
-    { label: 'Temp. max', value: equipment.tempMax != null ? `${equipment.tempMax}°C` : null },
-    { label: 'Actif', value: equipment.isActive ? 'Oui' : 'Non' },
+    { label: t('equipments.detail.code'), value: equipment.code },
+    { label: t('equipments.detail.name'), value: equipment.name },
+    { label: t('equipments.detail.type'), value: equipment.type },
+    { label: t('equipments.detail.brand'), value: equipment.brand },
+    { label: t('equipments.detail.serialNumber'), value: equipment.serialNumber },
+    { label: t('equipments.detail.tempMin'), value: equipment.tempMin != null ? `${equipment.tempMin}°C` : null },
+    { label: t('equipments.detail.tempMax'), value: equipment.tempMax != null ? `${equipment.tempMax}°C` : null },
+    { label: t('equipments.detail.active'), value: equipment.isActive ? t('equipments.detail.yes') : t('equipments.detail.no') },
   ];
   return (
     <dl className="divide-y divide-surface-muted text-sm">
@@ -127,6 +131,7 @@ const CSV_COLUMNS = [
 type ModalMode = 'create' | 'edit' | 'detail';
 
 export default function EquipmentsPage() {
+  const { t } = useTranslation();
   const [page, setPage]         = useState(1);
   const [search, setSearch]     = useState('');
   const [typeFilter, setType]   = useState('');
@@ -172,7 +177,7 @@ export default function EquipmentsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/equipments/${id}`),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['equipments', tenantId] }),
-    onError: () => showToast({ title: 'Erreur lors de la suppression', variant: 'error' }),
+    onError: () => showToast({ title: t('equipments.toast.deleteError'), variant: 'error' }),
   });
 
   // Helpers
@@ -195,7 +200,7 @@ export default function EquipmentsPage() {
   };
 
   const handleDelete = (eq: Equipment) => {
-    if (!window.confirm(`Supprimer l'équipement « ${eq.name} » ? Cette action est irréversible.`))
+    if (!window.confirm(t('equipments.confirm.delete', { name: eq.name })))
       return;
     deleteMutation.mutate(eq.id);
   };
@@ -245,11 +250,13 @@ export default function EquipmentsPage() {
       }
       void queryClient.invalidateQueries({ queryKey: ['equipments', tenantId] });
       showToast({
-        title: `Import terminé : ${ok} ligne(s) importée(s)${fail ? `, ${fail} ignorée(s)` : ''}`,
+        title: fail
+          ? t('equipments.toast.importDoneWithFail', { ok, fail })
+          : t('equipments.toast.importDone', { ok }),
         variant: fail && ok === 0 ? 'error' : fail ? 'warning' : 'success',
       });
     } catch {
-      showToast({ title: 'Erreur lors de la lecture du fichier.', variant: 'error' });
+      showToast({ title: t('equipments.toast.importReadError'), variant: 'error' });
     } finally {
       setImporting(false);
       if (importRef.current) importRef.current.value = '';
@@ -259,14 +266,14 @@ export default function EquipmentsPage() {
   // Modal title
   const modalTitle =
     modalMode === 'create'
-      ? 'Nouvel équipement'
+      ? t('equipments.modal.create')
       : modalMode === 'edit'
-        ? `Modifier — ${selected?.name ?? ''}`
+        ? t('equipments.modal.edit', { name: selected?.name ?? '' })
         : selected?.name ?? '';
 
   return (
     <>
-      <Header title="Équipements" subtitle="Parc matériel et plages de température critiques" />
+      <Header title={t('equipments.title')} subtitle={t('equipments.subtitle')} />
       <PageWrapper>
         {/* Toolbar */}
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
@@ -274,7 +281,7 @@ export default function EquipmentsPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
-                placeholder="Rechercher un équipement…"
+                placeholder={t('equipments.searchPlaceholder')}
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 className="h-9 w-full sm:w-60 rounded-lg border border-surface-muted bg-white pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
@@ -286,22 +293,22 @@ export default function EquipmentsPage() {
               onChange={(e) => { setType(e.target.value); setPage(1); }}
               className="h-9 rounded-lg border border-surface-muted bg-white px-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-medium"
             >
-              <option value="">Tous les types</option>
-              <option value="Réfrigérateur">Réfrigérateur</option>
-              <option value="Congélateur">Congélateur</option>
-              <option value="Four">Four</option>
-              <option value="Friteuse">Friteuse</option>
-              <option value="Lave-vaisselle">Lave-vaisselle</option>
-              <option value="Sonde">Sonde</option>
-              <option value="Autre">Autre</option>
+              <option value="">{t('equipments.allTypes')}</option>
+              <option value="Réfrigérateur">{t('equipments.types.Réfrigérateur' as Parameters<typeof t>[0])}</option>
+              <option value="Congélateur">{t('equipments.types.Congélateur' as Parameters<typeof t>[0])}</option>
+              <option value="Four">{t('equipments.types.Four')}</option>
+              <option value="Friteuse">{t('equipments.types.Friteuse')}</option>
+              <option value="Lave-vaisselle">{t('equipments.types.Lave-vaisselle' as Parameters<typeof t>[0])}</option>
+              <option value="Sonde">{t('equipments.types.Sonde')}</option>
+              <option value="Autre">{t('equipments.types.Autre')}</option>
             </select>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="secondary" size="sm" onClick={handleExport} disabled={(data?.data ?? []).length === 0}>
-              <Download className="h-4 w-4" /> Exporter
+              <Download className="h-4 w-4" /> {t('equipments.export')}
             </Button>
             <Button variant="secondary" size="sm" loading={importing} onClick={() => importRef.current?.click()}>
-              <Upload className="h-4 w-4" /> Importer
+              <Upload className="h-4 w-4" /> {t('equipments.import')}
             </Button>
             <input
               ref={importRef}
@@ -311,20 +318,20 @@ export default function EquipmentsPage() {
               onChange={(e) => void handleImportFile(e)}
             />
             <Button size="sm" onClick={openCreate}>
-              <Plus className="h-4 w-4" /> Nouvel équipement
+              <Plus className="h-4 w-4" /> {t('equipments.new')}
             </Button>
           </div>
         </div>
 
         {/* Content */}
         {isLoading ? (
-          <div className="py-20 text-center text-sm text-gray-400">Chargement…</div>
+          <div className="py-20 text-center text-sm text-gray-400">{t('common.loading')}</div>
         ) : (data?.data ?? []).length === 0 ? (
           <EmptyState
             icon={Cog}
-            title="Aucun équipement"
-            description="Ajoutez vos équipements pour planifier les relevés de température et les contrôles de maintenance."
-            actionLabel="Ajouter un équipement"
+            title={t('equipments.empty.title')}
+            description={t('equipments.empty.description')}
+            actionLabel={t('equipments.empty.action')}
             onAction={openCreate}
           />
         ) : (
@@ -354,12 +361,12 @@ export default function EquipmentsPage() {
                 <div className="mt-4 space-y-1.5">
                   {eq.brand && (
                     <p className="text-xs text-gray-500">
-                      Marque : <strong className="text-gray-700">{eq.brand}</strong>
+                      {t('equipments.brand')} : <strong className="text-gray-700">{eq.brand}</strong>
                     </p>
                   )}
                   {eq.serialNumber && (
                     <p className="text-xs text-gray-500">
-                      S/N :{' '}
+                      {t('equipments.serialNumber')} :{' '}
                       <strong className="font-mono text-gray-700">{eq.serialNumber}</strong>
                     </p>
                   )}
@@ -371,14 +378,14 @@ export default function EquipmentsPage() {
                     className="text-xs text-gray-500 hover:underline"
                     onClick={() => openDetail(eq)}
                   >
-                    Voir
+                    {t('equipments.actions.view')}
                   </button>
                   <span className="text-gray-300">·</span>
                   <button
                     className="text-xs text-brand-medium hover:underline"
                     onClick={() => openEdit(eq)}
                   >
-                    Modifier
+                    {t('equipments.actions.edit')}
                   </button>
                   <span className="text-gray-300">·</span>
                   <button
@@ -386,7 +393,7 @@ export default function EquipmentsPage() {
                     onClick={() => handleDelete(eq)}
                     disabled={deleteMutation.isPending}
                   >
-                    Supprimer
+                    {t('equipments.actions.delete')}
                   </button>
                 </div>
               </div>
@@ -403,7 +410,7 @@ export default function EquipmentsPage() {
               disabled={page === 1}
               onClick={() => setPage((p) => p - 1)}
             >
-              Précédent
+              {t('common.previous')}
             </Button>
             <Button
               variant="secondary"
@@ -411,7 +418,7 @@ export default function EquipmentsPage() {
               disabled={page === data.meta.lastPage}
               onClick={() => setPage((p) => p + 1)}
             >
-              Suivant
+              {t('common.next')}
             </Button>
           </div>
         )}

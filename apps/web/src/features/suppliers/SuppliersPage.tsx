@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Download, Mail, Phone, Plus, Search, Truck, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 
 import { Header } from '@/components/layout/Header';
 import { PageWrapper } from '@/components/layout/AppLayout';
@@ -34,6 +35,7 @@ interface SupplierFormProps {
 }
 
 function SupplierForm({ onSubmit, loading, defaultValues }: SupplierFormProps) {
+  const { t } = useTranslation();
   const {
     register,
     handleSubmit,
@@ -54,42 +56,42 @@ function SupplierForm({ onSubmit, loading, defaultValues }: SupplierFormProps) {
     <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <Input
-          label="Code fournisseur"
-          placeholder="FOUR-01"
+          label={t('suppliers.form.code')}
+          placeholder={t('suppliers.form.codePlaceholder')}
           required
           error={errors.code?.message}
-          {...register('code', { required: 'Code obligatoire' })}
+          {...register('code', { required: t('suppliers.form.codeRequired') })}
         />
         <Input
-          label="Raison sociale"
-          placeholder="Boucherie Martin"
+          label={t('suppliers.form.name')}
+          placeholder={t('suppliers.form.namePlaceholder')}
           required
           error={errors.name?.message}
-          {...register('name', { required: 'Nom obligatoire' })}
+          {...register('name', { required: t('suppliers.form.nameRequired') })}
         />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Input label="N° TVA" placeholder="FR12345678901" {...register('vat')} />
-        <Input label="Téléphone" placeholder="+33 1 23 45 67 89" {...register('phone')} />
+        <Input label={t('suppliers.form.vat')} placeholder={t('suppliers.form.vatPlaceholder')} {...register('vat')} />
+        <Input label={t('suppliers.form.phone')} placeholder={t('suppliers.form.phonePlaceholder')} {...register('phone')} />
       </div>
 
       <Input
-        label="Email"
+        label={t('suppliers.form.email')}
         type="email"
-        placeholder="contact@fournisseur.fr"
+        placeholder={t('suppliers.form.emailPlaceholder')}
         {...register('email')}
       />
 
       <Input
-        label="Adresse"
-        placeholder="12 rue du Commerce, 75001 Paris"
+        label={t('suppliers.form.address')}
+        placeholder={t('suppliers.form.addressPlaceholder')}
         {...register('address')}
       />
 
       <div className="flex justify-end gap-3 border-t border-surface-muted pt-4">
         <Button type="submit" loading={loading}>
-          Enregistrer
+          {t('common.save')}
         </Button>
       </div>
     </form>
@@ -114,6 +116,7 @@ type SupplierWithCount = Supplier & { _count?: { products: number } };
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SuppliersPage() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
@@ -156,7 +159,7 @@ export default function SuppliersPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/suppliers/${id}`),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['suppliers', tenantId] }),
-    onError: () => showToast({ title: 'Erreur lors de la suppression', variant: 'error' }),
+    onError: () => showToast({ title: t('suppliers.toast.deleteError'), variant: 'error' }),
   });
 
   // Helpers
@@ -169,7 +172,7 @@ export default function SuppliersPage() {
   });
 
   const handleDelete = (supplier: SupplierWithCount) => {
-    if (!window.confirm(`Supprimer le fournisseur « ${supplier.name} » ? Cette action est irréversible.`))
+    if (!window.confirm(t('suppliers.confirm.delete', { name: supplier.name })))
       return;
     deleteMutation.mutate(supplier.id);
   };
@@ -217,11 +220,13 @@ export default function SuppliersPage() {
       }
       void queryClient.invalidateQueries({ queryKey: ['suppliers', tenantId] });
       showToast({
-        title: `Import terminé : ${ok} ligne(s) importée(s)${fail ? `, ${fail} ignorée(s)` : ''}`,
+        title: fail
+          ? t('suppliers.toast.importDoneWithFail', { ok, fail })
+          : t('suppliers.toast.importDone', { ok }),
         variant: fail && ok === 0 ? 'error' : fail ? 'warning' : 'success',
       });
     } catch {
-      showToast({ title: 'Erreur lors de la lecture du fichier.', variant: 'error' });
+      showToast({ title: t('suppliers.toast.importReadError'), variant: 'error' });
     } finally {
       setImporting(false);
       if (importRef.current) importRef.current.value = '';
@@ -243,14 +248,14 @@ export default function SuppliersPage() {
 
   return (
     <>
-      <Header title="Fournisseurs" subtitle="Référentiel des fournisseurs et partenaires" />
+      <Header title={t('suppliers.title')} subtitle={t('suppliers.subtitle')} />
       <PageWrapper>
         {/* Toolbar */}
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
-              placeholder="Rechercher un fournisseur…"
+              placeholder={t('suppliers.searchPlaceholder')}
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -266,7 +271,7 @@ export default function SuppliersPage() {
               onClick={handleExport}
               disabled={rows.length === 0}
             >
-              <Download className="h-4 w-4" /> Exporter
+              <Download className="h-4 w-4" /> {t('suppliers.export')}
             </Button>
             <Button
               variant="secondary"
@@ -274,7 +279,7 @@ export default function SuppliersPage() {
               loading={importing}
               onClick={() => importRef.current?.click()}
             >
-              <Upload className="h-4 w-4" /> Importer
+              <Upload className="h-4 w-4" /> {t('suppliers.import')}
             </Button>
             <input
               ref={importRef}
@@ -284,20 +289,20 @@ export default function SuppliersPage() {
               onChange={(e) => void handleImportFile(e)}
             />
             <Button size="sm" onClick={() => setCreateOpen(true)}>
-              <Plus className="h-4 w-4" /> Nouveau fournisseur
+              <Plus className="h-4 w-4" /> {t('suppliers.new')}
             </Button>
           </div>
         </div>
 
         {/* Content */}
         {isLoading ? (
-          <div className="py-20 text-center text-sm text-gray-400">Chargement…</div>
+          <div className="py-20 text-center text-sm text-gray-400">{t('common.loading')}</div>
         ) : rows.length === 0 ? (
           <EmptyState
             icon={Truck}
-            title="Aucun fournisseur"
-            description="Ajoutez vos fournisseurs pour les associer à vos produits et contrôles de réception."
-            actionLabel="Ajouter un fournisseur"
+            title={t('suppliers.empty.title')}
+            description={t('suppliers.empty.description')}
+            actionLabel={t('suppliers.empty.action')}
             onAction={() => setCreateOpen(true)}
           />
         ) : (
@@ -328,12 +333,12 @@ export default function SuppliersPage() {
                   <div className="flex items-center justify-between pt-1">
                     {supplier._count?.products != null && (
                       <span className="rounded-full border border-surface-muted bg-surface-page px-2 py-0.5 text-xs text-gray-600">
-                        {supplier._count.products} produit(s)
+                        {t('suppliers.productCount', { count: supplier._count.products })}
                       </span>
                     )}
                     <div className="ml-auto flex items-center gap-3">
-                      <button className="text-xs text-brand-medium hover:underline" onClick={() => setEditSupplier(supplier)}>Modifier</button>
-                      <button className="text-xs text-red-500 hover:underline" onClick={() => handleDelete(supplier)} disabled={deleteMutation.isPending}>Supprimer</button>
+                      <button className="text-xs text-brand-medium hover:underline" onClick={() => setEditSupplier(supplier)}>{t('common.edit')}</button>
+                      <button className="text-xs text-red-500 hover:underline" onClick={() => handleDelete(supplier)} disabled={deleteMutation.isPending}>{t('common.delete')}</button>
                     </div>
                   </div>
                 </div>
@@ -343,11 +348,11 @@ export default function SuppliersPage() {
             <table className="hidden sm:table w-full text-sm">
               <thead>
                 <tr className="border-b border-surface-muted bg-surface-page text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  <th className="px-4 py-3">Code</th>
-                  <th className="px-4 py-3">Raison sociale</th>
-                  <th className="px-4 py-3">Contact</th>
-                  <th className="px-4 py-3">N° TVA</th>
-                  <th className="px-4 py-3">Produits</th>
+                  <th className="px-4 py-3">{t('suppliers.columns.code')}</th>
+                  <th className="px-4 py-3">{t('suppliers.columns.name')}</th>
+                  <th className="px-4 py-3">{t('suppliers.columns.contact')}</th>
+                  <th className="px-4 py-3">{t('suppliers.columns.vat')}</th>
+                  <th className="px-4 py-3">{t('suppliers.columns.products')}</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -396,7 +401,7 @@ export default function SuppliersPage() {
                     <td className="px-4 py-3">
                       {supplier._count?.products != null ? (
                         <span className="rounded-full border border-surface-muted bg-surface-page px-2 py-0.5 text-xs text-gray-600">
-                          {supplier._count.products} produit(s)
+                          {t('suppliers.productCount', { count: supplier._count.products })}
                         </span>
                       ) : (
                         '—'
@@ -408,7 +413,7 @@ export default function SuppliersPage() {
                           className="text-xs text-brand-medium hover:underline"
                           onClick={() => setEditSupplier(supplier)}
                         >
-                          Modifier
+                          {t('common.edit')}
                         </button>
                         <span className="text-gray-300">·</span>
                         <button
@@ -416,7 +421,7 @@ export default function SuppliersPage() {
                           onClick={() => handleDelete(supplier)}
                           disabled={deleteMutation.isPending}
                         >
-                          Supprimer
+                          {t('common.delete')}
                         </button>
                       </div>
                     </td>
@@ -429,7 +434,11 @@ export default function SuppliersPage() {
             {data?.meta && data.meta.lastPage > 1 && (
               <div className="flex items-center justify-between border-t border-surface-muted px-4 py-3 text-sm text-gray-500">
                 <span>
-                  Page {data.meta.page} sur {data.meta.lastPage} — {data.meta.total} fournisseur(s)
+                  {t('suppliers.pagination.info', {
+                    page: data.meta.page,
+                    lastPage: data.meta.lastPage,
+                    total: data.meta.total,
+                  })}
                 </span>
                 <div className="flex gap-2">
                   <Button
@@ -438,7 +447,7 @@ export default function SuppliersPage() {
                     disabled={page === 1}
                     onClick={() => setPage((p) => p - 1)}
                   >
-                    Précédent
+                    {t('common.previous')}
                   </Button>
                   <Button
                     variant="secondary"
@@ -446,7 +455,7 @@ export default function SuppliersPage() {
                     disabled={page === data.meta.lastPage}
                     onClick={() => setPage((p) => p + 1)}
                   >
-                    Suivant
+                    {t('common.next')}
                   </Button>
                 </div>
               </div>
@@ -458,7 +467,7 @@ export default function SuppliersPage() {
         <Modal
           open={createOpen}
           onClose={() => setCreateOpen(false)}
-          title="Nouveau fournisseur"
+          title={t('suppliers.modal.create')}
           size="md"
         >
           <SupplierForm
@@ -471,7 +480,7 @@ export default function SuppliersPage() {
         <Modal
           open={editSupplier !== null}
           onClose={() => setEditSupplier(null)}
-          title={`Modifier — ${editSupplier?.name ?? ''}`}
+          title={t('suppliers.modal.edit', { name: editSupplier?.name ?? '' })}
           size="md"
         >
           {editSupplier && (
