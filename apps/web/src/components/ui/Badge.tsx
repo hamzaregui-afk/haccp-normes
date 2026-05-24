@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import type { UserRole, UserStatus } from '@haccp/shared-types';
 
@@ -12,21 +13,14 @@ const ROLE_STYLES: Record<UserRole, string> = {
   VIEWER:          'bg-gray-50 text-gray-500 border border-gray-200',
 };
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  SUPER_ADMIN:     'Super Admin',
-  ADMIN:           'Admin',
-  MANAGER:         'Manager',
-  QUALITY_OFFICER: 'Resp. Qualité',
-  OPERATOR:        'Opérateur',
-  VIEWER:          'Lecteur',
-};
-
 interface RoleBadgeProps {
   role: UserRole;
   size?: 'sm' | 'md';
 }
 
 export function RoleBadge({ role, size = 'md' }: RoleBadgeProps) {
+  const { t } = useTranslation();
+
   return (
     <span
       className={cn(
@@ -35,7 +29,7 @@ export function RoleBadge({ role, size = 'md' }: RoleBadgeProps) {
         ROLE_STYLES[role],
       )}
     >
-      {ROLE_LABELS[role]}
+      {t(`users.roles.${role}` as Parameters<typeof t>[0])}
     </span>
   );
 }
@@ -48,17 +42,13 @@ const STATUS_STYLES: Record<UserStatus, string> = {
   INVITED:  'bg-yellow-100 text-yellow-800 border border-yellow-300',
 };
 
-const STATUS_LABELS: Record<UserStatus, string> = {
-  ACTIVE:   'Actif',
-  INACTIVE: 'Inactif',
-  INVITED:  'Invité',
-};
-
 interface StatusBadgeProps {
   status: UserStatus;
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {
+  const { t } = useTranslation();
+
   return (
     <span
       className={cn(
@@ -66,7 +56,7 @@ export function StatusBadge({ status }: StatusBadgeProps) {
         STATUS_STYLES[status],
       )}
     >
-      {STATUS_LABELS[status]}
+      {t(`users.status.${status}` as Parameters<typeof t>[0])}
     </span>
   );
 }
