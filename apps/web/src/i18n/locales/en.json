@@ -57,10 +57,22 @@
     "login": "Sign In",
     "logout": "Sign Out",
     "email": "Email address",
+    "emailPlaceholder": "admin@company.com",
     "password": "Password",
     "forgotPassword": "Forgot password?",
     "loginButton": "Sign in",
-    "loginError": "Invalid credentials"
+    "loginError": "Invalid credentials",
+    "headline": "Food safety management made simple.",
+    "subHeadline": "Track your controls, manage non-conformities, and generate HACCP reports with full compliance.",
+    "loginTitle": "Sign In",
+    "loginSubtitle": "Access your HACCP management workspace",
+    "copyright": "© {{year}} NORMES HACCP — Food compliance platform",
+    "error": {
+      "validation": "Please enter a valid email address and password.",
+      "tooManyAttempts": "Too many attempts. Please wait 1 minute before trying again.",
+      "invalid": "Incorrect email or password.",
+      "connection": "Connection error ({{status}}). Please check your connection."
+    }
   },
   "dashboard": {
     "title": "Overview",
@@ -618,7 +630,29 @@
           "next": "Next →",
           "entries": "{{total}} entry(ies)"
         }
-      }
+      },
+      "modulesMeta": {
+        "DASHBOARD":       { "label": "Dashboard",           "description": "KPIs, charts and overview" },
+        "HACCP_CONTROLS":  { "label": "HACCP Controls",      "description": "Planning and execution of controls" },
+        "NONCONFORMITIES": { "label": "Non-conformities",    "description": "Management and closure of NCs" },
+        "DLC":             { "label": "Use-by dates",        "description": "Use-by date tracking" },
+        "REPORTS":         { "label": "Reports",             "description": "PDF generation and validation" },
+        "EQUIPMENTS":      { "label": "Equipment",           "description": "Equipment reference data" },
+        "PRODUCTS":        { "label": "Products",            "description": "Product catalogue" },
+        "SUPPLIERS":       { "label": "Suppliers",           "description": "Supplier management" },
+        "GED":             { "label": "DMS",                 "description": "Electronic document management" },
+        "NOTIFICATIONS":   { "label": "Notifications",       "description": "Email and push alerts" },
+        "AUDIT":           { "label": "Audit log",           "description": "Immutable action register" },
+        "PLANNING":        { "label": "Planning",            "description": "Advanced scheduling" },
+        "TEMPERATURES":    { "label": "Temperatures",        "description": "Temperature reading tracking" },
+        "RECEPTIONS":      { "label": "Receptions",          "description": "Supplier reception control" },
+        "HYGIENE":         { "label": "Hygiene",             "description": "Hygiene and cleaning controls" },
+        "ANALYTICS":       { "label": "Analytics",           "description": "Advanced reports and statistics" },
+        "MOBILE_ACCESS":   { "label": "Mobile access",       "description": "Operator mobile application" }
+      },
+      "genericError": "An error occurred. Please try again.",
+      "infoUpdated": "Information updated",
+      "subscriptionUpdated": "Subscription updated"
     },
     "empty": "No clients found",
     "loading": "Loading…"
@@ -940,6 +974,12 @@
   "documents": {
     "title": "GED — Documents",
     "subtitle": "Library, requests and storage of your HACCP documents",
+    "tabs": {
+      "library": "Library",
+      "requests": "Requests",
+      "ncPhotos": "NC Photos",
+      "reports": "Reports"
+    },
     "library": "Library",
     "requests": "Requests",
     "ncPhotos": "NC Photos",
@@ -948,14 +988,123 @@
     "noDocuments": "No documents",
     "noRequests": "No requests",
     "categories": {
-      "PROCEDURE": "Procedures",
-      "RECIPE": "Recipes",
+      "PROCEDURE": "Procedure",
+      "RECIPE": "Recipe",
       "OTHER": "Other"
     },
     "status": {
       "PENDING": "Pending",
       "FULFILLED": "Fulfilled",
       "REJECTED": "Rejected"
+    },
+    "uploadModal": {
+      "title": "Upload a document",
+      "dropzone": "Drag a file here or click",
+      "dropzoneHint": "PDF, Word, Excel, images — max 50 MB",
+      "nameLabel": "Document name",
+      "namePlaceholder": "Cleaning procedure…",
+      "categoryLabel": "Category",
+      "uploadError": "Upload error. Please try again.",
+      "cancel": "Cancel",
+      "submit": "Upload"
+    },
+    "toolbar": {
+      "searchPlaceholder": "Search…",
+      "allCategories": "All categories",
+      "viewGrid": "Grid view",
+      "viewList": "List view",
+      "uploadBtn": "Upload a doc"
+    },
+    "table": {
+      "name": "Name",
+      "category": "Category",
+      "size": "Size",
+      "date": "Date",
+      "actions": "Actions"
+    },
+    "card": {
+      "view": "View",
+      "open": "Open",
+      "delete": "Delete"
+    },
+    "loading": "Loading…",
+    "loadError": "Loading error.",
+    "deleteError": "Deletion error",
+    "deleteConfirm": "Delete \"{{name}}\"?",
+    "documentCount_one": "{{count}} document",
+    "documentCount_other": "{{count}} documents",
+    "emptyLibrary": {
+      "title": "No documents",
+      "descAdmin": "Upload your first document by clicking the button above.",
+      "descUser": "No documents available. Submit a request in the Requests tab.",
+      "action": "Upload a document"
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "pageOf": "Page {{page}} / {{lastPage}}"
+    },
+    "requestModal": {
+      "title": "Request a document",
+      "titleLabel": "Requested document",
+      "titlePlaceholder": "E.g.: Meat thawing procedure…",
+      "descriptionLabel": "Description (optional)",
+      "descriptionPlaceholder": "Specify the context, the department concerned…",
+      "categoryLabel": "Desired category",
+      "categoryNone": "None",
+      "cancel": "Cancel",
+      "submit": "Send request",
+      "error": "Error. Please try again."
+    },
+    "fulfillModal": {
+      "title": "Process request",
+      "fulfill": "Fulfill",
+      "reject": "Reject",
+      "fulfillHint": "The requester will be able to access the document via the library once the request is fulfilled.",
+      "cancel": "Cancel",
+      "error": "Error. Please try again."
+    },
+    "requestsTab": {
+      "adminBadge": "Admin view",
+      "soliciteBtn": "Request a document",
+      "privateInfo": "Your requests are only visible to you and administrators.",
+      "requestedOn": "Requested on {{date}}",
+      "treat": "Process",
+      "emptyTitle": "No requests",
+      "emptyDesc": "Request a document you need and the team will upload it for you."
+    },
+    "statusFilter": {
+      "all": "All statuses",
+      "PENDING": "Pending",
+      "FULFILLED": "Fulfilled",
+      "REJECTED": "Rejected"
+    },
+    "ncPhotosTab": {
+      "emptyTitle": "No NC photos",
+      "emptyDesc": "Photos taken during the handling of non-conformities will appear here.",
+      "photoAlt": "NC Photo",
+      "photoCount_one": "{{count}} photo",
+      "photoCount_other": "{{count}} photos"
+    },
+    "reportsTab": {
+      "emptyTitle": "No reports",
+      "emptyDesc": "Generated and validated HACCP reports will appear here.",
+      "colType": "Type",
+      "colStatus": "Status",
+      "colDate": "Date",
+      "colActions": "Actions",
+      "download": "Download"
+    },
+    "reportType": {
+      "MONTHLY_HYGIENE": "Monthly hygiene",
+      "ANNUAL_HACCP": "Annual HACCP",
+      "TEMPERATURE_LOG": "Temperature log"
+    },
+    "reportStatus": {
+      "PENDING": "Pending",
+      "UNDER_REVIEW": "Under review",
+      "VALIDATED": "Validated",
+      "SENT": "Sent"
     }
   },
   "zones": {

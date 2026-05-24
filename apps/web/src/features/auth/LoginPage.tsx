@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { FileText, Lock, Mail } from 'lucide-react';
 
 import { Button } from '@/components/ui/Button';
@@ -10,6 +11,7 @@ import { LoginSchema } from '@haccp/shared-validators';
 import type { JwtPayload, TokenPair } from '@haccp/shared-types';
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const navigate    = useNavigate();
   const setTokens   = useAuthStore((s) => s.setTokens);
 
@@ -24,7 +26,7 @@ export default function LoginPage() {
 
     const result = LoginSchema.safeParse({ email, password });
     if (!result.success) {
-      setError('Veuillez saisir un email et un mot de passe valides.');
+      setError(t('auth.error.validation'));
       return;
     }
 
@@ -39,16 +41,18 @@ export default function LoginPage() {
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;
       if (status === 429) {
-        setError('Trop de tentatives. Veuillez attendre 1 minute avant de réessayer.');
+        setError(t('auth.error.tooManyAttempts'));
       } else if (status === 401) {
-        setError('Email ou mot de passe incorrect.');
+        setError(t('auth.error.invalid'));
       } else {
-        setError(`Erreur de connexion (${status ?? 'réseau'}). Vérifiez votre connexion.`);
+        setError(t('auth.error.connection', { status: status ?? 'réseau' }));
       }
     } finally {
       setLoading(false);
     }
   };
+
+  const featureTags = ['Contrôles CCP', 'Non-conformités', 'Rapports', 'DLC'];
 
   return (
     <div className="flex min-h-screen bg-surface-page">
@@ -61,15 +65,15 @@ export default function LoginPage() {
 
         <div>
           <h2 className="text-4xl font-bold leading-tight text-white">
-            Gestion de la sécurité<br />alimentaire simplifiée.
+            {t('auth.headline')}
           </h2>
           <p className="mt-4 text-lg text-blue-200">
-            Suivez vos contrôles, gérez vos non-conformités et générez vos rapports HACCP en toute conformité.
+            {t('auth.subHeadline')}
           </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {['Contrôles CCP', 'Non-conformités', 'Rapports', 'DLC'].map((tag) => (
+          {featureTags.map((tag) => (
             <span key={tag} className="rounded-full border border-brand-medium/60 bg-brand-medium/20 px-3 py-1 text-xs text-blue-100">
               {tag}
             </span>
@@ -87,8 +91,8 @@ export default function LoginPage() {
 
         <div className="w-full max-w-sm">
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-brand-dark">Connexion</h1>
-            <p className="mt-1 text-sm text-gray-500">Accédez à votre espace de gestion HACCP</p>
+            <h1 className="text-2xl font-bold text-brand-dark">{t('auth.loginTitle')}</h1>
+            <p className="mt-1 text-sm text-gray-500">{t('auth.loginSubtitle')}</p>
           </div>
 
           <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
@@ -97,8 +101,8 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                label="Adresse e-mail"
-                placeholder="admin@entreprise.com"
+                label={t('auth.email')}
+                placeholder={t('auth.emailPlaceholder')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-9"
@@ -112,7 +116,7 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type="password"
-                label="Mot de passe"
+                label={t('auth.password')}
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -129,12 +133,12 @@ export default function LoginPage() {
             )}
 
             <Button type="submit" loading={loading} className="w-full" size="lg">
-              Se connecter
+              {t('auth.loginButton')}
             </Button>
           </form>
 
           <p className="mt-6 text-center text-xs text-gray-400">
-            © {new Date().getFullYear()} NORMES HACCP — Plateforme de conformité alimentaire
+            {t('auth.copyright', { year: new Date().getFullYear() })}
           </p>
         </div>
       </div>

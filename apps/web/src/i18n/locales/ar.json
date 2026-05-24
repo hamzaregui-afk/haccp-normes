@@ -57,10 +57,22 @@
     "login": "تسجيل الدخول",
     "logout": "تسجيل الخروج",
     "email": "البريد الإلكتروني",
+    "emailPlaceholder": "admin@company.com",
     "password": "كلمة المرور",
     "forgotPassword": "نسيت كلمة المرور؟",
     "loginButton": "دخول",
-    "loginError": "بيانات اعتماد غير صحيحة"
+    "loginError": "بيانات اعتماد غير صحيحة",
+    "headline": "إدارة سلامة الغذاء بكل يسر.",
+    "subHeadline": "تابع مراقبتك وأدِر حالات عدم المطابقة وأنشئ تقاريرك وفق معايير HACCP.",
+    "loginTitle": "تسجيل الدخول",
+    "loginSubtitle": "الوصول إلى مساحة إدارة HACCP الخاصة بك",
+    "copyright": "© {{year}} NORMES HACCP — منصة الامتثال الغذائي",
+    "error": {
+      "validation": "يرجى إدخال بريد إلكتروني وكلمة مرور صحيحين.",
+      "tooManyAttempts": "محاولات كثيرة. يرجى الانتظار دقيقة قبل المحاولة مرة أخرى.",
+      "invalid": "بريد إلكتروني أو كلمة مرور غير صحيحة.",
+      "connection": "خطأ في الاتصال ({{status}}). يرجى التحقق من الاتصال."
+    }
   },
   "dashboard": {
     "title": "نظرة عامة",
@@ -618,7 +630,29 @@
           "next": "التالي →",
           "entries": "{{total}} إدخال"
         }
-      }
+      },
+      "modulesMeta": {
+        "DASHBOARD":       { "label": "لوحة التحكم",         "description": "مؤشرات الأداء والرسوم البيانية والنظرة العامة" },
+        "HACCP_CONTROLS":  { "label": "ضوابط HACCP",         "description": "تخطيط وتنفيذ الضوابط" },
+        "NONCONFORMITIES": { "label": "عدم المطابقة",        "description": "إدارة وإغلاق حالات عدم المطابقة" },
+        "DLC":             { "label": "تواريخ الصلاحية",     "description": "متابعة تواريخ انتهاء الصلاحية" },
+        "REPORTS":         { "label": "التقارير",            "description": "إنشاء التقارير واعتمادها بصيغة PDF" },
+        "EQUIPMENTS":      { "label": "المعدات",             "description": "بيانات مرجعية للمعدات" },
+        "PRODUCTS":        { "label": "المنتجات",            "description": "كتالوج المنتجات" },
+        "SUPPLIERS":       { "label": "الموردون",            "description": "إدارة الموردين" },
+        "GED":             { "label": "إدارة الوثائق",       "description": "الإدارة الإلكترونية للوثائق" },
+        "NOTIFICATIONS":   { "label": "الإشعارات",           "description": "تنبيهات البريد الإلكتروني والدفع" },
+        "AUDIT":           { "label": "سجل التدقيق",         "description": "سجل الإجراءات غير قابل للتعديل" },
+        "PLANNING":        { "label": "التخطيط",             "description": "الجدولة المتقدمة" },
+        "TEMPERATURES":    { "label": "درجات الحرارة",       "description": "متابعة قراءات درجات الحرارة" },
+        "RECEPTIONS":      { "label": "الاستقبالات",         "description": "مراقبة استقبالات الموردين" },
+        "HYGIENE":         { "label": "النظافة",             "description": "ضوابط النظافة والتنظيف" },
+        "ANALYTICS":       { "label": "التحليلات",           "description": "تقارير وإحصاءات متقدمة" },
+        "MOBILE_ACCESS":   { "label": "وصول الجوال",         "description": "تطبيق الجوال للمشغّلين" }
+      },
+      "genericError": "حدث خطأ. يرجى المحاولة مرة أخرى.",
+      "infoUpdated": "تم تحديث المعلومات",
+      "subscriptionUpdated": "تم تحديث الاشتراك"
     },
     "empty": "لم يُعثر على عملاء",
     "loading": "جارٍ التحميل…"
@@ -940,6 +974,12 @@
   "documents": {
     "title": "إدارة الوثائق",
     "subtitle": "مكتبة وطلبات وتخزين وثائق HACCP",
+    "tabs": {
+      "library": "المكتبة",
+      "requests": "الطلبات",
+      "ncPhotos": "صور عدم المطابقة",
+      "reports": "التقارير"
+    },
     "library": "المكتبة",
     "requests": "الطلبات",
     "ncPhotos": "صور عدم المطابقة",
@@ -948,14 +988,123 @@
     "noDocuments": "لا توجد وثائق",
     "noRequests": "لا توجد طلبات",
     "categories": {
-      "PROCEDURE": "الإجراءات",
-      "RECIPE": "الوصفات",
+      "PROCEDURE": "إجراء",
+      "RECIPE": "وصفة",
       "OTHER": "أخرى"
     },
     "status": {
       "PENDING": "قيد الانتظار",
       "FULFILLED": "تم التنفيذ",
       "REJECTED": "مرفوض"
+    },
+    "uploadModal": {
+      "title": "رفع وثيقة",
+      "dropzone": "اسحب ملفاً هنا أو انقر",
+      "dropzoneHint": "PDF، Word، Excel، صور — الحد الأقصى 50 ميغابايت",
+      "nameLabel": "اسم الوثيقة",
+      "namePlaceholder": "إجراء التنظيف…",
+      "categoryLabel": "الفئة",
+      "uploadError": "خطأ في الرفع. حاول مجدداً.",
+      "cancel": "إلغاء",
+      "submit": "رفع"
+    },
+    "toolbar": {
+      "searchPlaceholder": "بحث…",
+      "allCategories": "جميع الفئات",
+      "viewGrid": "عرض شبكي",
+      "viewList": "عرض قائمة",
+      "uploadBtn": "رفع وثيقة"
+    },
+    "table": {
+      "name": "الاسم",
+      "category": "الفئة",
+      "size": "الحجم",
+      "date": "التاريخ",
+      "actions": "الإجراءات"
+    },
+    "card": {
+      "view": "عرض",
+      "open": "فتح",
+      "delete": "حذف"
+    },
+    "loading": "جارٍ التحميل…",
+    "loadError": "خطأ في التحميل.",
+    "deleteError": "خطأ في الحذف",
+    "deleteConfirm": "حذف \"{{name}}\"؟",
+    "documentCount_one": "{{count}} وثيقة",
+    "documentCount_other": "{{count}} وثائق",
+    "emptyLibrary": {
+      "title": "لا توجد وثائق",
+      "descAdmin": "ارفع وثيقتك الأولى بالنقر على الزر أعلاه.",
+      "descUser": "لا توجد وثائق متاحة. أرسل طلباً من تبويب الطلبات.",
+      "action": "رفع وثيقة"
+    },
+    "pagination": {
+      "previous": "السابق",
+      "next": "التالي",
+      "pageOf": "صفحة {{page}} / {{lastPage}}"
+    },
+    "requestModal": {
+      "title": "طلب وثيقة",
+      "titleLabel": "الوثيقة المطلوبة",
+      "titlePlaceholder": "مثال: إجراء تذويب اللحوم…",
+      "descriptionLabel": "الوصف (اختياري)",
+      "descriptionPlaceholder": "حدد السياق والقسم المعني…",
+      "categoryLabel": "الفئة المطلوبة",
+      "categoryNone": "لا شيء",
+      "cancel": "إلغاء",
+      "submit": "إرسال الطلب",
+      "error": "خطأ. حاول مجدداً."
+    },
+    "fulfillModal": {
+      "title": "معالجة الطلب",
+      "fulfill": "تنفيذ",
+      "reject": "رفض",
+      "fulfillHint": "سيتمكن مقدم الطلب من الوصول إلى الوثيقة عبر المكتبة بعد تنفيذ الطلب.",
+      "cancel": "إلغاء",
+      "error": "خطأ. حاول مجدداً."
+    },
+    "requestsTab": {
+      "adminBadge": "عرض المدير",
+      "soliciteBtn": "طلب وثيقة",
+      "privateInfo": "طلباتك مرئية فقط لك وللمدراء.",
+      "requestedOn": "تم الطلب في {{date}}",
+      "treat": "معالجة",
+      "emptyTitle": "لا توجد طلبات",
+      "emptyDesc": "اطلب وثيقة تحتاجها وسيرفعها الفريق لك."
+    },
+    "statusFilter": {
+      "all": "جميع الحالات",
+      "PENDING": "قيد الانتظار",
+      "FULFILLED": "منفذة",
+      "REJECTED": "مرفوضة"
+    },
+    "ncPhotosTab": {
+      "emptyTitle": "لا توجد صور عدم مطابقة",
+      "emptyDesc": "ستظهر هنا الصور الملتقطة أثناء معالجة حالات عدم المطابقة.",
+      "photoAlt": "صورة عدم المطابقة",
+      "photoCount_one": "{{count}} صورة",
+      "photoCount_other": "{{count}} صور"
+    },
+    "reportsTab": {
+      "emptyTitle": "لا توجد تقارير",
+      "emptyDesc": "ستظهر هنا تقارير HACCP المنشأة والمعتمدة.",
+      "colType": "النوع",
+      "colStatus": "الحالة",
+      "colDate": "التاريخ",
+      "colActions": "الإجراءات",
+      "download": "تحميل"
+    },
+    "reportType": {
+      "MONTHLY_HYGIENE": "النظافة الشهرية",
+      "ANNUAL_HACCP": "HACCP السنوي",
+      "TEMPERATURE_LOG": "سجل درجات الحرارة"
+    },
+    "reportStatus": {
+      "PENDING": "قيد الانتظار",
+      "UNDER_REVIEW": "قيد المراجعة",
+      "VALIDATED": "معتمد",
+      "SENT": "مرسل"
     }
   },
   "zones": {

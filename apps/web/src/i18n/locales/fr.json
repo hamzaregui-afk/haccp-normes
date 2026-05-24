@@ -57,10 +57,22 @@
     "login": "Connexion",
     "logout": "Déconnexion",
     "email": "Adresse e-mail",
+    "emailPlaceholder": "admin@entreprise.com",
     "password": "Mot de passe",
     "forgotPassword": "Mot de passe oublié ?",
     "loginButton": "Se connecter",
-    "loginError": "Identifiants incorrects"
+    "loginError": "Identifiants incorrects",
+    "headline": "Gestion de la sécurité alimentaire simplifiée.",
+    "subHeadline": "Suivez vos contrôles, gérez vos non-conformités et générez vos rapports HACCP en toute conformité.",
+    "loginTitle": "Connexion",
+    "loginSubtitle": "Accédez à votre espace de gestion HACCP",
+    "copyright": "© {{year}} NORMES HACCP — Plateforme de conformité alimentaire",
+    "error": {
+      "validation": "Veuillez saisir un email et un mot de passe valides.",
+      "tooManyAttempts": "Trop de tentatives. Veuillez attendre 1 minute avant de réessayer.",
+      "invalid": "Email ou mot de passe incorrect.",
+      "connection": "Erreur de connexion ({{status}}). Vérifiez votre connexion."
+    }
   },
   "dashboard": {
     "title": "Vue d'ensemble",
@@ -133,7 +145,276 @@
       "WEEKLY": "Hebdomadaire",
       "MONTHLY": "Mensuelle",
       "ON_RECEPTION": "À réception",
-      "ON_DEMAND": "À la demande"
+      "ON_DEMAND": "À la demande",
+      "YEARLY": "Annuelle",
+      "CUSTOM": "Personnalisée"
+    },
+    "error": {
+      "unknown": "Erreur inconnue"
+    },
+    "errorBoundary": {
+      "title": "Une erreur est survenue",
+      "retry": "Réessayer"
+    },
+    "kpi": {
+      "todayTotal": "Contrôles du jour",
+      "completed": "Complétés",
+      "overdue": "En retard",
+      "complianceRate": "Taux conformité"
+    },
+    "tabs": {
+      "tasks": "Tâches planifiées",
+      "templates": "Modèles de contrôle",
+      "schedules": "Planifications récurrentes"
+    },
+    "statusFilter": {
+      "all": "Tous les statuts",
+      "PLANNED": "Planifié",
+      "IN_PROGRESS": "En cours",
+      "COMPLETED": "Complété",
+      "OVERDUE": "En retard",
+      "CANCELLED": "Annulé"
+    },
+    "statusLabel": {
+      "PLANNED": "Planifié",
+      "IN_PROGRESS": "En cours",
+      "COMPLETED": "Complété",
+      "OVERDUE": "En retard",
+      "CANCELLED": "Annulé"
+    },
+    "searchPlaceholder": "Rechercher…",
+    "loading": "Chargement…",
+    "columns": {
+      "template": "Modèle",
+      "zone": "Zone",
+      "assignee": "Assigné",
+      "scheduledAt": "Date planifiée",
+      "status": "Statut",
+      "frequency": "Fréquence",
+      "nextRun": "Prochaine occurrence",
+      "point": "Point",
+      "value": "Valeur",
+      "compliance": "Conformité"
+    },
+    "actions": {
+      "execute": "Exécuter",
+      "view": "Voir",
+      "plan": "Planifier",
+      "planTask": "Planifier",
+      "newTemplate": "Nouveau modèle",
+      "createSchedule": "Créer une planification",
+      "manageChecklist": "Gérer la checklist",
+      "delete": "Supprimer",
+      "deactivate": "Désactiver",
+      "reassign": "Réassigner",
+      "cancelTask": "Annuler la tâche",
+      "addPhoto": "Ajouter une photo",
+      "save": "Sauvegarder",
+      "addItem": "Ajouter un point",
+      "addControlItem": "Ajouter un point de contrôle",
+      "createModel": "Créer le modèle",
+      "createScheduleBtn": "Créer la planification",
+      "back": "Retour aux contrôles"
+    },
+    "empty": {
+      "tasks": {
+        "title": "Aucune tâche",
+        "description": "Planifiez votre première tâche de contrôle à partir d'un modèle existant.",
+        "action": "Planifier une tâche"
+      },
+      "templates": {
+        "title": "Aucun modèle",
+        "description": "Créez des modèles de contrôle réutilisables pour standardiser vos relevés HACCP.",
+        "action": "Créer un modèle"
+      },
+      "schedules": {
+        "title": "Aucune planification récurrente",
+        "description": "Automatisez la génération de tâches de contrôle avec des planifications récurrentes.",
+        "action": "Créer une planification"
+      },
+      "photos": "Aucune photo pour ce contrôle",
+      "noChecklist": "Aucun point de contrôle défini",
+      "noChecklistSub": "Ce modèle ne contient pas encore d'items.\nContactez un responsable.",
+      "noAssignees": "Aucun utilisateur ou groupe disponible. Contactez un administrateur pour en créer.",
+      "noAssigneesReassign": "Aucun utilisateur ou groupe disponible pour la réassignation.",
+      "noChecklistItems": "Aucun point de contrôle",
+      "noChecklistItemsSub": "Ajoutez des points pour définir ce qui doit être vérifié.",
+      "noOptions": "Aucune option configurée"
+    },
+    "pagination": {
+      "tasks": "Page {{page}} sur {{lastPage}} — {{total}} tâche(s)"
+    },
+    "planForm": {
+      "templateLabel": "Modèle de contrôle",
+      "templatePlaceholder": "Rechercher un modèle…",
+      "templateRequired": "Veuillez sélectionner un modèle",
+      "zoneLabel": "Zone / Emplacement",
+      "zonePlaceholder": "Rechercher une zone…",
+      "zoneRequired": "Veuillez sélectionner une zone",
+      "assignTo": "Assigner à",
+      "userLabel": "Utilisateur",
+      "groupLabel": "Groupe",
+      "userPlaceholder": "Sélectionner un utilisateur",
+      "groupPlaceholder": "Sélectionner un groupe",
+      "scheduledAt": "Date planifiée",
+      "scheduledAtRequired": "Veuillez saisir une date planifiée",
+      "noUserAssign": "L'assignation individuelle n'est disponible que pour les administrateurs."
+    },
+    "taskDetail": {
+      "title": "Détail de la tâche",
+      "template": "Modèle",
+      "zone": "Zone",
+      "status": "Statut",
+      "scheduledAt": "Date planifiée",
+      "currentUser": "Utilisateur actuel",
+      "currentGroup": "Groupe actuel",
+      "results": "Résultats du contrôle",
+      "compliant": "Conforme",
+      "nonCompliant": "Non conforme",
+      "photosSection": "Photos du contrôle ({{count}})",
+      "uploading": "Upload…",
+      "uploadError": "Erreur lors du téléversement. Veuillez réessayer.",
+      "reassign": "Réassigner la tâche",
+      "notes": "Notes :",
+      "yesCompliant": "Oui",
+      "noCompliant": "Non"
+    },
+    "templateForm": {
+      "nameLabel": "Nom du modèle",
+      "namePlaceholder": "Contrôle réception viande…",
+      "frequencyLabel": "Fréquence",
+      "frequencyPlaceholder": "Sélectionner une fréquence"
+    },
+    "toast": {
+      "planError": "Erreur lors de la planification",
+      "createTemplateError": "Erreur lors de la création du modèle",
+      "deleteTemplateError": "Erreur lors de la suppression",
+      "reassignError": "Erreur lors de la réassignation",
+      "cancelError": "Impossible d'annuler la tâche",
+      "cancelErrorTitle": "Erreur",
+      "scheduleCreated": "Planification créée",
+      "scheduleDeactivated": "Planification désactivée",
+      "scheduleDeactivateError": "Erreur lors de la désactivation",
+      "scheduleCreateError": "Erreur",
+      "scheduleCreateErrorBody": "Impossible de créer la planification"
+    },
+    "confirm": {
+      "deleteTemplate": "Supprimer le modèle \"{{name}}\" ?",
+      "deactivateSchedule": "Désactiver cette planification récurrente ? Les tâches déjà créées ne seront pas supprimées."
+    },
+    "schedule": {
+      "title": "Nouvelle planification récurrente",
+      "templateLabel": "Modèle de contrôle",
+      "zoneLabel": "Zone / Emplacement",
+      "assignTo": "Assigner à",
+      "userRadio": "Utilisateur",
+      "groupRadio": "Groupe",
+      "userPlaceholder": "Sélectionner un utilisateur",
+      "groupPlaceholder": "Sélectionner un groupe",
+      "frequencyLabel": "Fréquence de répétition",
+      "interval": "Toutes les",
+      "days": "jours",
+      "weeks": "semaines",
+      "months": "mois",
+      "timeSlots": "Créneaux horaires",
+      "timeSlotsRequired": "Ajoutez au moins un créneau horaire.",
+      "daysOfWeek": "Jours de la semaine",
+      "daysOfWeekRequired": "Sélectionnez au moins un jour.",
+      "daysOfMonth": "Jours du mois",
+      "daysOfMonthRequired": "Sélectionnez au moins un jour.",
+      "startDate": "Date de début",
+      "startDateRequired": "Date de début requise",
+      "endDate": "Date de fin (optionnel)",
+      "previewTitle": "5 prochaines occurrences (aperçu)",
+      "hourlyInfo": "Les tâches seront générées toutes les {{count}} heure(s) à partir de la date de début.",
+      "scheduleActive": "Active",
+      "scheduleInactive": "Inactive",
+      "modelRequired": "Modèle requis",
+      "zoneRequired": "Zone requise"
+    },
+    "checklist": {
+      "executionTitle": "Exécution du contrôle",
+      "control": "Contrôle",
+      "range": "Plage",
+      "compliant": "Conforme",
+      "nonCompliant": "Non conforme",
+      "yesCompliant": "Oui / Conforme",
+      "no": "Non",
+      "valuePlaceholder": "Saisir une valeur…",
+      "outOfRange": "Valeur hors plage — non-conformité enregistrée",
+      "textPlaceholder": "Saisir une observation…",
+      "signHere": "Signez dans la zone blanche",
+      "clearSignature": "Effacer",
+      "uploadingPhoto": "Envoi en cours…",
+      "takePhoto": "Prendre une photo",
+      "openCamera": "Appuyez pour ouvrir l'appareil photo",
+      "measuredValue": "Valeur relevée",
+      "ncDetected": "Non-conformité détectée",
+      "ncRequired": "Un commentaire est obligatoire avant de valider",
+      "ncComment": "Commentaire de non-conformité",
+      "ncPhoto": "Photo (optionnel)",
+      "additionalNotes": "Notes complémentaires",
+      "additionalNotesOptional": "(optionnel)",
+      "notesPh": "Observations, contexte, informations utiles…",
+      "fillRequired": "Renseignez tous les points obligatoires (*) pour valider",
+      "addNcComment": "⚠ Ajoutez un commentaire de non-conformité ci-dessus pour valider",
+      "cancel": "Annuler",
+      "validate": "Valider le contrôle",
+      "validateNc": "Valider avec non-conformité",
+      "validating": "Validation…",
+      "successCompliant": "Contrôle conforme ✓",
+      "successNonCompliant": "Non-conformité enregistrée",
+      "savedSuccess": "Les résultats ont été sauvegardés avec succès.",
+      "completedAt": "Complété le {{date}}",
+      "correctiveAction": "Action corrective",
+      "measured": "Relevé : {{value}} °C",
+      "resultCompliant": "Contrôle conforme",
+      "resultNonCompliant": "Non-conformité enregistrée",
+      "progressPoints": "{{filled}} / {{total}} point{{pluralS}} renseigné{{pluralSFilled}}"
+    },
+    "editor": {
+      "title": "Checklist — {{name}}",
+      "subtitle": "Gérez les points de contrôle de ce modèle",
+      "unsaved": "Modifications non sauvegardées",
+      "itemLabel": "Libellé du point de contrôle",
+      "itemLabelPh": "Ex: Température à réception, DLC produit, Signature responsable…",
+      "itemType": "Type de saisie",
+      "unit": "Unité",
+      "unitPh": "°C, %, ppm…",
+      "minLimit": "Limite min",
+      "maxLimit": "Limite max",
+      "options": "Options (séparées par des virgules)",
+      "optionsHint": "Chaque valeur séparée par une virgule deviendra un bouton de sélection.",
+      "required": "Champ obligatoire",
+      "requiredHint": "(bloque la validation si non renseigné)",
+      "photoHint": "📷 L'opérateur devra prendre ou sélectionner une photo depuis son appareil.",
+      "signatureHint": "✍️ L'opérateur devra apposer sa signature électronique dans un cadre dédié.",
+      "dateHint": "📅 L'opérateur devra renseigner une date et une heure.",
+      "addItemTitle": "Ajouter un point de contrôle",
+      "editItemTitle": "Modifier le point de contrôle",
+      "points": "{{count}} point{{plural}} de contrôle",
+      "itemTypes": {
+        "BOOLEAN": "Oui / Non (conforme / non conforme)",
+        "NUMBER": "Valeur numérique",
+        "TEMPERATURE": "Température (°C)",
+        "TEXT": "Texte libre",
+        "PHOTO": "Photo",
+        "SIGNATURE": "Signature",
+        "DATE": "Date / Heure",
+        "SELECT": "Choix multiple"
+      },
+      "itemTypeLabels": {
+        "BOOLEAN": "Oui / Non",
+        "NUMBER": "Numérique",
+        "TEMPERATURE": "Température",
+        "TEXT": "Texte",
+        "PHOTO": "Photo",
+        "SIGNATURE": "Signature",
+        "DATE": "Date / Heure",
+        "SELECT": "Choix multiple"
+      },
+      "required_badge": "Obligatoire",
+      "options_count": "{{count}} option{{plural}}"
     }
   },
   "nonconformities": {
@@ -618,7 +899,29 @@
           "next": "Suivant →",
           "entries": "{{total}} entrée(s)"
         }
-      }
+      },
+      "modulesMeta": {
+        "DASHBOARD":       { "label": "Tableau de bord",     "description": "KPIs, graphiques et vue d'ensemble" },
+        "HACCP_CONTROLS":  { "label": "Contrôles HACCP",     "description": "Planification et exécution des contrôles" },
+        "NONCONFORMITIES": { "label": "Non-conformités",     "description": "Gestion et clôture des NCs" },
+        "DLC":             { "label": "DLC",                 "description": "Dates limites de consommation" },
+        "REPORTS":         { "label": "Rapports",            "description": "Génération et validation PDF" },
+        "EQUIPMENTS":      { "label": "Équipements",         "description": "Référentiel équipements" },
+        "PRODUCTS":        { "label": "Produits",            "description": "Catalogue produits" },
+        "SUPPLIERS":       { "label": "Fournisseurs",        "description": "Gestion des fournisseurs" },
+        "GED":             { "label": "GED",                 "description": "Gestion électronique documents" },
+        "NOTIFICATIONS":   { "label": "Notifications",       "description": "Alertes e-mail et push" },
+        "AUDIT":           { "label": "Journal d'audit",     "description": "Registre immuable des actions" },
+        "PLANNING":        { "label": "Planning",            "description": "Planification avancée" },
+        "TEMPERATURES":    { "label": "Températures",        "description": "Suivi relevés de température" },
+        "RECEPTIONS":      { "label": "Réceptions",          "description": "Contrôle réceptions fournisseurs" },
+        "HYGIENE":         { "label": "Hygiène",             "description": "Contrôles hygiène et nettoyage" },
+        "ANALYTICS":       { "label": "Analytics",           "description": "Rapports avancés et statistiques" },
+        "MOBILE_ACCESS":   { "label": "Accès mobile",        "description": "Application mobile opérateurs" }
+      },
+      "genericError": "Une erreur est survenue. Veuillez réessayer.",
+      "infoUpdated": "Informations mises à jour",
+      "subscriptionUpdated": "Abonnement mis à jour"
     },
     "empty": "Aucun client trouvé",
     "loading": "Chargement…"
@@ -940,6 +1243,12 @@
   "documents": {
     "title": "GED — Documents",
     "subtitle": "Bibliothèque, demandes et hébergement de vos documents HACCP",
+    "tabs": {
+      "library": "Bibliothèque",
+      "requests": "Demandes",
+      "ncPhotos": "Photos NC",
+      "reports": "Rapports"
+    },
     "library": "Bibliothèque",
     "requests": "Demandes",
     "ncPhotos": "Photos NC",
@@ -948,14 +1257,123 @@
     "noDocuments": "Aucun document",
     "noRequests": "Aucune demande",
     "categories": {
-      "PROCEDURE": "Procédures",
-      "RECIPE": "Recettes",
-      "OTHER": "Autres"
+      "PROCEDURE": "Procédure",
+      "RECIPE": "Recette",
+      "OTHER": "Autre"
     },
     "status": {
       "PENDING": "En attente",
-      "FULFILLED": "Traité",
-      "REJECTED": "Rejeté"
+      "FULFILLED": "Satisfaite",
+      "REJECTED": "Rejetée"
+    },
+    "uploadModal": {
+      "title": "Héberger un document",
+      "dropzone": "Glissez un fichier ici ou cliquez",
+      "dropzoneHint": "PDF, Word, Excel, images — max 50 Mo",
+      "nameLabel": "Nom du document",
+      "namePlaceholder": "Procédure nettoyage…",
+      "categoryLabel": "Catégorie",
+      "uploadError": "Erreur lors de l'upload. Réessayez.",
+      "cancel": "Annuler",
+      "submit": "Héberger"
+    },
+    "toolbar": {
+      "searchPlaceholder": "Rechercher…",
+      "allCategories": "Toutes catégories",
+      "viewGrid": "Vue grille",
+      "viewList": "Vue liste",
+      "uploadBtn": "Héberger un doc"
+    },
+    "table": {
+      "name": "Nom",
+      "category": "Catégorie",
+      "size": "Taille",
+      "date": "Date",
+      "actions": "Actions"
+    },
+    "card": {
+      "view": "Voir",
+      "open": "Ouvrir",
+      "delete": "Supprimer"
+    },
+    "loading": "Chargement…",
+    "loadError": "Erreur de chargement.",
+    "deleteError": "Erreur lors de la suppression",
+    "deleteConfirm": "Supprimer \"{{name}}\" ?",
+    "documentCount_one": "{{count}} document",
+    "documentCount_other": "{{count}} documents",
+    "emptyLibrary": {
+      "title": "Aucun document",
+      "descAdmin": "Hébergez votre premier document en cliquant sur le bouton ci-dessus.",
+      "descUser": "Aucun document disponible. Soumettez une demande dans l'onglet Demandes.",
+      "action": "Héberger un document"
+    },
+    "pagination": {
+      "previous": "Précédent",
+      "next": "Suivant",
+      "pageOf": "Page {{page}} / {{lastPage}}"
+    },
+    "requestModal": {
+      "title": "Solliciter un document",
+      "titleLabel": "Document demandé",
+      "titlePlaceholder": "Ex : Procédure décongélation des viandes…",
+      "descriptionLabel": "Description (optionnel)",
+      "descriptionPlaceholder": "Précisez le contexte, le service concerné…",
+      "categoryLabel": "Catégorie souhaitée",
+      "categoryNone": "Aucune",
+      "cancel": "Annuler",
+      "submit": "Envoyer la demande",
+      "error": "Erreur. Réessayez."
+    },
+    "fulfillModal": {
+      "title": "Traiter la demande",
+      "fulfill": "Satisfaire",
+      "reject": "Rejeter",
+      "fulfillHint": "Le demandeur pourra accéder au document via la bibliothèque une fois la demande satisfaite.",
+      "cancel": "Annuler",
+      "error": "Erreur. Réessayez."
+    },
+    "requestsTab": {
+      "adminBadge": "Vue administrateur",
+      "soliciteBtn": "Solliciter un document",
+      "privateInfo": "Vos demandes sont visibles uniquement par vous et les administrateurs.",
+      "requestedOn": "Demandée le {{date}}",
+      "treat": "Traiter",
+      "emptyTitle": "Aucune demande",
+      "emptyDesc": "Sollicitez un document dont vous avez besoin et l'équipe l'hébergera pour vous."
+    },
+    "statusFilter": {
+      "all": "Tous les statuts",
+      "PENDING": "En attente",
+      "FULFILLED": "Satisfaites",
+      "REJECTED": "Rejetées"
+    },
+    "ncPhotosTab": {
+      "emptyTitle": "Aucune photo NC",
+      "emptyDesc": "Les photos prises lors du traitement des non-conformités apparaîtront ici.",
+      "photoAlt": "Photo NC",
+      "photoCount_one": "{{count}} photo",
+      "photoCount_other": "{{count}} photos"
+    },
+    "reportsTab": {
+      "emptyTitle": "Aucun rapport",
+      "emptyDesc": "Les rapports HACCP générés et validés apparaîtront ici.",
+      "colType": "Type",
+      "colStatus": "Statut",
+      "colDate": "Date",
+      "colActions": "Actions",
+      "download": "Télécharger"
+    },
+    "reportType": {
+      "MONTHLY_HYGIENE": "Hygiène mensuelle",
+      "ANNUAL_HACCP": "HACCP annuel",
+      "TEMPERATURE_LOG": "Journal de températures"
+    },
+    "reportStatus": {
+      "PENDING": "En attente",
+      "UNDER_REVIEW": "En révision",
+      "VALIDATED": "Validé",
+      "SENT": "Envoyé"
     }
   },
   "zones": {
