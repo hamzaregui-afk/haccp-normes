@@ -184,6 +184,112 @@ describe('useNotifications', () => {
     });
   });
 
+  describe('notification:task-assigned', () => {
+    const TASK_ASSIGNED_PAYLOAD = {
+      eventId:      'evt-assigned-001',
+      timestamp:    '2026-05-07T10:15:00.000Z',
+      taskId:       'task-002',
+      assigneeId:   'operator-002',
+      groupId:      null,
+      templateName: 'Contrôle température frigo',
+      scheduledAt:  '2026-05-08T08:00:00.000Z',
+    };
+
+    it('prepends a TASK_ASSIGNED notification with templateName in body', async () => {
+      const { result } = renderHook(() => useNotifications());
+      await waitFor(() => expect(result.current.notifications).toHaveLength(0));
+
+      act(() => {
+        fakeSocket.emit('notification:task-assigned', TASK_ASSIGNED_PAYLOAD);
+      });
+
+      await waitFor(() => {
+        expect(result.current.notifications).toHaveLength(1);
+        expect(result.current.unreadCount).toBe(1);
+      });
+
+      const n = result.current.notifications[0];
+      expect(n.id).toBe('evt-assigned-001');
+      expect(n.type).toBe('TASK_ASSIGNED');
+      expect(n.isRead).toBe(false);
+      // body should contain the human-readable template name
+      expect(n.body).toContain('Contrôle température frigo');
+    });
+
+    it('falls back to taskId when templateName is absent', async () => {
+      const payloadWithoutName = { ...TASK_ASSIGNED_PAYLOAD, templateName: undefined, eventId: 'evt-assigned-002' };
+      const { result } = renderHook(() => useNotifications());
+      await waitFor(() => expect(result.current.notifications).toHaveLength(0));
+
+      act(() => {
+        fakeSocket.emit('notification:task-assigned', payloadWithoutName);
+      });
+
+      await waitFor(() => expect(result.current.notifications).toHaveLength(1));
+
+      expect(result.current.notifications[0].body).toContain('task-002');
+    });
+
+    it('deduplicates the same eventId', async () => {
+      const { result } = renderHook(() => useNotifications());
+      await waitFor(() => expect(result.current.notifications).toHaveLength(0));
+
+      act(() => {
+        fakeSocket.emit('notification:task-assigned', TASK_ASSIGNED_PAYLOAD);
+        fakeSocket.emit('notification:task-assigned', TASK_ASSIGNED_PAYLOAD); // duplicate
+      });
+
+      await waitFor(() => expect(result.current.notifications).toHaveLength(1));
+      expect(result.current.unreadCount).toBe(1);
+    });
+  });
+
+  describe('notification:tasks-overdue', () => {
+    const OVERDUE_PAYLOAD = {
+      eventId:   'evt-overdue-001',
+      timestamp: '2026-05-07T10:20:00.000Z',
+      count:     3,
+      taskIds:   ['task-10', 'task-11', 'task-12'],
+    };
+
+    it('does NOT add to notification list (toast-only)', async () => {
+      const { result } = renderHook(() => useNotifications());
+      await waitFor(() => expect(result.current.notifications).toHaveLength(0));
+
+      act(() => {
+        fakeSocket.emit('notification:tasks-overdue', OVERDUE_PAYLOAD);
+      });
+
+      // Give React a tick to process state changes
+      await waitFor(() => expect(result.current.notifications).toHaveLength(0));
+      expect(result.current.unreadCount).toBe(0);
+    });
+  });
+
+  describe('notification:dlc-expiring-today', () => {
+    const DLC_PAYLOAD = {
+      eventId:   'evt-dlc-001',
+      timestamp: '2026-05-07T07:00:00.000Z',
+      count:     4,
+      labels: [
+        { productName: 'Poulet rôti',  lotNumber: 'LOT-001' },
+        { productName: 'Fromage blanc', lotNumber: null },
+      ],
+    };
+
+    it('does NOT add to notification list (toast-only)', async () => {
+      const { result } = renderHook(() => useNotifications());
+      await waitFor(() => expect(result.current.notifications).toHaveLength(0));
+
+      act(() => {
+        fakeSocket.emit('notification:dlc-expiring-today', DLC_PAYLOAD);
+      });
+
+      await waitFor(() => expect(result.current.notifications).toHaveLength(0));
+      expect(result.current.unreadCount).toBe(0);
+    });
+  });
+
   describe('markAllRead', () => {
     it('sets all notifications to isRead=true and resets unreadCount', async () => {
       const { result } = renderHook(() => useNotifications());
