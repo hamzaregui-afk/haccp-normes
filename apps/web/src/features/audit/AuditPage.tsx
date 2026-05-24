@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { ScrollText } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { PageWrapper } from '@/components/layout/AppLayout';
 import { Header } from '@/components/layout/Header';
@@ -29,9 +30,10 @@ function useAuditLogs(page: number, from: string, to: string) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AuditPage() {
-  const [page, setPage]   = useState(1);
-  const [from, setFrom]   = useState('');
-  const [to, setTo]       = useState('');
+  const { t } = useTranslation();
+  const [page, setPage]     = useState(1);
+  const [from, setFrom]     = useState('');
+  const [to, setTo]         = useState('');
   const [search, setSearch] = useState('');
 
   const { data, isLoading, isError } = useAuditLogs(page, from, to);
@@ -63,22 +65,22 @@ export default function AuditPage() {
 
   return (
     <>
-      <Header title="Journal d'audit" subtitle="Registre immuable — lecture seule" />
+      <Header title={t('audit.title')} subtitle={t('audit.subtitle')} />
 
       <PageWrapper>
         {/* Immutability banner */}
         <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-          ⚠️ Ce journal est en lecture seule conformément aux exigences HACCP. Aucune modification n'est possible.
+          {t('audit.banner')}
         </div>
 
         {/* Filter toolbar */}
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
           {/* Text search */}
           <div className="flex flex-col gap-1.5 flex-1">
-            <label className="text-xs font-medium text-gray-600">Recherche</label>
+            <label className="text-xs font-medium text-gray-600">{t('audit.filter.search')}</label>
             <input
               type="text"
-              placeholder="Filtrer par action ou email…"
+              placeholder={t('audit.filter.searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-medium"
@@ -87,7 +89,7 @@ export default function AuditPage() {
 
           {/* Date range */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-gray-600">Du</label>
+            <label className="text-xs font-medium text-gray-600">{t('audit.filter.from')}</label>
             <input
               type="date"
               value={from}
@@ -97,7 +99,7 @@ export default function AuditPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-gray-600">Au</label>
+            <label className="text-xs font-medium text-gray-600">{t('audit.filter.to')}</label>
             <input
               type="date"
               value={to}
@@ -109,28 +111,28 @@ export default function AuditPage() {
 
         {/* Content */}
         {isLoading ? (
-          <div className="py-20 text-center text-sm text-gray-400">Chargement…</div>
+          <div className="py-20 text-center text-sm text-gray-400">{t('audit.loading')}</div>
         ) : isError ? (
           <div className="py-20 text-center text-sm text-red-500">
-            Erreur lors du chargement du journal d'audit.
+            {t('audit.error')}
           </div>
         ) : filteredLogs.length === 0 ? (
           <EmptyState
             icon={ScrollText}
-            title="Aucune entrée"
-            description="Aucun événement ne correspond aux filtres actuels."
+            title={t('audit.empty.title')}
+            description={t('audit.empty.description')}
           />
         ) : (
           <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  <th className="px-4 py-3">Date / Heure</th>
-                  <th className="px-4 py-3">Action</th>
-                  <th className="px-4 py-3">Ressource</th>
-                  <th className="px-4 py-3">ID Ressource</th>
-                  <th className="px-4 py-3">Utilisateur (ID)</th>
-                  <th className="px-4 py-3">IP</th>
+                  <th className="px-4 py-3">{t('audit.columns.dateTime')}</th>
+                  <th className="px-4 py-3">{t('audit.columns.action')}</th>
+                  <th className="px-4 py-3">{t('audit.columns.resource')}</th>
+                  <th className="px-4 py-3">{t('audit.columns.resourceId')}</th>
+                  <th className="px-4 py-3">{t('audit.columns.userId')}</th>
+                  <th className="px-4 py-3">{t('audit.columns.ip')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -159,7 +161,11 @@ export default function AuditPage() {
             {meta && meta.lastPage > 1 && (
               <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3 text-sm text-gray-500">
                 <span>
-                  Page {meta.page} sur {meta.lastPage} — {meta.total} entrée(s)
+                  {t('audit.pagination.info', {
+                    page:     meta.page,
+                    lastPage: meta.lastPage,
+                    total:    meta.total,
+                  })}
                 </span>
                 <div className="flex gap-2">
                   <Button
@@ -168,7 +174,7 @@ export default function AuditPage() {
                     disabled={page === 1}
                     onClick={() => setPage((p) => p - 1)}
                   >
-                    Précédent
+                    {t('common.previous')}
                   </Button>
                   <Button
                     variant="secondary"
@@ -176,7 +182,7 @@ export default function AuditPage() {
                     disabled={page === meta.lastPage}
                     onClick={() => setPage((p) => p + 1)}
                   >
-                    Suivant
+                    {t('common.next')}
                   </Button>
                 </div>
               </div>

@@ -155,6 +155,39 @@
       "MONTHLY_HYGIENE": "نظافة شهرية",
       "ANNUAL_HACCP": "HACCP سنوي",
       "TEMPERATURE_LOG": "سجل الحرارة"
+    },
+    "stats": {
+      "total": "الإجمالي",
+      "pending": "قيد الانتظار",
+      "validated": "معتمدة",
+      "sent": "مُرسَلة"
+    },
+    "filter": {
+      "allStatuses": "جميع الحالات",
+      "allTypes": "جميع الأنواع"
+    },
+    "columns": {
+      "type": "النوع",
+      "generatedAt": "تاريخ الإنشاء",
+      "validatedAt": "تاريخ الاعتماد"
+    },
+    "empty": {
+      "title": "لا توجد تقارير",
+      "description": "لا يوجد تقرير يطابق الفلاتر الحالية. أنشئ أول تقرير HACCP الخاص بك."
+    },
+    "pagination": {
+      "info": "صفحة {{page}} من {{lastPage}} — {{total}} تقرير"
+    },
+    "modal": {
+      "description": "اختر نوع التقرير والفترة الزمنية.",
+      "typeLabel": "نوع التقرير",
+      "period": "الفترة",
+      "periodPlaceholder": "2025-01 (اختياري)",
+      "submit": "إنشاء"
+    },
+    "error": {
+      "load": "خطأ في تحميل التقارير.",
+      "create": "حدث خطأ. يرجى المحاولة مرة أخرى."
     }
   },
   "dlc": {

@@ -7,7 +7,8 @@ import {
   Plus,
   Send,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { PageWrapper } from '@/components/layout/AppLayout';
 import { Header } from '@/components/layout/Header';
@@ -49,26 +50,13 @@ interface ApiResponse<T> {
   message?: string;
 }
 
-// ─── Style & label records ────────────────────────────────────────────────────
+// ─── Status badge styles ──────────────────────────────────────────────────────
 
 const STATUS_STYLES: Record<ReportStatus, string> = {
   PENDING:      'bg-gray-100 text-gray-600 border border-gray-200',
   UNDER_REVIEW: 'bg-yellow-100 text-yellow-700 border border-yellow-200',
   VALIDATED:    'bg-green-100 text-green-700 border border-green-200',
   SENT:         'bg-blue-100 text-blue-700 border border-blue-200',
-};
-
-const STATUS_LABELS: Record<ReportStatus, string> = {
-  PENDING:      'En attente',
-  UNDER_REVIEW: 'En révision',
-  VALIDATED:    'Validé',
-  SENT:         'Envoyé',
-};
-
-const TYPE_LABELS: Record<ReportType, string> = {
-  MONTHLY_HYGIENE: 'Hygiène mensuelle',
-  ANNUAL_HACCP:    'HACCP annuel',
-  TEMPERATURE_LOG: 'Relevé températures',
 };
 
 // ─── Query hooks ──────────────────────────────────────────────────────────────
@@ -98,21 +86,6 @@ function useReports(page: number, status: string, type: string) {
   });
 }
 
-// ─── Filter / form option arrays ─────────────────────────────────────────────
-
-const STATUS_FILTER_OPTIONS = [
-  { value: 'PENDING',      label: 'En attente' },
-  { value: 'UNDER_REVIEW', label: 'En révision' },
-  { value: 'VALIDATED',    label: 'Validé' },
-  { value: 'SENT',         label: 'Envoyé' },
-];
-
-const TYPE_FILTER_OPTIONS = [
-  { value: 'MONTHLY_HYGIENE', label: 'Hygiène mensuelle' },
-  { value: 'ANNUAL_HACCP',    label: 'HACCP annuel' },
-  { value: 'TEMPERATURE_LOG', label: 'Relevé températures' },
-];
-
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 interface StatCardProps {
@@ -138,9 +111,10 @@ function StatCard({ label, value, icon, valueClass = 'text-brand-dark' }: StatCa
 
 interface ReportStatusBadgeProps { status: ReportStatus }
 function ReportStatusBadge({ status }: ReportStatusBadgeProps) {
+  const { t } = useTranslation();
   return (
     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}>
-      {STATUS_LABELS[status]}
+      {t(`reports.status.${status}`)}
     </span>
   );
 }
@@ -160,6 +134,8 @@ const INITIAL_FORM: CreateReportValues = {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
+  const { t } = useTranslation();
+
   const [page, setPage]               = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter]     = useState('');
@@ -169,6 +145,20 @@ export default function ReportsPage() {
 
   const queryClient = useQueryClient();
   const tenantId    = useTenantId();
+
+  // Dynamic options built from t() — avoids module-level hardcoded strings
+  const statusFilterOptions = useMemo(() => [
+    { value: 'PENDING',      label: t('reports.status.PENDING') },
+    { value: 'UNDER_REVIEW', label: t('reports.status.UNDER_REVIEW') },
+    { value: 'VALIDATED',    label: t('reports.status.VALIDATED') },
+    { value: 'SENT',         label: t('reports.status.SENT') },
+  ], [t]);
+
+  const typeFilterOptions = useMemo(() => [
+    { value: 'MONTHLY_HYGIENE', label: t('reports.type.MONTHLY_HYGIENE') },
+    { value: 'ANNUAL_HACCP',    label: t('reports.type.ANNUAL_HACCP') },
+    { value: 'TEMPERATURE_LOG', label: t('reports.type.TEMPERATURE_LOG') },
+  ], [t]);
 
   // ARCH-DECISION: PDF download uses api.get with responseType 'blob' rather than
   // a plain <a href> because the report endpoint is protected by JwtAuthGuard.
@@ -198,8 +188,8 @@ export default function ReportsPage() {
     }
   }
 
-  const { data: stats }                      = useReportStats();
-  const { data, isLoading, isError }         = useReports(page, statusFilter, typeFilter);
+  const { data: stats }              = useReportStats();
+  const { data, isLoading, isError } = useReports(page, statusFilter, typeFilter);
 
   const createMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => api.post('/api/v1/reports', body),
@@ -227,8 +217,10 @@ export default function ReportsPage() {
   }
 
   function resolveTypeLabel(rawType: string): string {
-    if (rawType in TYPE_LABELS) return TYPE_LABELS[rawType as ReportType];
-    return rawType;
+    const key = `reports.type.${rawType}` as const;
+    const translated = t(key);
+    // t() returns the key itself when not found — fall back to raw value in that case
+    return translated !== key ? translated : rawType;
   }
 
   const reportList = data?.data ?? [];
@@ -236,31 +228,31 @@ export default function ReportsPage() {
   return (
     <>
       <Header
-        title="Rapports"
-        subtitle="Génération et validation des rapports HACCP"
+        title={t('reports.title')}
+        subtitle={t('reports.subtitle')}
       />
       <PageWrapper>
         {/* Stats row */}
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard
-            label="Total"
+            label={t('reports.stats.total')}
             value={stats?.total ?? 0}
             icon={<FileText className="h-5 w-5 text-brand-medium" />}
           />
           <StatCard
-            label="En attente"
+            label={t('reports.stats.pending')}
             value={stats?.pending ?? 0}
             icon={<Clock className="h-5 w-5 text-yellow-500" />}
             valueClass={(stats?.pending ?? 0) > 0 ? 'text-yellow-600' : 'text-brand-dark'}
           />
           <StatCard
-            label="Validés"
+            label={t('reports.stats.validated')}
             value={stats?.validated ?? 0}
             icon={<CheckCircle2 className="h-5 w-5 text-green-500" />}
             valueClass="text-green-600"
           />
           <StatCard
-            label="Envoyés"
+            label={t('reports.stats.sent')}
             value={stats?.sent ?? 0}
             icon={<Send className="h-5 w-5 text-blue-500" />}
             valueClass="text-blue-600"
@@ -274,8 +266,8 @@ export default function ReportsPage() {
             <Select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              placeholder="Tous les statuts"
-              options={STATUS_FILTER_OPTIONS}
+              placeholder={t('reports.filter.allStatuses')}
+              options={statusFilterOptions}
               className="w-44"
             />
 
@@ -283,31 +275,31 @@ export default function ReportsPage() {
             <Select
               value={typeFilter}
               onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-              placeholder="Tous les types"
-              options={TYPE_FILTER_OPTIONS}
+              placeholder={t('reports.filter.allTypes')}
+              options={typeFilterOptions}
               className="w-52"
             />
           </div>
 
           <Button size="sm" onClick={() => setModalOpen(true)}>
             <Plus className="h-4 w-4" />
-            Générer un rapport
+            {t('reports.generate')}
           </Button>
         </div>
 
         {/* Content */}
         {isLoading ? (
-          <div className="py-20 text-center text-sm text-gray-400">Chargement…</div>
+          <div className="py-20 text-center text-sm text-gray-400">{t('common.loading')}</div>
         ) : isError ? (
           <div className="py-20 text-center text-sm text-red-500">
-            Erreur lors du chargement des rapports.
+            {t('reports.error.load')}
           </div>
         ) : reportList.length === 0 ? (
           <EmptyState
             icon={FileText}
-            title="Aucun rapport"
-            description="Aucun rapport ne correspond aux filtres actuels. Générez votre premier rapport HACCP."
-            actionLabel="Générer un rapport"
+            title={t('reports.empty.title')}
+            description={t('reports.empty.description')}
+            actionLabel={t('reports.generate')}
             onAction={() => setModalOpen(true)}
           />
         ) : (
@@ -315,11 +307,11 @@ export default function ReportsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-surface-muted bg-surface-page text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3">Statut</th>
-                  <th className="px-4 py-3">Généré le</th>
-                  <th className="px-4 py-3">Validé le</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <th className="px-4 py-3">{t('reports.columns.type')}</th>
+                  <th className="px-4 py-3">{t('common.status')}</th>
+                  <th className="px-4 py-3">{t('reports.columns.generatedAt')}</th>
+                  <th className="px-4 py-3">{t('reports.columns.validatedAt')}</th>
+                  <th className="px-4 py-3 text-right">{t('common.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-muted">
@@ -350,7 +342,7 @@ export default function ReportsPage() {
                               statusMutation.mutate({ id: report.id, status: 'UNDER_REVIEW' })
                             }
                           >
-                            Soumettre
+                            {t('common.submit')}
                           </Button>
                         )}
                         {report.status === 'UNDER_REVIEW' && (
@@ -363,7 +355,7 @@ export default function ReportsPage() {
                             }
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" />
-                            Valider
+                            {t('common.validate')}
                           </Button>
                         )}
                         {(report.status === 'VALIDATED' || report.status === 'SENT') && (
@@ -373,7 +365,7 @@ export default function ReportsPage() {
                             className="inline-flex items-center gap-1.5 rounded-lg border border-brand-medium px-3 py-1.5 text-xs font-medium text-brand-medium hover:bg-brand-lighter transition-colors disabled:opacity-50"
                           >
                             <Download className="h-3.5 w-3.5" />
-                            {downloadingId === report.id ? '…' : 'PDF'}
+                            {downloadingId === report.id ? '…' : t('common.download')}
                           </button>
                         )}
                       </div>
@@ -387,7 +379,11 @@ export default function ReportsPage() {
             {data?.meta && data.meta.lastPage > 1 && (
               <div className="flex items-center justify-between border-t border-surface-muted px-4 py-3 text-sm text-gray-500">
                 <span>
-                  Page {data.meta.page} sur {data.meta.lastPage} — {data.meta.total} rapport(s)
+                  {t('reports.pagination.info', {
+                    page:     data.meta.page,
+                    lastPage: data.meta.lastPage,
+                    total:    data.meta.total,
+                  })}
                 </span>
                 <div className="flex gap-2">
                   <Button
@@ -396,7 +392,7 @@ export default function ReportsPage() {
                     disabled={page === 1}
                     onClick={() => setPage((p) => p - 1)}
                   >
-                    Précédent
+                    {t('common.previous')}
                   </Button>
                   <Button
                     variant="secondary"
@@ -404,7 +400,7 @@ export default function ReportsPage() {
                     disabled={page === data.meta.lastPage}
                     onClick={() => setPage((p) => p + 1)}
                   >
-                    Suivant
+                    {t('common.next')}
                   </Button>
                 </div>
               </div>
@@ -416,26 +412,26 @@ export default function ReportsPage() {
         <Modal
           open={modalOpen}
           onClose={() => { setModalOpen(false); setForm(INITIAL_FORM); }}
-          title="Générer un rapport"
-          description="Sélectionnez le type et la période du rapport à générer."
+          title={t('reports.generate')}
+          description={t('reports.modal.description')}
           size="sm"
         >
           <form onSubmit={handleCreate} className="flex flex-col gap-4">
             {/* Report type */}
             <Select
-              label="Type de rapport"
+              label={t('reports.modal.typeLabel')}
               required
               value={form.type}
               onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as ReportType }))}
-              options={TYPE_FILTER_OPTIONS}
+              options={typeFilterOptions}
             />
 
             {/* Period (optional) */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-gray-700">Période</label>
+              <label className="text-sm font-medium text-gray-700">{t('reports.modal.period')}</label>
               <input
                 type="text"
-                placeholder="2025-01 (optionnel)"
+                placeholder={t('reports.modal.periodPlaceholder')}
                 value={form.period}
                 onChange={(e) => setForm((f) => ({ ...f, period: e.target.value }))}
                 className="h-9 w-full rounded-lg border border-surface-muted bg-white px-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-medium"
@@ -445,7 +441,7 @@ export default function ReportsPage() {
             {/* Error */}
             {createMutation.isError && (
               <p className="text-xs text-red-600">
-                Une erreur est survenue. Veuillez réessayer.
+                {t('reports.error.create')}
               </p>
             )}
 
@@ -457,10 +453,10 @@ export default function ReportsPage() {
                 size="sm"
                 onClick={() => { setModalOpen(false); setForm(INITIAL_FORM); }}
               >
-                Annuler
+                {t('common.cancel')}
               </Button>
               <Button type="submit" size="sm" loading={createMutation.isPending}>
-                Générer
+                {t('reports.modal.submit')}
               </Button>
             </div>
           </form>

@@ -155,6 +155,39 @@
       "MONTHLY_HYGIENE": "Monthly hygiene",
       "ANNUAL_HACCP": "Annual HACCP",
       "TEMPERATURE_LOG": "Temperature log"
+    },
+    "stats": {
+      "total": "Total",
+      "pending": "Pending",
+      "validated": "Validated",
+      "sent": "Sent"
+    },
+    "filter": {
+      "allStatuses": "All statuses",
+      "allTypes": "All types"
+    },
+    "columns": {
+      "type": "Type",
+      "generatedAt": "Generated on",
+      "validatedAt": "Validated on"
+    },
+    "empty": {
+      "title": "No reports",
+      "description": "No reports match the current filters. Generate your first HACCP report."
+    },
+    "pagination": {
+      "info": "Page {{page}} of {{lastPage}} — {{total}} report(s)"
+    },
+    "modal": {
+      "description": "Select the type and period of the report to generate.",
+      "typeLabel": "Report type",
+      "period": "Period",
+      "periodPlaceholder": "2025-01 (optional)",
+      "submit": "Generate"
+    },
+    "error": {
+      "load": "Error loading reports.",
+      "create": "An error occurred. Please try again."
     }
   },
   "dlc": {

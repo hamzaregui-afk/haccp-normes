@@ -155,6 +155,39 @@
       "MONTHLY_HYGIENE": "Hygiène mensuelle",
       "ANNUAL_HACCP": "HACCP annuel",
       "TEMPERATURE_LOG": "Relevé températures"
+    },
+    "stats": {
+      "total": "Total",
+      "pending": "En attente",
+      "validated": "Validés",
+      "sent": "Envoyés"
+    },
+    "filter": {
+      "allStatuses": "Tous les statuts",
+      "allTypes": "Tous les types"
+    },
+    "columns": {
+      "type": "Type",
+      "generatedAt": "Généré le",
+      "validatedAt": "Validé le"
+    },
+    "empty": {
+      "title": "Aucun rapport",
+      "description": "Aucun rapport ne correspond aux filtres actuels. Générez votre premier rapport HACCP."
+    },
+    "pagination": {
+      "info": "Page {{page}} sur {{lastPage}} — {{total}} rapport(s)"
+    },
+    "modal": {
+      "description": "Sélectionnez le type et la période du rapport à générer.",
+      "typeLabel": "Type de rapport",
+      "period": "Période",
+      "periodPlaceholder": "2025-01 (optionnel)",
+      "submit": "Générer"
+    },
+    "error": {
+      "load": "Erreur lors du chargement des rapports.",
+      "create": "Une erreur est survenue. Veuillez réessayer."
     }
   },
   "dlc": {
