@@ -412,14 +412,30 @@
     "title": "Clients",
     "subtitle": "Tenant management — SUPER_ADMIN only",
     "new": "New client",
-    "searchPlaceholder": "Search a client…",
+    "searchPlaceholder": "Name, slug, email…",
+    "search": "Search",
+    "totalCount": "{{total}} client(s)",
+    "createFirst": "Create the first client →",
+    "viewProfile": "View profile",
+    "view": "View",
+    "edit": "Edit",
+    "suspend": "Suspend",
+    "reactivate": "Reactivate",
+    "archive": "Archive",
+    "archiveConfirm": "Archive «{{name}}»?",
+    "trialDaysLeft": "{{count}}d left",
     "columns": {
+      "client": "Client",
       "name": "Name",
       "siret": "SIRET",
       "sector": "Sector",
       "plan": "Plan",
+      "modules": "Modules",
+      "sites": "Sites",
+      "email": "Email",
       "status": "Status",
       "created": "Created",
+      "createdAt": "Created",
       "actions": "Actions"
     },
     "status": {
@@ -427,9 +443,185 @@
       "ARCHIVED": "Archived",
       "SUSPENDED": "Suspended"
     },
+    "subStatus": {
+      "TRIAL": "Trial",
+      "ACTIVE": "Active",
+      "SUSPENDED": "Suspended",
+      "CANCELLED": "Cancelled",
+      "EXPIRED": "Expired"
+    },
+    "plans": {
+      "trial": "Trial",
+      "standard": "Standard",
+      "premium": "Premium"
+    },
+    "modal": {
+      "create": "New client",
+      "edit": "Edit client"
+    },
+    "form": {
+      "name": "Name",
+      "namePlaceholder": "Boulangerie Dupont",
+      "slug": "Slug",
+      "slugPlaceholder": "boulangerie-dupont",
+      "slugHint": "Unique and immutable after creation",
+      "slugPattern": "Lowercase letters, digits and hyphens only",
+      "email": "Email",
+      "phone": "Phone",
+      "plan": "Plan",
+      "required": "Required",
+      "planOptions": {
+        "trial": "Trial (14 days)",
+        "standard": "Standard",
+        "premium": "Premium"
+      }
+    },
+    "toast": {
+      "created": "Client created successfully",
+      "updated": "Client updated",
+      "statusUpdated": "Status updated"
+    },
+    "error": {
+      "duplicate": "This slug is already used by another client.",
+      "forbidden": "Access denied — SUPER_ADMIN role required.",
+      "generic": "An error occurred. Please try again.",
+      "load": "Error loading clients"
+    },
+    "detail": {
+      "back": "Back",
+      "generalInfo": "General information",
+      "editInfo": "Edit information",
+      "fields": {
+        "name": "Name",
+        "slug": "Slug",
+        "email": "Email",
+        "phone": "Phone",
+        "siret": "SIRET",
+        "sector": "Business sector",
+        "status": "Status",
+        "plan": "Plan",
+        "createdAt": "Created on",
+        "address": "Address"
+      },
+      "sectorSelect": "— Select —",
+      "statusOptions": {
+        "ACTIVE": "Active",
+        "SUSPENDED": "Suspended",
+        "ARCHIVED": "Archived"
+      },
+      "tabs": {
+        "info": "Information",
+        "admin": "Primary admin",
+        "modules": "Modules",
+        "subscription": "Subscription",
+        "sites": "Sites & Zones",
+        "users": "Users",
+        "history": "History"
+      },
+      "summaryBar": {
+        "sites": "{{count}} site(s)",
+        "createdAt": "Created {{date}}"
+      },
+      "notFound": "Client not found",
+      "admin": {
+        "title": "Primary admin",
+        "createBtn": "Create admin",
+        "assigned": "Admin assigned",
+        "resetPwd": "Reset password",
+        "resetPwdToast": "Reset link sent (feature coming soon)",
+        "noAdmin": "No admin assigned",
+        "noAdminSub": "Create an ADMIN user to allow the client to manage their instance.",
+        "rulesTitle": "Tenant admin rules:",
+        "rules": {
+          "scope": "Automatically belongs to tenant {{name}}",
+          "role": "Gets the ADMIN role — access to their tenant only",
+          "can": "Can manage users and the reference data for their instance",
+          "cannot": "Cannot view other tenants on the platform"
+        },
+        "createModal": {
+          "title": "Create administrator",
+          "warning": "This admin will be created in tenant {{name}} with the ADMIN role.",
+          "fullName": "Full name *",
+          "email": "Email *",
+          "password": "Password *",
+          "passwordPlaceholder": "Min. 8 characters",
+          "passwordMin": "Minimum 8 characters",
+          "required": "Required",
+          "submit": "Create admin",
+          "toast": "Admin created successfully"
+        }
+      },
+      "modules": {
+        "title": "Active modules",
+        "count": "{{count}} / 17 active modules",
+        "save": "Save changes",
+        "toast": "Modules updated"
+      },
+      "subscription": {
+        "title": "Subscription",
+        "editTitle": "Edit subscription",
+        "edit": "Edit",
+        "none": "No subscription configured",
+        "configure": "Configure subscription",
+        "fields": {
+          "plan": "Plan",
+          "status": "Status",
+          "maxUsers": "Max users",
+          "maxSites": "Max sites",
+          "trialEndsAt": "Trial end date",
+          "startedAt": "Started on",
+          "notes": "Internal notes",
+          "notesPlaceholder": "Notes about this subscription…",
+          "trialDaysLeft": "{{count}}d left"
+        },
+        "toast": "Subscription updated"
+      },
+      "sites": {
+        "title": "Sites & Zones",
+        "add": "Add a site",
+        "none": "No sites",
+        "deleteConfirm": "Delete site «{{name}}» and all its zones?",
+        "toast": {
+          "created": "Site created",
+          "deleted": "Site deleted"
+        },
+        "modal": {
+          "title": "New site",
+          "name": "Site name *",
+          "namePlaceholder": "Main kitchen",
+          "address": "Address",
+          "addressPlaceholder": "12 Baker Street, Paris",
+          "submit": "Create site"
+        }
+      },
+      "users": {
+        "title": "Tenant users",
+        "infoTitle": "Tenant user management",
+        "infoBody": "Users of tenant {{name}} are managed via the Users module accessible to the ADMIN of this tenant. As SUPER_ADMIN, you can view the list via the API.",
+        "primaryAdmin": "Primary admin",
+        "userLimit": "User limit"
+      },
+      "history": {
+        "title": "Audit history",
+        "noEntries": "No audit entries for this tenant.",
+        "error": "Unable to load the audit log.",
+        "columns": {
+          "action": "Action",
+          "resource": "Resource",
+          "user": "User",
+          "ip": "IP",
+          "date": "Date"
+        },
+        "pagination": {
+          "page": "Page {{page}} of {{lastPage}}",
+          "prev": "← Previous",
+          "next": "Next →",
+          "entries": "{{total}} entry(ies)"
+        }
+      }
+    },
     "empty": "No clients found",
-    "loading": "Loading…",
-    "error": "Error loading clients"
+    "loading": "Loading…"
   },
   "products": {
     "title": "Products",

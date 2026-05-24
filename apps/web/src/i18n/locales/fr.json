@@ -412,14 +412,30 @@
     "title": "Clients",
     "subtitle": "Gestion des tenants — SUPER_ADMIN uniquement",
     "new": "Nouveau client",
-    "searchPlaceholder": "Rechercher un client…",
+    "searchPlaceholder": "Nom, slug, email…",
+    "search": "Rechercher",
+    "totalCount": "{{total}} client(s)",
+    "createFirst": "Créer le premier client →",
+    "viewProfile": "Voir la fiche",
+    "view": "Voir",
+    "edit": "Modifier",
+    "suspend": "Suspendre",
+    "reactivate": "Réactiver",
+    "archive": "Archiver",
+    "archiveConfirm": "Archiver « {{name}} » ?",
+    "trialDaysLeft": "{{count}}j restants",
     "columns": {
+      "client": "Client",
       "name": "Nom",
       "siret": "SIRET",
       "sector": "Secteur",
       "plan": "Plan",
+      "modules": "Modules",
+      "sites": "Sites",
+      "email": "Email",
       "status": "Statut",
       "created": "Créé le",
+      "createdAt": "Créé le",
       "actions": "Actions"
     },
     "status": {
@@ -427,9 +443,185 @@
       "ARCHIVED": "Archivé",
       "SUSPENDED": "Suspendu"
     },
+    "subStatus": {
+      "TRIAL": "Essai",
+      "ACTIVE": "Actif",
+      "SUSPENDED": "Suspendu",
+      "CANCELLED": "Annulé",
+      "EXPIRED": "Expiré"
+    },
+    "plans": {
+      "trial": "Essai",
+      "standard": "Standard",
+      "premium": "Premium"
+    },
+    "modal": {
+      "create": "Nouveau client",
+      "edit": "Modifier le client"
+    },
+    "form": {
+      "name": "Nom",
+      "namePlaceholder": "Boulangerie Dupont",
+      "slug": "Slug",
+      "slugPlaceholder": "boulangerie-dupont",
+      "slugHint": "Unique et immuable après création",
+      "slugPattern": "Minuscules, chiffres et tirets uniquement",
+      "email": "Email",
+      "phone": "Téléphone",
+      "plan": "Plan",
+      "required": "Obligatoire",
+      "planOptions": {
+        "trial": "Essai (14 jours)",
+        "standard": "Standard",
+        "premium": "Premium"
+      }
+    },
+    "toast": {
+      "created": "Client créé avec succès",
+      "updated": "Client modifié",
+      "statusUpdated": "Statut mis à jour"
+    },
+    "error": {
+      "duplicate": "Ce slug est déjà utilisé par un autre client.",
+      "forbidden": "Accès refusé — rôle SUPER_ADMIN requis.",
+      "generic": "Une erreur est survenue. Veuillez réessayer.",
+      "load": "Erreur lors du chargement des clients"
+    },
+    "detail": {
+      "back": "Retour",
+      "generalInfo": "Informations générales",
+      "editInfo": "Modifier les informations",
+      "fields": {
+        "name": "Nom",
+        "slug": "Slug",
+        "email": "Email",
+        "phone": "Téléphone",
+        "siret": "SIRET",
+        "sector": "Secteur d'activité",
+        "status": "Statut",
+        "plan": "Plan",
+        "createdAt": "Créé le",
+        "address": "Adresse"
+      },
+      "sectorSelect": "— Sélectionner —",
+      "statusOptions": {
+        "ACTIVE": "Actif",
+        "SUSPENDED": "Suspendu",
+        "ARCHIVED": "Archivé"
+      },
+      "tabs": {
+        "info": "Informations",
+        "admin": "Admin principal",
+        "modules": "Modules",
+        "subscription": "Abonnement",
+        "sites": "Sites & Zones",
+        "users": "Utilisateurs",
+        "history": "Historique"
+      },
+      "summaryBar": {
+        "sites": "{{count}} site(s)",
+        "createdAt": "Créé le {{date}}"
+      },
+      "notFound": "Client introuvable",
+      "admin": {
+        "title": "Admin principal",
+        "createBtn": "Créer l'admin",
+        "assigned": "Admin assigné",
+        "resetPwd": "Réinitialiser MDP",
+        "resetPwdToast": "Lien de réinitialisation envoyé (fonctionnalité à venir)",
+        "noAdmin": "Aucun admin assigné",
+        "noAdminSub": "Créez un utilisateur ADMIN pour permettre au client de gérer son instance.",
+        "rulesTitle": "Règles admin tenant :",
+        "rules": {
+          "scope": "Appartient automatiquement au tenant {{name}}",
+          "role": "Reçoit le rôle ADMIN — accès à son tenant uniquement",
+          "can": "Peut gérer les utilisateurs et le référentiel de son instance",
+          "cannot": "Ne peut pas voir les autres tenants de la plateforme"
+        },
+        "createModal": {
+          "title": "Créer l'administrateur",
+          "warning": "Cet admin sera créé dans le tenant {{name}} avec le rôle ADMIN.",
+          "fullName": "Nom complet *",
+          "email": "Email *",
+          "password": "Mot de passe *",
+          "passwordPlaceholder": "Min. 8 caractères",
+          "passwordMin": "8 caractères minimum",
+          "required": "Obligatoire",
+          "submit": "Créer l'admin",
+          "toast": "Admin créé avec succès"
+        }
+      },
+      "modules": {
+        "title": "Modules activés",
+        "count": "{{count}} / 17 modules actifs",
+        "save": "Enregistrer les modifications",
+        "toast": "Modules mis à jour"
+      },
+      "subscription": {
+        "title": "Abonnement",
+        "editTitle": "Modifier l'abonnement",
+        "edit": "Modifier",
+        "none": "Aucun abonnement configuré",
+        "configure": "Configurer l'abonnement",
+        "fields": {
+          "plan": "Plan",
+          "status": "Statut",
+          "maxUsers": "Utilisateurs max",
+          "maxSites": "Sites max",
+          "trialEndsAt": "Fin d'essai",
+          "startedAt": "Début",
+          "notes": "Notes internes",
+          "notesPlaceholder": "Notes sur cet abonnement…",
+          "trialDaysLeft": "{{count}}j restants"
+        },
+        "toast": "Abonnement mis à jour"
+      },
+      "sites": {
+        "title": "Sites & Zones",
+        "add": "Ajouter un site",
+        "none": "Aucun site",
+        "deleteConfirm": "Supprimer le site « {{name}} » et toutes ses zones ?",
+        "toast": {
+          "created": "Site créé",
+          "deleted": "Site supprimé"
+        },
+        "modal": {
+          "title": "Nouveau site",
+          "name": "Nom du site *",
+          "namePlaceholder": "Cuisine principale",
+          "address": "Adresse",
+          "addressPlaceholder": "12 rue des Boulangers, Paris",
+          "submit": "Créer le site"
+        }
+      },
+      "users": {
+        "title": "Utilisateurs du tenant",
+        "infoTitle": "Gestion des utilisateurs du tenant",
+        "infoBody": "Les utilisateurs du tenant {{name}} sont gérés via le module Utilisateurs accessible à l'ADMIN de ce tenant. En tant que SUPER_ADMIN, vous pouvez voir la liste via l'API.",
+        "primaryAdmin": "Admin principal",
+        "userLimit": "Limite utilisateurs"
+      },
+      "history": {
+        "title": "Historique d'audit",
+        "noEntries": "Aucune entrée d'audit pour ce tenant.",
+        "error": "Impossible de charger le journal d'audit.",
+        "columns": {
+          "action": "Action",
+          "resource": "Ressource",
+          "user": "Utilisateur",
+          "ip": "IP",
+          "date": "Date"
+        },
+        "pagination": {
+          "page": "Page {{page}} sur {{lastPage}}",
+          "prev": "← Précédent",
+          "next": "Suivant →",
+          "entries": "{{total}} entrée(s)"
+        }
+      }
+    },
     "empty": "Aucun client trouvé",
-    "loading": "Chargement…",
-    "error": "Erreur lors du chargement des clients"
+    "loading": "Chargement…"
   },
   "products": {
     "title": "Produits",

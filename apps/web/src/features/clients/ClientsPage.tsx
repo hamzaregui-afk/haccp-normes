@@ -7,6 +7,7 @@ import {
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 import { Header } from '@/components/layout/Header';
 import { PageWrapper } from '@/components/layout/AppLayout';
@@ -19,36 +20,38 @@ import type { ApiResponse, Tenant } from '@haccp/shared-types';
 
 // ─── Error helper ─────────────────────────────────────────────────────────────
 
-function extractApiError(err: unknown): string {
-  if (axios.isAxiosError(err)) {
-    const msg = (err.response?.data as { message?: string } | undefined)?.message;
-    if (msg) return msg;
-    if (err.response?.status === 409) return 'Ce slug est déjà utilisé par un autre client.';
-    if (err.response?.status === 403) return 'Accès refusé — rôle SUPER_ADMIN requis.';
-  }
-  return 'Une erreur est survenue. Veuillez réessayer.';
+function makeExtractApiError(t: ReturnType<typeof useTranslation>['t']) {
+  return (err: unknown): string => {
+    if (axios.isAxiosError(err)) {
+      const msg = (err.response?.data as { message?: string } | undefined)?.message;
+      if (msg) return msg;
+      if (err.response?.status === 409) return t('clients.error.duplicate');
+      if (err.response?.status === 403) return t('clients.error.forbidden');
+    }
+    return t('clients.error.generic');
+  };
 }
 
-// ─── Style constants ──────────────────────────────────────────────────────────
+// ─── Style constants (CSS only) ───────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<string, { label: string; classes: string; icon: React.FC<{ className?: string }> }> = {
-  ACTIVE:    { label: 'Actif',    classes: 'bg-green-100 text-green-800',  icon: CheckCircle2 },
-  ARCHIVED:  { label: 'Archivé',  classes: 'bg-gray-100  text-gray-600',   icon: Archive },
-  SUSPENDED: { label: 'Suspendu', classes: 'bg-red-100   text-red-700',    icon: XCircle },
+const STATUS_CSS: Record<string, { classes: string; icon: React.FC<{ className?: string }> }> = {
+  ACTIVE:    { classes: 'bg-green-100 text-green-800',  icon: CheckCircle2 },
+  ARCHIVED:  { classes: 'bg-gray-100  text-gray-600',   icon: Archive },
+  SUSPENDED: { classes: 'bg-red-100   text-red-700',    icon: XCircle },
 };
 
-const PLAN_CONFIG: Record<string, { label: string; classes: string }> = {
-  trial:    { label: 'Essai',    classes: 'bg-amber-100 text-amber-800' },
-  standard: { label: 'Standard', classes: 'bg-blue-100  text-brand-dark' },
-  premium:  { label: 'Premium',  classes: 'bg-purple-100 text-purple-800' },
+const PLAN_CSS: Record<string, string> = {
+  trial:    'bg-amber-100 text-amber-800',
+  standard: 'bg-blue-100  text-brand-dark',
+  premium:  'bg-purple-100 text-purple-800',
 };
 
-const SUB_STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
-  TRIAL:     { label: 'Essai',    classes: 'bg-amber-50  text-amber-700  border border-amber-200' },
-  ACTIVE:    { label: 'Actif',    classes: 'bg-green-50  text-green-700  border border-green-200' },
-  SUSPENDED: { label: 'Suspendu', classes: 'bg-red-50    text-red-700    border border-red-200' },
-  CANCELLED: { label: 'Annulé',   classes: 'bg-gray-50   text-gray-600   border border-gray-200' },
-  EXPIRED:   { label: 'Expiré',   classes: 'bg-gray-50   text-gray-500   border border-gray-200' },
+const SUB_STATUS_CSS: Record<string, string> = {
+  TRIAL:     'bg-amber-50  text-amber-700  border border-amber-200',
+  ACTIVE:    'bg-green-50  text-green-700  border border-green-200',
+  SUSPENDED: 'bg-red-50    text-red-700    border border-red-200',
+  CANCELLED: 'bg-gray-50   text-gray-600   border border-gray-200',
+  EXPIRED:   'bg-gray-50   text-gray-500   border border-gray-200',
 };
 
 // ─── Form types ───────────────────────────────────────────────────────────────
@@ -74,6 +77,8 @@ function useTenants(page: number, search: string) {
 interface TenantModalProps { tenant?: Tenant | null; onClose: () => void; }
 
 function TenantModal({ tenant, onClose }: TenantModalProps) {
+  const { t } = useTranslation();
+  const extractApiError = makeExtractApiError(t);
   const qc     = useQueryClient();
   const isEdit = !!tenant;
 
@@ -94,22 +99,22 @@ function TenantModal({ tenant, onClose }: TenantModalProps) {
         : api.post('/api/v1/tenants', v),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tenants'] });
-      showToast({ title: isEdit ? 'Client modifié' : 'Client créé avec succès', variant: 'success' });
+      showToast({ title: isEdit ? t('clients.toast.updated') : t('clients.toast.created'), variant: 'success' });
       onClose();
     },
     onError: (err) => showToast({ title: extractApiError(err), variant: 'error' }),
   });
 
   return (
-    <Modal open title={isEdit ? 'Modifier le client' : 'Nouveau client'} onClose={onClose}>
+    <Modal open title={isEdit ? t('clients.modal.edit') : t('clients.modal.create')} onClose={onClose}>
       <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="flex flex-col gap-4">
         {/* Name */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-gray-700">Nom <span className="text-red-500">*</span></label>
+          <label className="text-sm font-medium text-gray-700">{t('clients.form.name')} <span className="text-red-500">*</span></label>
           <input
-            {...register('name', { required: 'Obligatoire' })}
+            {...register('name', { required: t('clients.form.required') })}
             type="text"
-            placeholder="Boulangerie Dupont"
+            placeholder={t('clients.form.namePlaceholder')}
             className="h-9 w-full rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
             onChange={(e) => {
               void register('name').onChange(e);
@@ -122,25 +127,25 @@ function TenantModal({ tenant, onClose }: TenantModalProps) {
 
         {/* Slug */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-gray-700">Slug <span className="text-red-500">*</span></label>
+          <label className="text-sm font-medium text-gray-700">{t('clients.form.slug')} <span className="text-red-500">*</span></label>
           <input
             {...register('slug', {
-              required: 'Obligatoire',
-              pattern: { value: /^[a-z0-9-]+$/, message: 'Minuscules, chiffres et tirets uniquement' },
+              required: t('clients.form.required'),
+              pattern: { value: /^[a-z0-9-]+$/, message: t('clients.form.slugPattern') },
             })}
             type="text"
-            placeholder="boulangerie-dupont"
+            placeholder={t('clients.form.slugPlaceholder')}
             disabled={isEdit}
             className="h-9 w-full rounded-lg border border-gray-200 px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-medium disabled:bg-gray-50 disabled:text-gray-400"
           />
           {errors.slug && <p className="text-xs text-red-600">{errors.slug.message}</p>}
-          {!isEdit && <p className="text-xs text-gray-400">Unique et immuable après création</p>}
+          {!isEdit && <p className="text-xs text-gray-400">{t('clients.form.slugHint')}</p>}
         </div>
 
         {/* Email + Phone */}
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700">Email</label>
+            <label className="text-sm font-medium text-gray-700">{t('clients.form.email')}</label>
             <input
               {...register('email')}
               type="email"
@@ -149,7 +154,7 @@ function TenantModal({ tenant, onClose }: TenantModalProps) {
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700">Téléphone</label>
+            <label className="text-sm font-medium text-gray-700">{t('clients.form.phone')}</label>
             <input
               {...register('phone')}
               type="tel"
@@ -161,20 +166,22 @@ function TenantModal({ tenant, onClose }: TenantModalProps) {
 
         {/* Plan */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-gray-700">Plan</label>
+          <label className="text-sm font-medium text-gray-700">{t('clients.form.plan')}</label>
           <select
             {...register('plan')}
             className="h-9 w-full rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
           >
-            <option value="trial">Essai (14 jours)</option>
-            <option value="standard">Standard</option>
-            <option value="premium">Premium</option>
+            <option value="trial">{t('clients.form.planOptions.trial')}</option>
+            <option value="standard">{t('clients.form.planOptions.standard')}</option>
+            <option value="premium">{t('clients.form.planOptions.premium')}</option>
           </select>
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Annuler</Button>
-          <Button type="submit" loading={mutation.isPending}>{isEdit ? 'Enregistrer' : 'Créer le client'}</Button>
+          <Button type="button" variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" loading={mutation.isPending}>
+            {isEdit ? t('common.save') : t('clients.modal.create')}
+          </Button>
         </div>
       </form>
     </Modal>
@@ -190,6 +197,7 @@ interface RowActionsProps {
 }
 
 function RowActions({ tenant, onEdit, onStatus }: RowActionsProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   return (
@@ -210,13 +218,13 @@ function RowActions({ tenant, onEdit, onStatus }: RowActionsProps) {
               className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
               onClick={() => setOpen(false)}
             >
-              <ChevronRight className="h-4 w-4 text-brand-medium" /> Voir la fiche
+              <ChevronRight className="h-4 w-4 text-brand-medium" /> {t('clients.viewProfile')}
             </Link>
             <button
               onClick={() => { onEdit(); setOpen(false); }}
               className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
             >
-              Modifier
+              {t('clients.edit')}
             </button>
             <div className="my-1 border-t border-gray-100" />
             {tenant.status === 'ACTIVE' && (
@@ -224,7 +232,7 @@ function RowActions({ tenant, onEdit, onStatus }: RowActionsProps) {
                 onClick={() => { onStatus('SUSPENDED'); setOpen(false); }}
                 className="flex w-full items-center gap-2 px-3 py-2 text-sm text-yellow-700 hover:bg-yellow-50"
               >
-                Suspendre
+                {t('clients.suspend')}
               </button>
             )}
             {tenant.status === 'SUSPENDED' && (
@@ -232,18 +240,18 @@ function RowActions({ tenant, onEdit, onStatus }: RowActionsProps) {
                 onClick={() => { onStatus('ACTIVE'); setOpen(false); }}
                 className="flex w-full items-center gap-2 px-3 py-2 text-sm text-green-700 hover:bg-green-50"
               >
-                Réactiver
+                {t('clients.reactivate')}
               </button>
             )}
             {tenant.status !== 'ARCHIVED' && (
               <button
                 onClick={() => {
-                  if (window.confirm(`Archiver « ${tenant.name} » ?`)) { onStatus('ARCHIVED'); }
+                  if (window.confirm(t('clients.archiveConfirm', { name: tenant.name }))) { onStatus('ARCHIVED'); }
                   setOpen(false);
                 }}
                 className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
               >
-                Archiver
+                {t('clients.archive')}
               </button>
             )}
           </div>
@@ -262,20 +270,20 @@ interface TenantRowProps {
 }
 
 function TenantRow({ tenant, onEdit, onStatus }: TenantRowProps) {
-  const statusCfg = STATUS_CONFIG[tenant.status] ?? STATUS_CONFIG.ACTIVE;
-  const planCfg   = PLAN_CONFIG[tenant.plan] ?? PLAN_CONFIG.standard;
+  const { t } = useTranslation();
+  const statusCss = STATUS_CSS[tenant.status] ?? STATUS_CSS.ACTIVE;
+  const planCss   = PLAN_CSS[tenant.plan] ?? PLAN_CSS.standard;
   const subStatus = (tenant.subscription as { status?: string } | undefined | null)?.status;
-  const subCfg    = subStatus ? SUB_STATUS_CONFIG[subStatus] : null;
+  const subCss    = subStatus ? (SUB_STATUS_CSS[subStatus] ?? null) : null;
   const siteCount = tenant._count?.sites ?? 0;
   const enabledModules = (tenant.modules ?? []).filter((m) => m.enabled).length;
 
-  // Trial days remaining
   const trialEndsAt = (tenant.subscription as { trialEndsAt?: string | null } | null)?.trialEndsAt;
   const trialDays   = trialEndsAt
     ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / 86_400_000))
     : null;
 
-  const StatusIcon = statusCfg.icon;
+  const StatusIcon = statusCss.icon;
 
   return (
     <tr className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
@@ -296,26 +304,26 @@ function TenantRow({ tenant, onEdit, onStatus }: TenantRowProps) {
 
       {/* Status */}
       <td className="px-4 py-3">
-        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusCfg.classes}`}>
+        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusCss.classes}`}>
           <StatusIcon className="h-3 w-3" />
-          {statusCfg.label}
+          {t(`clients.status.${tenant.status}` as Parameters<typeof t>[0])}
         </span>
       </td>
 
       {/* Plan */}
       <td className="px-4 py-3">
-        <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${planCfg.classes}`}>
-          {planCfg.label}
+        <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${planCss}`}>
+          {t(`clients.plans.${tenant.plan}` as Parameters<typeof t>[0])}
         </span>
-        {subCfg && (
-          <span className={`ml-1.5 rounded-full px-2 py-0.5 text-xs ${subCfg.classes}`}>
-            {subCfg.label}
+        {subCss && subStatus && (
+          <span className={`ml-1.5 rounded-full px-2 py-0.5 text-xs ${subCss}`}>
+            {t(`clients.subStatus.${subStatus}` as Parameters<typeof t>[0])}
           </span>
         )}
         {trialDays !== null && tenant.plan === 'trial' && (
           <p className="mt-0.5 text-xs text-amber-600">
             <Clock className="mr-0.5 inline h-3 w-3" />
-            {trialDays}j restants
+            {t('clients.trialDaysLeft', { count: trialDays })}
           </p>
         )}
       </td>
@@ -357,7 +365,7 @@ function TenantRow({ tenant, onEdit, onStatus }: TenantRowProps) {
             to={`/clients/${tenant.id}`}
             className="hidden sm:inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium text-brand-medium hover:bg-brand-lighter transition-colors"
           >
-            Voir <ChevronRight className="h-3 w-3" />
+            {t('clients.view')} <ChevronRight className="h-3 w-3" />
           </Link>
           <RowActions
             tenant={tenant}
@@ -373,6 +381,8 @@ function TenantRow({ tenant, onEdit, onStatus }: TenantRowProps) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ClientsPage() {
+  const { t } = useTranslation();
+  const extractApiError = makeExtractApiError(t);
   const qc = useQueryClient();
   const [page, setPage]     = useState(1);
   const [search, setSearch] = useState('');
@@ -386,7 +396,7 @@ export default function ClientsPage() {
       api.patch(`/api/v1/tenants/${id}`, { status }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tenants'] });
-      showToast({ title: 'Statut mis à jour', variant: 'success' });
+      showToast({ title: t('clients.toast.statusUpdated'), variant: 'success' });
     },
     onError: (err) => showToast({ title: extractApiError(err), variant: 'error' }),
   });
@@ -396,8 +406,8 @@ export default function ClientsPage() {
   return (
     <>
       <Header
-        title="Clients"
-        subtitle="Gestion des instances clientes SaaS"
+        title={t('clients.title')}
+        subtitle={t('clients.subtitle')}
         icon={Building2}
         iconColor="bg-brand-light text-brand-dark"
       />
@@ -411,21 +421,21 @@ export default function ClientsPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
-                placeholder="Nom, slug, email…"
+                placeholder={t('clients.searchPlaceholder')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="h-9 w-64 rounded-lg border border-surface-muted bg-white pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
               />
             </div>
-            <Button type="submit" variant="secondary" size="sm">Rechercher</Button>
+            <Button type="submit" variant="secondary" size="sm">{t('clients.search')}</Button>
           </form>
 
           <div className="flex items-center gap-3">
             {data?.meta && (
-              <span className="text-xs text-gray-400">{data.meta.total} client(s)</span>
+              <span className="text-xs text-gray-400">{t('clients.totalCount', { total: data.meta.total })}</span>
             )}
             <Button size="sm" onClick={() => setModalTenant(null)}>
-              <Plus className="mr-1.5 h-4 w-4" /> Nouveau client
+              <Plus className="mr-1.5 h-4 w-4" /> {t('clients.new')}
             </Button>
           </div>
         </div>
@@ -435,14 +445,14 @@ export default function ClientsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-surface-muted bg-gray-50/80">
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Client</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Statut</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Plan</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Modules</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Sites</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Email</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Créé le</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{t('clients.columns.client')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{t('clients.columns.status')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{t('clients.columns.plan')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{t('clients.columns.modules')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{t('clients.columns.sites')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{t('clients.columns.email')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{t('clients.columns.createdAt')}</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">{t('clients.columns.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -460,12 +470,12 @@ export default function ClientsPage() {
                 <tr>
                   <td colSpan={8} className="px-4 py-20 text-center">
                     <Building2 className="mx-auto mb-3 h-10 w-10 text-gray-200" />
-                    <p className="font-medium text-gray-400">Aucun client trouvé</p>
+                    <p className="font-medium text-gray-400">{t('clients.empty')}</p>
                     <button
                       onClick={() => setModalTenant(null)}
                       className="mt-3 text-sm text-brand-medium hover:underline"
                     >
-                      Créer le premier client →
+                      {t('clients.createFirst')}
                     </button>
                   </td>
                 </tr>

@@ -412,14 +412,30 @@
     "title": "العملاء",
     "subtitle": "إدارة المستأجرين — SUPER_ADMIN فقط",
     "new": "عميل جديد",
-    "searchPlaceholder": "البحث عن عميل…",
+    "searchPlaceholder": "الاسم، slug، البريد…",
+    "search": "بحث",
+    "totalCount": "{{total}} عميل",
+    "createFirst": "إنشاء أول عميل ←",
+    "viewProfile": "عرض الملف",
+    "view": "عرض",
+    "edit": "تعديل",
+    "suspend": "تعليق",
+    "reactivate": "إعادة تفعيل",
+    "archive": "أرشفة",
+    "archiveConfirm": "أرشفة «{{name}}»؟",
+    "trialDaysLeft": "{{count}} يوم متبقٍ",
     "columns": {
+      "client": "العميل",
       "name": "الاسم",
       "siret": "SIRET",
       "sector": "القطاع",
       "plan": "الباقة",
+      "modules": "الوحدات",
+      "sites": "المواقع",
+      "email": "البريد الإلكتروني",
       "status": "الحالة",
       "created": "تاريخ الإنشاء",
+      "createdAt": "تاريخ الإنشاء",
       "actions": "الإجراءات"
     },
     "status": {
@@ -427,9 +443,185 @@
       "ARCHIVED": "مؤرشف",
       "SUSPENDED": "موقوف"
     },
+    "subStatus": {
+      "TRIAL": "تجريبي",
+      "ACTIVE": "نشط",
+      "SUSPENDED": "موقوف",
+      "CANCELLED": "ملغى",
+      "EXPIRED": "منتهي الصلاحية"
+    },
+    "plans": {
+      "trial": "تجريبي",
+      "standard": "قياسي",
+      "premium": "بريميوم"
+    },
+    "modal": {
+      "create": "عميل جديد",
+      "edit": "تعديل العميل"
+    },
+    "form": {
+      "name": "الاسم",
+      "namePlaceholder": "Boulangerie Dupont",
+      "slug": "Slug",
+      "slugPlaceholder": "boulangerie-dupont",
+      "slugHint": "فريد وغير قابل للتغيير بعد الإنشاء",
+      "slugPattern": "أحرف صغيرة وأرقام وشرطات فقط",
+      "email": "البريد الإلكتروني",
+      "phone": "الهاتف",
+      "plan": "الباقة",
+      "required": "مطلوب",
+      "planOptions": {
+        "trial": "تجريبي (14 يومًا)",
+        "standard": "قياسي",
+        "premium": "بريميوم"
+      }
+    },
+    "toast": {
+      "created": "تم إنشاء العميل بنجاح",
+      "updated": "تم تعديل العميل",
+      "statusUpdated": "تم تحديث الحالة"
+    },
+    "error": {
+      "duplicate": "هذا الـ slug مستخدم بالفعل من قِبل عميل آخر.",
+      "forbidden": "وصول مرفوض — يلزم دور SUPER_ADMIN.",
+      "generic": "حدث خطأ. يرجى المحاولة مرة أخرى.",
+      "load": "خطأ في تحميل بيانات العملاء"
+    },
+    "detail": {
+      "back": "رجوع",
+      "generalInfo": "معلومات عامة",
+      "editInfo": "تعديل المعلومات",
+      "fields": {
+        "name": "الاسم",
+        "slug": "Slug",
+        "email": "البريد الإلكتروني",
+        "phone": "الهاتف",
+        "siret": "SIRET",
+        "sector": "قطاع النشاط",
+        "status": "الحالة",
+        "plan": "الباقة",
+        "createdAt": "تاريخ الإنشاء",
+        "address": "العنوان"
+      },
+      "sectorSelect": "— اختر —",
+      "statusOptions": {
+        "ACTIVE": "نشط",
+        "SUSPENDED": "موقوف",
+        "ARCHIVED": "مؤرشف"
+      },
+      "tabs": {
+        "info": "المعلومات",
+        "admin": "المدير الرئيسي",
+        "modules": "الوحدات",
+        "subscription": "الاشتراك",
+        "sites": "المواقع والمناطق",
+        "users": "المستخدمون",
+        "history": "السجل"
+      },
+      "summaryBar": {
+        "sites": "{{count}} موقع",
+        "createdAt": "أُنشئ في {{date}}"
+      },
+      "notFound": "العميل غير موجود",
+      "admin": {
+        "title": "المدير الرئيسي",
+        "createBtn": "إنشاء مدير",
+        "assigned": "تم تعيين مدير",
+        "resetPwd": "إعادة تعيين كلمة المرور",
+        "resetPwdToast": "تم إرسال رابط إعادة التعيين (ميزة قادمة)",
+        "noAdmin": "لم يُعيَّن مدير",
+        "noAdminSub": "أنشئ مستخدمًا بدور ADMIN للسماح للعميل بإدارة مثيله.",
+        "rulesTitle": "قواعد مدير المستأجر:",
+        "rules": {
+          "scope": "ينتمي تلقائيًا إلى مستأجر {{name}}",
+          "role": "يحصل على دور ADMIN — صلاحيات لمستأجره فقط",
+          "can": "يمكنه إدارة المستخدمين والبيانات المرجعية لمثيله",
+          "cannot": "لا يمكنه عرض مستأجرين آخرين على المنصة"
+        },
+        "createModal": {
+          "title": "إنشاء مدير",
+          "warning": "سيتم إنشاء هذا المدير في مستأجر {{name}} بدور ADMIN.",
+          "fullName": "الاسم الكامل *",
+          "email": "البريد الإلكتروني *",
+          "password": "كلمة المرور *",
+          "passwordPlaceholder": "8 أحرف على الأقل",
+          "passwordMin": "8 أحرف كحد أدنى",
+          "required": "مطلوب",
+          "submit": "إنشاء المدير",
+          "toast": "تم إنشاء المدير بنجاح"
+        }
+      },
+      "modules": {
+        "title": "الوحدات المفعّلة",
+        "count": "{{count}} / 17 وحدة مفعّلة",
+        "save": "حفظ التعديلات",
+        "toast": "تم تحديث الوحدات"
+      },
+      "subscription": {
+        "title": "الاشتراك",
+        "editTitle": "تعديل الاشتراك",
+        "edit": "تعديل",
+        "none": "لم يُضبط اشتراك",
+        "configure": "ضبط الاشتراك",
+        "fields": {
+          "plan": "الباقة",
+          "status": "الحالة",
+          "maxUsers": "الحد الأقصى للمستخدمين",
+          "maxSites": "الحد الأقصى للمواقع",
+          "trialEndsAt": "نهاية التجربة",
+          "startedAt": "تاريخ البدء",
+          "notes": "ملاحظات داخلية",
+          "notesPlaceholder": "ملاحظات حول هذا الاشتراك…",
+          "trialDaysLeft": "{{count}} يوم متبقٍ"
+        },
+        "toast": "تم تحديث الاشتراك"
+      },
+      "sites": {
+        "title": "المواقع والمناطق",
+        "add": "إضافة موقع",
+        "none": "لا توجد مواقع",
+        "deleteConfirm": "حذف الموقع «{{name}}» وجميع مناطقه؟",
+        "toast": {
+          "created": "تم إنشاء الموقع",
+          "deleted": "تم حذف الموقع"
+        },
+        "modal": {
+          "title": "موقع جديد",
+          "name": "اسم الموقع *",
+          "namePlaceholder": "المطبخ الرئيسي",
+          "address": "العنوان",
+          "addressPlaceholder": "12 شارع الخبازين، باريس",
+          "submit": "إنشاء الموقع"
+        }
+      },
+      "users": {
+        "title": "مستخدمو المستأجر",
+        "infoTitle": "إدارة مستخدمي المستأجر",
+        "infoBody": "مستخدمو مستأجر {{name}} يُدارون عبر وحدة المستخدمين المتاحة لمدير هذا المستأجر. بصفتك SUPER_ADMIN، يمكنك عرض القائمة عبر API.",
+        "primaryAdmin": "المدير الرئيسي",
+        "userLimit": "حد المستخدمين"
+      },
+      "history": {
+        "title": "سجل التدقيق",
+        "noEntries": "لا توجد إدخالات تدقيق لهذا المستأجر.",
+        "error": "تعذّر تحميل سجل التدقيق.",
+        "columns": {
+          "action": "الإجراء",
+          "resource": "المورد",
+          "user": "المستخدم",
+          "ip": "IP",
+          "date": "التاريخ"
+        },
+        "pagination": {
+          "page": "صفحة {{page}} من {{lastPage}}",
+          "prev": "← السابق",
+          "next": "التالي →",
+          "entries": "{{total}} إدخال"
+        }
+      }
+    },
     "empty": "لم يُعثر على عملاء",
-    "loading": "جارٍ التحميل…",
-    "error": "خطأ في تحميل بيانات العملاء"
+    "loading": "جارٍ التحميل…"
   },
   "products": {
     "title": "المنتجات",
