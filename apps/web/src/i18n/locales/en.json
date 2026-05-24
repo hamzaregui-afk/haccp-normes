@@ -410,23 +410,219 @@
   "products": {
     "title": "Products",
     "subtitle": "Product and raw material catalogue",
-    "new": "New product"
+    "new": "New product",
+    "searchPlaceholder": "Search a product…",
+    "allCategories": "All categories",
+    "export": "Export",
+    "import": "Import",
+    "columns": {
+      "code": "Code",
+      "product": "Product",
+      "category": "Category",
+      "supplier": "Supplier",
+      "dlc": "Use-by",
+      "storage": "Storage"
+    },
+    "categories": {
+      "Viande": "Meat",
+      "Poisson": "Fish",
+      "Légume": "Vegetable",
+      "Fruit": "Fruit",
+      "Produit laitier": "Dairy",
+      "Épicerie": "Grocery",
+      "Boulangerie": "Bakery",
+      "Boisson": "Beverage",
+      "Autre": "Other"
+    },
+    "empty": {
+      "title": "No products",
+      "description": "Start by adding your products and raw materials to link them to controls and non-conformities.",
+      "action": "Create a product"
+    },
+    "pagination": {
+      "info": "Page {{page}} of {{lastPage}} — {{total}} product(s)"
+    },
+    "modal": {
+      "create": "New product",
+      "edit": "Edit — {{name}}"
+    },
+    "confirm": {
+      "delete": "Delete product \"{{name}}\"? This action is irreversible."
+    },
+    "toast": {
+      "deleteError": "Error deleting",
+      "importDone": "Import complete: {{ok}} row(s) imported",
+      "importDoneWithFail": "Import complete: {{ok}} row(s) imported, {{fail}} skipped",
+      "importReadError": "Error reading the file."
+    }
   },
   "equipments": {
     "title": "Equipment",
     "subtitle": "Equipment fleet and critical temperature ranges",
-    "new": "New equipment"
+    "new": "New equipment",
+    "searchPlaceholder": "Search equipment…",
+    "allTypes": "All types",
+    "export": "Export",
+    "import": "Import",
+    "notDefined": "Not defined",
+    "brand": "Brand",
+    "serialNumber": "S/N",
+    "types": {
+      "Réfrigérateur": "Refrigerator",
+      "Congélateur": "Freezer",
+      "Four": "Oven",
+      "Friteuse": "Deep fryer",
+      "Lave-vaisselle": "Dishwasher",
+      "Sonde": "Probe",
+      "Autre": "Other"
+    },
+    "detail": {
+      "code": "Code",
+      "name": "Name",
+      "type": "Type",
+      "brand": "Brand",
+      "serialNumber": "Serial no.",
+      "tempMin": "Min temp.",
+      "tempMax": "Max temp.",
+      "active": "Active",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "form": {
+      "code": "Code",
+      "codePlaceholder": "FRIDGE-01",
+      "name": "Name",
+      "namePlaceholder": "Positive cold room",
+      "type": "Type",
+      "typePlaceholder": "Refrigerator, Oven…",
+      "brand": "Brand",
+      "brandPlaceholder": "Liebherr, Rational…",
+      "serialNumber": "Serial no.",
+      "serialNumberPlaceholder": "SN-0000000",
+      "tempMin": "Min temp. (°C)",
+      "tempMinPlaceholder": "-2",
+      "tempMax": "Max temp. (°C)",
+      "tempMaxPlaceholder": "4"
+    },
+    "empty": {
+      "title": "No equipment",
+      "description": "Add your equipment to plan temperature readings and maintenance controls.",
+      "action": "Add equipment"
+    },
+    "modal": {
+      "create": "New equipment",
+      "edit": "Edit — {{name}}"
+    },
+    "confirm": {
+      "delete": "Delete equipment \"{{name}}\"? This action is irreversible."
+    },
+    "toast": {
+      "deleteError": "Error deleting",
+      "importDone": "Import complete: {{ok}} row(s) imported",
+      "importDoneWithFail": "Import complete: {{ok}} row(s) imported, {{fail}} skipped",
+      "importReadError": "Error reading the file."
+    },
+    "actions": {
+      "view": "View",
+      "edit": "Edit",
+      "delete": "Delete"
+    }
   },
   "suppliers": {
     "title": "Suppliers",
     "subtitle": "Supplier and partner registry",
-    "new": "New supplier"
+    "new": "New supplier",
+    "searchPlaceholder": "Search a supplier…",
+    "export": "Export",
+    "import": "Import",
+    "columns": {
+      "code": "Code",
+      "name": "Company name",
+      "contact": "Contact",
+      "vat": "VAT no.",
+      "products": "Products"
+    },
+    "form": {
+      "code": "Supplier code",
+      "codePlaceholder": "SUPP-01",
+      "codeRequired": "Code required",
+      "name": "Company name",
+      "namePlaceholder": "Martin Butchers",
+      "nameRequired": "Name required",
+      "vat": "VAT no.",
+      "vatPlaceholder": "GB123456789",
+      "phone": "Phone",
+      "phonePlaceholder": "+44 20 1234 5678",
+      "email": "Email",
+      "emailPlaceholder": "contact@supplier.com",
+      "address": "Address",
+      "addressPlaceholder": "12 Commerce Street, London"
+    },
+    "empty": {
+      "title": "No suppliers",
+      "description": "Add your suppliers to link them to products and reception controls.",
+      "action": "Add a supplier"
+    },
+    "pagination": {
+      "info": "Page {{page}} of {{lastPage}} — {{total}} supplier(s)"
+    },
+    "modal": {
+      "create": "New supplier",
+      "edit": "Edit — {{name}}"
+    },
+    "confirm": {
+      "delete": "Delete supplier \"{{name}}\"? This action is irreversible."
+    },
+    "toast": {
+      "deleteError": "Error deleting",
+      "importDone": "Import complete: {{ok}} row(s) imported",
+      "importDoneWithFail": "Import complete: {{ok}} row(s) imported, {{fail}} skipped",
+      "importReadError": "Error reading the file."
+    },
+    "productCount": "{{count}} product(s)"
   },
   "groups": {
     "title": "Groups",
     "subtitle": "Team organisation and access management",
     "new": "New group",
-    "addMember": "Add member"
+    "addMember": "Add member",
+    "searchPlaceholder": "Search a group…",
+    "memberCount_one": "{{count}} member",
+    "memberCount_other": "{{count}} members",
+    "deleteGroup": "Delete group",
+    "roles": {
+      "SUPER_ADMIN": "Super Admin",
+      "ADMIN": "Admin",
+      "MANAGER": "Manager",
+      "QUALITY_OFFICER": "Quality",
+      "OPERATOR": "Operator",
+      "VIEWER": "Viewer"
+    },
+    "addMemberModal": {
+      "description": "Add a user to the group <strong>{{name}}</strong>.",
+      "userLabel": "User",
+      "userPlaceholder": "— Select a user —",
+      "userRequired": "User required",
+      "addButton": "Add"
+    },
+    "createForm": {
+      "nameLabel": "Group name",
+      "namePlaceholder": "Kitchen team, Quality managers…",
+      "nameRequired": "Name required",
+      "submit": "Create group"
+    },
+    "empty": {
+      "title": "No groups",
+      "description": "Create groups to organise your teams and manage access by department or site.",
+      "action": "Create a group"
+    },
+    "modal": {
+      "addMember": "Add member",
+      "create": "New group"
+    },
+    "toast": {
+      "deleteError": "Error deleting"
+    }
   },
   "users": {
     "title": "Users",
@@ -552,6 +748,33 @@
     "newSite": "New site",
     "newZone": "New zone",
     "noSites": "No sites",
-    "noZones": "No zones"
+    "noZones": "No zones",
+    "siteCount": "{{count}} site(s) — {{zoneCount}} zone(s)",
+    "zoneCount": "{{count}} zone(s)",
+    "createSite": "Create a site",
+    "noSitesSub": "Create your production sites and add HACCP zones to monitor (reception, cold room, cooking area…).",
+    "noZonesSub": "No zones — click + to add one.",
+    "addZone": "Add a zone",
+    "deleteConfirmSite": "Delete site «{{name}}» and all its zones? This action is irreversible.",
+    "deleteConfirmZone": "Delete zone «{{name}}»?",
+    "form": {
+      "siteName": "Site name",
+      "siteNamePlaceholder": "Central kitchen, North Bakery…",
+      "address": "Address",
+      "addressPlaceholder": "12 Commerce St, 75001 Paris",
+      "zoneName": "Zone name",
+      "zoneNamePlaceholder": "Cold room, Cooking zone, Reception…",
+      "required": "Name is required"
+    },
+    "modal": {
+      "createSite": "New site",
+      "editSite": "Edit — {{name}}",
+      "createZone": "New zone — {{name}}",
+      "editZone": "Edit zone — {{name}}"
+    },
+    "toast": {
+      "siteDeleted": "Site deleted",
+      "zoneDeleted": "Zone deleted"
+    }
   }
 }

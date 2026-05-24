@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, ChevronDown, ChevronRight, Edit2, MapPin, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 
 import { Header } from '@/components/layout/Header';
 import { PageWrapper } from '@/components/layout/AppLayout';
@@ -46,26 +47,27 @@ interface SiteFormProps {
 }
 
 function SiteForm({ onSubmit, loading, defaultValues, onCancel }: SiteFormProps) {
+  const { t } = useTranslation();
   const { register, handleSubmit, formState: { errors } } = useForm<SiteFormValues>({
     defaultValues: { name: '', address: '', ...defaultValues },
   });
   return (
     <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4">
       <Input
-        label="Nom du site"
-        placeholder="Cuisine centrale, Boulangerie Nord…"
+        label={t('zones.form.siteName')}
+        placeholder={t('zones.form.siteNamePlaceholder')}
         required
         error={errors.name?.message}
-        {...register('name', { required: 'Nom obligatoire' })}
+        {...register('name', { required: t('zones.form.required') })}
       />
       <Input
-        label="Adresse"
-        placeholder="12 rue du Commerce, 75001 Paris"
+        label={t('zones.form.address')}
+        placeholder={t('zones.form.addressPlaceholder')}
         {...register('address')}
       />
       <div className="flex justify-end gap-3 border-t border-surface-muted pt-4">
-        <Button type="button" variant="secondary" onClick={onCancel}>Annuler</Button>
-        <Button type="submit" loading={loading}>Enregistrer</Button>
+        <Button type="button" variant="secondary" onClick={onCancel}>{t('common.cancel')}</Button>
+        <Button type="submit" loading={loading}>{t('common.save')}</Button>
       </div>
     </form>
   );
@@ -81,21 +83,22 @@ interface ZoneFormProps {
 }
 
 function ZoneForm({ onSubmit, loading, defaultValues, onCancel }: ZoneFormProps) {
+  const { t } = useTranslation();
   const { register, handleSubmit, formState: { errors } } = useForm<{ name: string }>({
     defaultValues: { name: '', ...defaultValues },
   });
   return (
     <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4">
       <Input
-        label="Nom de la zone"
-        placeholder="Chambre froide, Zone cuisson, Réception…"
+        label={t('zones.form.zoneName')}
+        placeholder={t('zones.form.zoneNamePlaceholder')}
         required
         error={errors.name?.message}
-        {...register('name', { required: 'Nom obligatoire' })}
+        {...register('name', { required: t('zones.form.required') })}
       />
       <div className="flex justify-end gap-3 border-t border-surface-muted pt-4">
-        <Button type="button" variant="secondary" onClick={onCancel}>Annuler</Button>
-        <Button type="submit" loading={loading}>Enregistrer</Button>
+        <Button type="button" variant="secondary" onClick={onCancel}>{t('common.cancel')}</Button>
+        <Button type="submit" loading={loading}>{t('common.save')}</Button>
       </div>
     </form>
   );
@@ -113,6 +116,7 @@ type ModalState =
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ZonesPage() {
+  const { t } = useTranslation();
   const [modal, setModal]       = useState<ModalState>({ kind: 'none' });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [apiError, setApiError] = useState<string | null>(null);
@@ -156,7 +160,7 @@ export default function ZonesPage() {
 
   const deleteSiteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/sites/${id}`),
-    onSuccess:  () => { refresh(); showToast({ title: 'Site supprimé', variant: 'success' }); },
+    onSuccess:  () => { refresh(); showToast({ title: t('zones.toast.siteDeleted'), variant: 'success' }); },
     onError:    (e) => showToast({ title: extractApiMessage(e), variant: 'error' }),
   });
 
@@ -179,45 +183,47 @@ export default function ZonesPage() {
   const deleteZoneMutation = useMutation({
     mutationFn: ({ siteId, zoneId }: { siteId: string; zoneId: string }) =>
       api.delete(`/api/v1/sites/${siteId}/zones/${zoneId}`),
-    onSuccess:  () => { refresh(); showToast({ title: 'Zone supprimée', variant: 'success' }); },
+    onSuccess:  () => { refresh(); showToast({ title: t('zones.toast.zoneDeleted'), variant: 'success' }); },
     onError:    (e) => showToast({ title: extractApiMessage(e), variant: 'error' }),
   });
 
   // ── Modal title ─────────────────────────────────────────────────────────────
 
   const modalTitle =
-    modal.kind === 'createSite' ? 'Nouveau site'
-    : modal.kind === 'editSite'   ? `Modifier — ${modal.site.name}`
-    : modal.kind === 'createZone' ? `Nouvelle zone — ${modal.site.name}`
-    : modal.kind === 'editZone'   ? `Modifier la zone — ${modal.zone.name}`
+    modal.kind === 'createSite' ? t('zones.modal.createSite')
+    : modal.kind === 'editSite'   ? t('zones.modal.editSite',   { name: modal.site.name })
+    : modal.kind === 'createZone' ? t('zones.modal.createZone', { name: modal.site.name })
+    : modal.kind === 'editZone'   ? t('zones.modal.editZone',   { name: modal.zone.name })
     : '';
+
+  const totalZones = sites.reduce((n, s) => n + s.zones.length, 0);
 
   return (
     <>
       <Header
-        title="Sites & Zones"
-        subtitle="Gérez vos établissements et leurs zones HACCP"
+        title={t('zones.title')}
+        subtitle={t('zones.subtitle')}
       />
       <PageWrapper>
         {/* Toolbar */}
         <div className="mb-4 flex items-center justify-between">
           <p className="text-sm text-gray-500">
-            {sites.length} site(s) — {sites.reduce((n, s) => n + s.zones.length, 0)} zone(s)
+            {t('zones.siteCount', { count: sites.length, zoneCount: totalZones })}
           </p>
           <Button size="sm" onClick={() => setModal({ kind: 'createSite' })}>
-            <Building2 className="h-4 w-4" /> Nouveau site
+            <Building2 className="h-4 w-4" /> {t('zones.newSite')}
           </Button>
         </div>
 
         {/* Content */}
         {isLoading ? (
-          <div className="py-20 text-center text-sm text-gray-400">Chargement…</div>
+          <div className="py-20 text-center text-sm text-gray-400">{t('common.loading')}</div>
         ) : sites.length === 0 ? (
           <EmptyState
             icon={Building2}
-            title="Aucun site"
-            description="Créez vos sites de production puis ajoutez les zones HACCP à contrôler (réception, chambre froide, zone cuisson…)."
-            actionLabel="Créer un site"
+            title={t('zones.noSites')}
+            description={t('zones.noSitesSub')}
+            actionLabel={t('zones.createSite')}
             onAction={() => setModal({ kind: 'createSite' })}
           />
         ) : (
@@ -246,7 +252,7 @@ export default function ZonesPage() {
                         )}
                       </div>
                       <span className="shrink-0 rounded-full border border-surface-muted bg-surface-page px-2 py-0.5 text-xs text-gray-500">
-                        {site.zones.length} zone(s)
+                        {t('zones.zoneCount', { count: site.zones.length })}
                       </span>
                       {isOpen
                         ? <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
@@ -257,24 +263,24 @@ export default function ZonesPage() {
                     {/* Site actions */}
                     <div className="flex shrink-0 items-center gap-1 border-l border-surface-muted pl-3">
                       <button
-                        title="Modifier le site"
+                        title={t('common.edit')}
                         onClick={() => setModal({ kind: 'editSite', site })}
                         className="rounded-md p-1.5 text-gray-400 hover:bg-brand-lighter hover:text-brand-dark transition-colors"
                       >
                         <Edit2 className="h-4 w-4" />
                       </button>
                       <button
-                        title="Ajouter une zone"
+                        title={t('zones.addZone')}
                         onClick={() => { setExpanded((p) => new Set(p).add(site.id)); setModal({ kind: 'createZone', site }); }}
                         className="rounded-md p-1.5 text-gray-400 hover:bg-brand-lighter hover:text-brand-dark transition-colors"
                       >
                         <Plus className="h-4 w-4" />
                       </button>
                       <button
-                        title="Supprimer le site"
+                        title={t('common.delete')}
                         disabled={deleteSiteMutation.isPending}
                         onClick={() => {
-                          if (!window.confirm(`Supprimer le site « ${site.name} » et toutes ses zones ? Cette action est irréversible.`)) return;
+                          if (!window.confirm(t('zones.deleteConfirmSite', { name: site.name }))) return;
                           deleteSiteMutation.mutate(site.id);
                         }}
                         className="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40"
@@ -289,7 +295,7 @@ export default function ZonesPage() {
                     <div className="border-t border-surface-muted divide-y divide-surface-muted bg-surface-page">
                       {site.zones.length === 0 ? (
                         <div className="px-6 py-4 text-sm text-gray-400 italic">
-                          Aucune zone — cliquez sur <strong>+</strong> pour en ajouter une.
+                          {t('zones.noZonesSub')}
                         </div>
                       ) : (
                         site.zones.map((zone) => (
@@ -297,17 +303,17 @@ export default function ZonesPage() {
                             <MapPin className="h-3.5 w-3.5 shrink-0 text-brand-medium" />
                             <span className="flex-1 text-sm text-gray-700">{zone.name}</span>
                             <button
-                              title="Modifier la zone"
+                              title={t('common.edit')}
                               onClick={() => setModal({ kind: 'editZone', site, zone })}
                               className="rounded p-1 text-gray-400 hover:text-brand-dark transition-colors"
                             >
                               <Edit2 className="h-3.5 w-3.5" />
                             </button>
                             <button
-                              title="Supprimer la zone"
+                              title={t('common.delete')}
                               disabled={deleteZoneMutation.isPending}
                               onClick={() => {
-                                if (!window.confirm(`Supprimer la zone « ${zone.name} » ?`)) return;
+                                if (!window.confirm(t('zones.deleteConfirmZone', { name: zone.name }))) return;
                                 deleteZoneMutation.mutate({ siteId: site.id, zoneId: zone.id });
                               }}
                               className="rounded p-1 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-40"
@@ -323,7 +329,7 @@ export default function ZonesPage() {
                           onClick={() => setModal({ kind: 'createZone', site })}
                           className="flex items-center gap-1.5 text-xs text-brand-medium hover:underline"
                         >
-                          <Plus className="h-3.5 w-3.5" /> Ajouter une zone
+                          <Plus className="h-3.5 w-3.5" /> {t('zones.addZone')}
                         </button>
                       </div>
                     </div>

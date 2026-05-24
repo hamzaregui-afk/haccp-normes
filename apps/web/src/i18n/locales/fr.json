@@ -748,6 +748,33 @@
     "newSite": "Nouveau site",
     "newZone": "Nouvelle zone",
     "noSites": "Aucun site",
-    "noZones": "Aucune zone"
+    "noZones": "Aucune zone",
+    "siteCount": "{{count}} site(s) — {{zoneCount}} zone(s)",
+    "zoneCount": "{{count}} zone(s)",
+    "createSite": "Créer un site",
+    "noSitesSub": "Créez vos sites de production puis ajoutez les zones HACCP à contrôler (réception, chambre froide, zone cuisson…).",
+    "noZonesSub": "Aucune zone — cliquez sur + pour en ajouter une.",
+    "addZone": "Ajouter une zone",
+    "deleteConfirmSite": "Supprimer le site « {{name}} » et toutes ses zones ? Cette action est irréversible.",
+    "deleteConfirmZone": "Supprimer la zone « {{name}} » ?",
+    "form": {
+      "siteName": "Nom du site",
+      "siteNamePlaceholder": "Cuisine centrale, Boulangerie Nord…",
+      "address": "Adresse",
+      "addressPlaceholder": "12 rue du Commerce, 75001 Paris",
+      "zoneName": "Nom de la zone",
+      "zoneNamePlaceholder": "Chambre froide, Zone cuisson, Réception…",
+      "required": "Nom obligatoire"
+    },
+    "modal": {
+      "createSite": "Nouveau site",
+      "editSite": "Modifier — {{name}}",
+      "createZone": "Nouvelle zone — {{name}}",
+      "editZone": "Modifier la zone — {{name}}"
+    },
+    "toast": {
+      "siteDeleted": "Site supprimé",
+      "zoneDeleted": "Zone supprimée"
+    }
   }
 }

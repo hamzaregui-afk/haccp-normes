@@ -410,23 +410,219 @@
   "products": {
     "title": "المنتجات",
     "subtitle": "كتالوج المنتجات والمواد الأولية",
-    "new": "منتج جديد"
+    "new": "منتج جديد",
+    "searchPlaceholder": "البحث عن منتج…",
+    "allCategories": "جميع الفئات",
+    "export": "تصدير",
+    "import": "استيراد",
+    "columns": {
+      "code": "الرمز",
+      "product": "المنتج",
+      "category": "الفئة",
+      "supplier": "المورد",
+      "dlc": "تاريخ الصلاحية",
+      "storage": "التخزين"
+    },
+    "categories": {
+      "Viande": "لحوم",
+      "Poisson": "أسماك",
+      "Légume": "خضروات",
+      "Fruit": "فواكه",
+      "Produit laitier": "منتجات الألبان",
+      "Épicerie": "بقالة",
+      "Boulangerie": "مخبوزات",
+      "Boisson": "مشروبات",
+      "Autre": "أخرى"
+    },
+    "empty": {
+      "title": "لا توجد منتجات",
+      "description": "ابدأ بإضافة منتجاتك ومواداتك الأولية لربطها بالمراقبة وحالات عدم المطابقة.",
+      "action": "إنشاء منتج"
+    },
+    "pagination": {
+      "info": "صفحة {{page}} من {{lastPage}} — {{total}} منتج"
+    },
+    "modal": {
+      "create": "منتج جديد",
+      "edit": "تعديل — {{name}}"
+    },
+    "confirm": {
+      "delete": "حذف المنتج «{{name}}»؟ هذا الإجراء لا يمكن التراجع عنه."
+    },
+    "toast": {
+      "deleteError": "خطأ في الحذف",
+      "importDone": "اكتمل الاستيراد: {{ok}} صف(وف) مستوردة",
+      "importDoneWithFail": "اكتمل الاستيراد: {{ok}} صف(وف) مستوردة، {{fail}} مُتجاهَلة",
+      "importReadError": "خطأ في قراءة الملف."
+    }
   },
   "equipments": {
     "title": "المعدات",
     "subtitle": "أسطول المعدات ونطاقات درجات الحرارة الحرجة",
-    "new": "معدة جديدة"
+    "new": "معدة جديدة",
+    "searchPlaceholder": "البحث عن معدة…",
+    "allTypes": "جميع الأنواع",
+    "export": "تصدير",
+    "import": "استيراد",
+    "notDefined": "غير محدد",
+    "brand": "العلامة",
+    "serialNumber": "الرقم التسلسلي",
+    "types": {
+      "Réfrigérateur": "ثلاجة",
+      "Congélateur": "مجمّد",
+      "Four": "فرن",
+      "Friteuse": "قلاية",
+      "Lave-vaisselle": "غسالة صحون",
+      "Sonde": "مسبار",
+      "Autre": "أخرى"
+    },
+    "detail": {
+      "code": "الرمز",
+      "name": "الاسم",
+      "type": "النوع",
+      "brand": "العلامة",
+      "serialNumber": "الرقم التسلسلي",
+      "tempMin": "الحرارة الدنيا",
+      "tempMax": "الحرارة القصوى",
+      "active": "نشط",
+      "yes": "نعم",
+      "no": "لا"
+    },
+    "form": {
+      "code": "الرمز",
+      "codePlaceholder": "FRIGO-01",
+      "name": "الاسم",
+      "namePlaceholder": "غرفة تبريد موجبة",
+      "type": "النوع",
+      "typePlaceholder": "ثلاجة، فرن…",
+      "brand": "العلامة التجارية",
+      "brandPlaceholder": "Liebherr، Rational…",
+      "serialNumber": "الرقم التسلسلي",
+      "serialNumberPlaceholder": "SN-0000000",
+      "tempMin": "الحرارة الدنيا (°م)",
+      "tempMinPlaceholder": "-2",
+      "tempMax": "الحرارة القصوى (°م)",
+      "tempMaxPlaceholder": "4"
+    },
+    "empty": {
+      "title": "لا توجد معدات",
+      "description": "أضف معداتك لتخطيط قراءات الحرارة وضوابط الصيانة.",
+      "action": "إضافة معدة"
+    },
+    "modal": {
+      "create": "معدة جديدة",
+      "edit": "تعديل — {{name}}"
+    },
+    "confirm": {
+      "delete": "حذف المعدة «{{name}}»؟ هذا الإجراء لا يمكن التراجع عنه."
+    },
+    "toast": {
+      "deleteError": "خطأ في الحذف",
+      "importDone": "اكتمل الاستيراد: {{ok}} صف(وف) مستوردة",
+      "importDoneWithFail": "اكتمل الاستيراد: {{ok}} صف(وف) مستوردة، {{fail}} مُتجاهَلة",
+      "importReadError": "خطأ في قراءة الملف."
+    },
+    "actions": {
+      "view": "عرض",
+      "edit": "تعديل",
+      "delete": "حذف"
+    }
   },
   "suppliers": {
     "title": "الموردون",
     "subtitle": "سجل الموردين والشركاء",
-    "new": "مورد جديد"
+    "new": "مورد جديد",
+    "searchPlaceholder": "البحث عن مورد…",
+    "export": "تصدير",
+    "import": "استيراد",
+    "columns": {
+      "code": "الرمز",
+      "name": "الاسم التجاري",
+      "contact": "التواصل",
+      "vat": "رقم الضريبة",
+      "products": "المنتجات"
+    },
+    "form": {
+      "code": "رمز المورد",
+      "codePlaceholder": "FOUR-01",
+      "codeRequired": "الرمز مطلوب",
+      "name": "الاسم التجاري",
+      "namePlaceholder": "مجزرة مارتان",
+      "nameRequired": "الاسم مطلوب",
+      "vat": "رقم الضريبة",
+      "vatPlaceholder": "FR12345678901",
+      "phone": "الهاتف",
+      "phonePlaceholder": "+33 1 23 45 67 89",
+      "email": "البريد الإلكتروني",
+      "emailPlaceholder": "contact@fournisseur.fr",
+      "address": "العنوان",
+      "addressPlaceholder": "12 شارع التجارة، باريس"
+    },
+    "empty": {
+      "title": "لا يوجد موردون",
+      "description": "أضف الموردين لربطهم بالمنتجات وضوابط الاستلام.",
+      "action": "إضافة مورد"
+    },
+    "pagination": {
+      "info": "صفحة {{page}} من {{lastPage}} — {{total}} مورد"
+    },
+    "modal": {
+      "create": "مورد جديد",
+      "edit": "تعديل — {{name}}"
+    },
+    "confirm": {
+      "delete": "حذف المورد «{{name}}»؟ هذا الإجراء لا يمكن التراجع عنه."
+    },
+    "toast": {
+      "deleteError": "خطأ في الحذف",
+      "importDone": "اكتمل الاستيراد: {{ok}} صف(وف) مستوردة",
+      "importDoneWithFail": "اكتمل الاستيراد: {{ok}} صف(وف) مستوردة، {{fail}} مُتجاهَلة",
+      "importReadError": "خطأ في قراءة الملف."
+    },
+    "productCount": "{{count}} منتج"
   },
   "groups": {
     "title": "المجموعات",
     "subtitle": "تنظيم الفرق وإدارة الصلاحيات",
     "new": "مجموعة جديدة",
-    "addMember": "إضافة عضو"
+    "addMember": "إضافة عضو",
+    "searchPlaceholder": "البحث عن مجموعة…",
+    "memberCount_one": "{{count}} عضو",
+    "memberCount_other": "{{count}} أعضاء",
+    "deleteGroup": "حذف المجموعة",
+    "roles": {
+      "SUPER_ADMIN": "مدير النظام",
+      "ADMIN": "مدير",
+      "MANAGER": "مشرف",
+      "QUALITY_OFFICER": "ضابط جودة",
+      "OPERATOR": "مشغّل",
+      "VIEWER": "مشاهد"
+    },
+    "addMemberModal": {
+      "description": "إضافة مستخدم إلى المجموعة <strong>{{name}}</strong>.",
+      "userLabel": "المستخدم",
+      "userPlaceholder": "— اختر مستخدماً —",
+      "userRequired": "المستخدم مطلوب",
+      "addButton": "إضافة"
+    },
+    "createForm": {
+      "nameLabel": "اسم المجموعة",
+      "namePlaceholder": "فريق المطبخ، مسؤولو الجودة…",
+      "nameRequired": "الاسم مطلوب",
+      "submit": "إنشاء المجموعة"
+    },
+    "empty": {
+      "title": "لا توجد مجموعات",
+      "description": "أنشئ مجموعات لتنظيم فرقك وإدارة الصلاحيات حسب القسم أو الموقع.",
+      "action": "إنشاء مجموعة"
+    },
+    "modal": {
+      "addMember": "إضافة عضو",
+      "create": "مجموعة جديدة"
+    },
+    "toast": {
+      "deleteError": "خطأ في الحذف"
+    }
   },
   "users": {
     "title": "المستخدمون",
@@ -552,6 +748,33 @@
     "newSite": "موقع جديد",
     "newZone": "منطقة جديدة",
     "noSites": "لا توجد مواقع",
-    "noZones": "لا توجد مناطق"
+    "noZones": "لا توجد مناطق",
+    "siteCount": "{{count}} موقع — {{zoneCount}} منطقة",
+    "zoneCount": "{{count}} منطقة",
+    "createSite": "إنشاء موقع",
+    "noSitesSub": "أنشئ مواقع الإنتاج وأضف مناطق HACCP للمراقبة (استقبال، غرفة تبريد، منطقة طهي…).",
+    "noZonesSub": "لا توجد مناطق — انقر على + لإضافة منطقة.",
+    "addZone": "إضافة منطقة",
+    "deleteConfirmSite": "حذف الموقع «{{name}}» وجميع مناطقه؟ هذا الإجراء لا يمكن التراجع عنه.",
+    "deleteConfirmZone": "حذف المنطقة «{{name}}»؟",
+    "form": {
+      "siteName": "اسم الموقع",
+      "siteNamePlaceholder": "المطبخ المركزي، المخبز الشمالي…",
+      "address": "العنوان",
+      "addressPlaceholder": "12 شارع التجارة، 75001 باريس",
+      "zoneName": "اسم المنطقة",
+      "zoneNamePlaceholder": "غرفة التبريد، منطقة الطهي، الاستقبال…",
+      "required": "الاسم مطلوب"
+    },
+    "modal": {
+      "createSite": "موقع جديد",
+      "editSite": "تعديل — {{name}}",
+      "createZone": "منطقة جديدة — {{name}}",
+      "editZone": "تعديل المنطقة — {{name}}"
+    },
+    "toast": {
+      "siteDeleted": "تم حذف الموقع",
+      "zoneDeleted": "تم حذف المنطقة"
+    }
   }
 }
