@@ -376,9 +376,12 @@
     "save": "Save",
     "saveSuccess": "Settings saved successfully.",
     "saveError": "An error occurred while saving. Please try again.",
+    "passwordSuccess": "Password changed successfully.",
     "loading": "Loading…",
     "validation": {
-      "required": "Required field"
+      "required": "Required field",
+      "passwordMin": "Minimum 8 characters",
+      "confirmMatch": "Passwords do not match"
     }
   },
   "clients": {

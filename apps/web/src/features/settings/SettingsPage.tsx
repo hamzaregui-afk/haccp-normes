@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 
 import { PageWrapper } from '@/components/layout/AppLayout';
 import { Header } from '@/components/layout/Header';
@@ -16,6 +17,7 @@ import { useTenantId } from '@/hooks/useTenantId';
 interface PwdForm { password: string; confirm: string; }
 
 function ChangePasswordModal({ userId, onClose }: { userId: string; onClose: () => void }) {
+  const { t } = useTranslation();
   const { register, handleSubmit, watch, formState: { errors } } = useForm<PwdForm>();
   const pwd = watch('password', '');
 
@@ -26,17 +28,17 @@ function ChangePasswordModal({ userId, onClose }: { userId: string; onClose: () 
   });
 
   return (
-    <Modal open title="Changer le mot de passe" onClose={onClose}>
+    <Modal open title={t('settings.security.changePassword')} onClose={onClose}>
       <form
         onSubmit={handleSubmit((v) => mutation.mutate({ password: v.password }))}
         className="flex flex-col gap-4"
       >
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-gray-700">Nouveau mot de passe</label>
+          <label className="text-sm font-medium text-gray-700">{t('users.passwordModal.newPassword')}</label>
           <input
             {...register('password', {
-              required: 'Obligatoire',
-              minLength: { value: 8, message: '8 caractères minimum' },
+              required: t('settings.validation.required'),
+              minLength: { value: 8, message: t('settings.validation.passwordMin') },
             })}
             type="password"
             className="h-9 w-full rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
@@ -44,11 +46,11 @@ function ChangePasswordModal({ userId, onClose }: { userId: string; onClose: () 
           {errors.password && <p className="text-xs text-red-600">{errors.password.message}</p>}
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-gray-700">Confirmer le mot de passe</label>
+          <label className="text-sm font-medium text-gray-700">{t('users.passwordModal.confirmPassword')}</label>
           <input
             {...register('confirm', {
-              required: 'Obligatoire',
-              validate: (v) => v === pwd || 'Les mots de passe ne correspondent pas',
+              required: t('settings.validation.required'),
+              validate: (v) => v === pwd || t('settings.validation.confirmMatch'),
             })}
             type="password"
             className="h-9 w-full rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
@@ -56,11 +58,11 @@ function ChangePasswordModal({ userId, onClose }: { userId: string; onClose: () 
           {errors.confirm && <p className="text-xs text-red-600">{errors.confirm.message}</p>}
         </div>
         {mutation.isError && (
-          <p className="text-sm text-red-600">Une erreur est survenue. Veuillez réessayer.</p>
+          <p className="text-sm text-red-600">{t('common.error')}</p>
         )}
         <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Annuler</Button>
-          <Button type="submit" loading={mutation.isPending}>Enregistrer</Button>
+          <Button type="button" variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button type="submit" loading={mutation.isPending}>{t('common.save')}</Button>
         </div>
       </form>
     </Modal>
@@ -83,16 +85,6 @@ interface ApiResponse<T> {
   data: T;
   message?: string;
 }
-
-// ─── Sector options ───────────────────────────────────────────────────────────
-
-const SECTOR_OPTIONS = [
-  { value: 'RESTAURATION',         label: 'Restauration' },
-  { value: 'INDUSTRIE_ALIMENTAIRE', label: 'Industrie alimentaire' },
-  { value: 'GRANDE_DISTRIBUTION',  label: 'Grande distribution' },
-  { value: 'TRAITEUR',             label: 'Traiteur' },
-  { value: 'AUTRE',                label: 'Autre' },
-] as const;
 
 // ─── Toggle component ─────────────────────────────────────────────────────────
 
@@ -151,6 +143,7 @@ function SectionCard({ title, children }: SectionCardProps) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
+  const { t } = useTranslation();
   const currentUser = useAuthStore((s) => s.user);
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
   const [showPwdModal, setShowPwdModal] = useState(false);
@@ -184,7 +177,7 @@ export default function SettingsPage() {
   const updateMutation = useMutation({
     mutationFn: (body: TenantSettings) => api.patch('/api/v1/tenants/me', body),
     onSuccess: () => {
-      setToast('Paramètres enregistrés avec succès.');
+      setToast(t('settings.saveSuccess'));
       setTimeout(() => setToast(null), 3500);
     },
   });
@@ -198,28 +191,37 @@ export default function SettingsPage() {
     });
   }
 
+  // Sector options — built at render time so t() is available
+  const sectorOptions = [
+    { value: 'RESTAURATION',          label: t('settings.sectors.RESTAURATION') },
+    { value: 'INDUSTRIE_ALIMENTAIRE', label: t('settings.sectors.INDUSTRIE_ALIMENTAIRE') },
+    { value: 'GRANDE_DISTRIBUTION',   label: t('settings.sectors.GRANDE_DISTRIBUTION') },
+    { value: 'TRAITEUR',              label: t('settings.sectors.TRAITEUR') },
+    { value: 'AUTRE',                 label: t('settings.sectors.AUTRE') },
+  ];
+
   return (
     <>
-      <Header title="Paramètres" subtitle="Configuration de l'établissement" />
+      <Header title={t('settings.title')} subtitle={t('settings.subtitle')} />
 
       <PageWrapper>
         {isLoading ? (
-          <div className="py-20 text-center text-sm text-gray-400">Chargement…</div>
+          <div className="py-20 text-center text-sm text-gray-400">{t('settings.loading')}</div>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 max-w-2xl">
 
             {/* ── Section 1: Establishment info ─────────────────────────────── */}
-            <SectionCard title="Informations de l'établissement">
+            <SectionCard title={t('settings.sections.info')}>
               <div className="flex flex-col gap-4">
                 {/* Name */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium text-gray-700">
-                    Nom de l'établissement <span className="text-red-500">*</span>
+                    {t('settings.fields.name')} <span className="text-red-500">*</span>
                   </label>
                   <input
-                    {...register('name', { required: 'Champ obligatoire' })}
+                    {...register('name', { required: t('settings.validation.required') })}
                     type="text"
-                    placeholder="Boulangerie Dupont"
+                    placeholder={t('settings.fields.namePlaceholder')}
                     className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-medium"
                   />
                   {errors.name && (
@@ -229,35 +231,35 @@ export default function SettingsPage() {
 
                 {/* SIRET */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-gray-700">Numéro SIRET</label>
+                  <label className="text-sm font-medium text-gray-700">{t('settings.fields.siret')}</label>
                   <input
                     {...register('siret')}
                     type="text"
-                    placeholder="123 456 789 00012"
+                    placeholder={t('settings.fields.siretPlaceholder')}
                     className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-medium"
                   />
                 </div>
 
                 {/* Address */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-gray-700">Adresse</label>
+                  <label className="text-sm font-medium text-gray-700">{t('settings.fields.address')}</label>
                   <textarea
                     {...register('address')}
                     rows={3}
-                    placeholder="12 rue des Boulangers, 75001 Paris"
+                    placeholder={t('settings.fields.addressPlaceholder')}
                     className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-medium resize-none"
                   />
                 </div>
 
                 {/* Sector */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-gray-700">Secteur d'activité</label>
+                  <label className="text-sm font-medium text-gray-700">{t('settings.fields.sector')}</label>
                   <select
                     {...register('sector')}
                     className="h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-medium"
                   >
-                    <option value="">-- Sélectionner --</option>
-                    {SECTOR_OPTIONS.map((o) => (
+                    <option value="">{t('settings.fields.sectorPlaceholder')}</option>
+                    {sectorOptions.map((o) => (
                       <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
                   </select>
@@ -266,18 +268,18 @@ export default function SettingsPage() {
             </SectionCard>
 
             {/* ── Section 2: Security ───────────────────────────────────────── */}
-            <SectionCard title="Sécurité">
+            <SectionCard title={t('settings.sections.security')}>
               <div className="flex flex-col gap-4">
                 {/* JWT info box */}
                 <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-                  Les tokens expirent après <strong>24h</strong>. Les utilisateurs sont automatiquement déconnectés à l'expiration.
+                  {t('settings.security.jwtInfo')}
                 </div>
 
                 {/* Change password */}
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-700">Mot de passe</p>
-                    <p className="text-xs text-gray-500">Modifier le mot de passe du compte administrateur</p>
+                    <p className="text-sm font-medium text-gray-700">{t('settings.security.passwordLabel')}</p>
+                    <p className="text-xs text-gray-500">{t('settings.security.passwordSub')}</p>
                   </div>
                   <Button
                     type="button"
@@ -285,30 +287,30 @@ export default function SettingsPage() {
                     size="sm"
                     onClick={() => setShowPwdModal(true)}
                   >
-                    Changer le mot de passe
+                    {t('settings.security.changePassword')}
                   </Button>
                 </div>
               </div>
             </SectionCard>
 
             {/* ── Section 3: Notifications ──────────────────────────────────── */}
-            <SectionCard title="Notifications">
+            <SectionCard title={t('settings.sections.notifications')}>
               <div className="divide-y divide-gray-100">
                 <Toggle
                   id="notifyNc"
-                  label="Nouvelles non-conformités par email"
+                  label={t('settings.notifications.newNc')}
                   checked={notifyNc}
                   onChange={setNotifyNc}
                 />
                 <Toggle
                   id="notifyReports"
-                  label="Rapports validés par email"
+                  label={t('settings.notifications.validatedReports')}
                   checked={notifyReports}
                   onChange={setNotifyReports}
                 />
                 <Toggle
                   id="notifyDlc"
-                  label="Alertes DLC critiques"
+                  label={t('settings.notifications.criticalDlc')}
                   checked={notifyDlc}
                   onChange={setNotifyDlc}
                 />
@@ -317,15 +319,13 @@ export default function SettingsPage() {
 
             {/* ── Error ─────────────────────────────────────────────────────── */}
             {updateMutation.isError && (
-              <p className="text-sm text-red-600">
-                Une erreur est survenue lors de l'enregistrement. Veuillez réessayer.
-              </p>
+              <p className="text-sm text-red-600">{t('settings.saveError')}</p>
             )}
 
             {/* ── Save button ───────────────────────────────────────────────── */}
             <div className="flex justify-end">
               <Button type="submit" size="md" loading={updateMutation.isPending}>
-                Enregistrer
+                {t('settings.save')}
               </Button>
             </div>
           </form>
@@ -338,7 +338,7 @@ export default function SettingsPage() {
           userId={currentUser.sub}
           onClose={() => {
             setShowPwdModal(false);
-            setToast('Mot de passe modifié avec succès.');
+            setToast(t('settings.passwordSuccess'));
             setTimeout(() => setToast(null), 3500);
           }}
         />

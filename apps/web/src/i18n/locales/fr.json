@@ -376,9 +376,12 @@
     "save": "Enregistrer",
     "saveSuccess": "Paramètres enregistrés avec succès.",
     "saveError": "Une erreur est survenue lors de l'enregistrement. Veuillez réessayer.",
+    "passwordSuccess": "Mot de passe modifié avec succès.",
     "loading": "Chargement…",
     "validation": {
-      "required": "Champ obligatoire"
+      "required": "Champ obligatoire",
+      "passwordMin": "8 caractères minimum",
+      "confirmMatch": "Les mots de passe ne correspondent pas"
     }
   },
   "clients": {
@@ -407,23 +410,219 @@
   "products": {
     "title": "Produits",
     "subtitle": "Catalogue des produits et matières premières",
-    "new": "Nouveau produit"
+    "new": "Nouveau produit",
+    "searchPlaceholder": "Rechercher un produit…",
+    "allCategories": "Toutes les catégories",
+    "export": "Exporter",
+    "import": "Importer",
+    "columns": {
+      "code": "Code",
+      "product": "Produit",
+      "category": "Catégorie",
+      "supplier": "Fournisseur",
+      "dlc": "DLC",
+      "storage": "Stockage"
+    },
+    "categories": {
+      "Viande": "Viande",
+      "Poisson": "Poisson",
+      "Légume": "Légume",
+      "Fruit": "Fruit",
+      "Produit laitier": "Produit laitier",
+      "Épicerie": "Épicerie",
+      "Boulangerie": "Boulangerie",
+      "Boisson": "Boisson",
+      "Autre": "Autre"
+    },
+    "empty": {
+      "title": "Aucun produit",
+      "description": "Commencez par ajouter vos produits et matières premières pour les associer à vos contrôles et non-conformités.",
+      "action": "Créer un produit"
+    },
+    "pagination": {
+      "info": "Page {{page}} sur {{lastPage}} — {{total}} produit(s)"
+    },
+    "modal": {
+      "create": "Nouveau produit",
+      "edit": "Modifier — {{name}}"
+    },
+    "confirm": {
+      "delete": "Supprimer le produit « {{name}} » ? Cette action est irréversible."
+    },
+    "toast": {
+      "deleteError": "Erreur lors de la suppression",
+      "importDone": "Import terminé : {{ok}} ligne(s) importée(s)",
+      "importDoneWithFail": "Import terminé : {{ok}} ligne(s) importée(s), {{fail}} ignorée(s)",
+      "importReadError": "Erreur lors de la lecture du fichier."
+    }
   },
   "equipments": {
     "title": "Équipements",
     "subtitle": "Parc matériel et plages de température critiques",
-    "new": "Nouvel équipement"
+    "new": "Nouvel équipement",
+    "searchPlaceholder": "Rechercher un équipement…",
+    "allTypes": "Tous les types",
+    "export": "Exporter",
+    "import": "Importer",
+    "notDefined": "Non défini",
+    "brand": "Marque",
+    "serialNumber": "S/N",
+    "types": {
+      "Réfrigérateur": "Réfrigérateur",
+      "Congélateur": "Congélateur",
+      "Four": "Four",
+      "Friteuse": "Friteuse",
+      "Lave-vaisselle": "Lave-vaisselle",
+      "Sonde": "Sonde",
+      "Autre": "Autre"
+    },
+    "detail": {
+      "code": "Code",
+      "name": "Nom",
+      "type": "Type",
+      "brand": "Marque",
+      "serialNumber": "N° de série",
+      "tempMin": "Temp. min",
+      "tempMax": "Temp. max",
+      "active": "Actif",
+      "yes": "Oui",
+      "no": "Non"
+    },
+    "form": {
+      "code": "Code",
+      "codePlaceholder": "FRIGO-01",
+      "name": "Nom",
+      "namePlaceholder": "Chambre froide positive",
+      "type": "Type",
+      "typePlaceholder": "Réfrigérateur, Four…",
+      "brand": "Marque",
+      "brandPlaceholder": "Liebherr, Rational…",
+      "serialNumber": "N° de série",
+      "serialNumberPlaceholder": "SN-0000000",
+      "tempMin": "Temp. min (°C)",
+      "tempMinPlaceholder": "-2",
+      "tempMax": "Temp. max (°C)",
+      "tempMaxPlaceholder": "4"
+    },
+    "empty": {
+      "title": "Aucun équipement",
+      "description": "Ajoutez vos équipements pour planifier les relevés de température et les contrôles de maintenance.",
+      "action": "Ajouter un équipement"
+    },
+    "modal": {
+      "create": "Nouvel équipement",
+      "edit": "Modifier — {{name}}"
+    },
+    "confirm": {
+      "delete": "Supprimer l'équipement « {{name}} » ? Cette action est irréversible."
+    },
+    "toast": {
+      "deleteError": "Erreur lors de la suppression",
+      "importDone": "Import terminé : {{ok}} ligne(s) importée(s)",
+      "importDoneWithFail": "Import terminé : {{ok}} ligne(s) importée(s), {{fail}} ignorée(s)",
+      "importReadError": "Erreur lors de la lecture du fichier."
+    },
+    "actions": {
+      "view": "Voir",
+      "edit": "Modifier",
+      "delete": "Supprimer"
+    }
   },
   "suppliers": {
     "title": "Fournisseurs",
     "subtitle": "Référentiel des fournisseurs et partenaires",
-    "new": "Nouveau fournisseur"
+    "new": "Nouveau fournisseur",
+    "searchPlaceholder": "Rechercher un fournisseur…",
+    "export": "Exporter",
+    "import": "Importer",
+    "columns": {
+      "code": "Code",
+      "name": "Raison sociale",
+      "contact": "Contact",
+      "vat": "N° TVA",
+      "products": "Produits"
+    },
+    "form": {
+      "code": "Code fournisseur",
+      "codePlaceholder": "FOUR-01",
+      "codeRequired": "Code obligatoire",
+      "name": "Raison sociale",
+      "namePlaceholder": "Boucherie Martin",
+      "nameRequired": "Nom obligatoire",
+      "vat": "N° TVA",
+      "vatPlaceholder": "FR12345678901",
+      "phone": "Téléphone",
+      "phonePlaceholder": "+33 1 23 45 67 89",
+      "email": "Email",
+      "emailPlaceholder": "contact@fournisseur.fr",
+      "address": "Adresse",
+      "addressPlaceholder": "12 rue du Commerce, 75001 Paris"
+    },
+    "empty": {
+      "title": "Aucun fournisseur",
+      "description": "Ajoutez vos fournisseurs pour les associer à vos produits et contrôles de réception.",
+      "action": "Ajouter un fournisseur"
+    },
+    "pagination": {
+      "info": "Page {{page}} sur {{lastPage}} — {{total}} fournisseur(s)"
+    },
+    "modal": {
+      "create": "Nouveau fournisseur",
+      "edit": "Modifier — {{name}}"
+    },
+    "confirm": {
+      "delete": "Supprimer le fournisseur « {{name}} » ? Cette action est irréversible."
+    },
+    "toast": {
+      "deleteError": "Erreur lors de la suppression",
+      "importDone": "Import terminé : {{ok}} ligne(s) importée(s)",
+      "importDoneWithFail": "Import terminé : {{ok}} ligne(s) importée(s), {{fail}} ignorée(s)",
+      "importReadError": "Erreur lors de la lecture du fichier."
+    },
+    "productCount": "{{count}} produit(s)"
   },
   "groups": {
     "title": "Groupes",
     "subtitle": "Organisation des équipes et des droits d'accès",
     "new": "Nouveau groupe",
-    "addMember": "Ajouter un membre"
+    "addMember": "Ajouter un membre",
+    "searchPlaceholder": "Rechercher un groupe…",
+    "memberCount_one": "{{count}} membre",
+    "memberCount_other": "{{count}} membres",
+    "deleteGroup": "Supprimer le groupe",
+    "roles": {
+      "SUPER_ADMIN": "Super Admin",
+      "ADMIN": "Admin",
+      "MANAGER": "Manager",
+      "QUALITY_OFFICER": "Qualité",
+      "OPERATOR": "Opérateur",
+      "VIEWER": "Lecteur"
+    },
+    "addMemberModal": {
+      "description": "Ajouter un utilisateur au groupe <strong>{{name}}</strong>.",
+      "userLabel": "Utilisateur",
+      "userPlaceholder": "— Sélectionner un utilisateur —",
+      "userRequired": "Utilisateur obligatoire",
+      "addButton": "Ajouter"
+    },
+    "createForm": {
+      "nameLabel": "Nom du groupe",
+      "namePlaceholder": "Équipe cuisine, Responsables qualité…",
+      "nameRequired": "Nom obligatoire",
+      "submit": "Créer le groupe"
+    },
+    "empty": {
+      "title": "Aucun groupe",
+      "description": "Créez des groupes pour organiser vos équipes et gérer les accès par service ou site.",
+      "action": "Créer un groupe"
+    },
+    "modal": {
+      "addMember": "Ajouter un membre",
+      "create": "Nouveau groupe"
+    },
+    "toast": {
+      "deleteError": "Erreur lors de la suppression"
+    }
   },
   "users": {
     "title": "Utilisateurs",
