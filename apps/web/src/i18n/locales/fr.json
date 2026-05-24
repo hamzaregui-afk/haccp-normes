@@ -285,7 +285,10 @@
       "fabrication": "Fabrication",
       "expiration": "Expiration",
       "daysLeft": "Jours restants",
-      "status": "Statut"
+      "status": "Statut",
+      "opened": "Ouverture",
+      "dlc": "DLC",
+      "label": "Étiquette"
     },
     "status": {
       "OK": "OK",
@@ -295,12 +298,33 @@
     },
     "modal": {
       "title": "Nouveau label DLC",
+      "description": "Sélectionnez un produit pour générer et imprimer une étiquette DLC.",
       "productName": "Nom du produit",
+      "product": "Produit",
       "lotNumber": "Numéro de lot",
       "fabricationDate": "Date de fabrication",
+      "openedAt": "Date d'ouverture",
       "shelfLifeDays": "Durée de vie (jours)",
+      "conservation": "Durée de conservation (jours)",
       "submit": "Créer le label",
-      "cancel": "Annuler"
+      "createPrint": "Créer & imprimer",
+      "cancel": "Annuler",
+      "productsError": "Impossible de charger les produits.",
+      "createError": "Une erreur est survenue. Veuillez réessayer."
+    },
+    "preview": {
+      "title": "Aperçu étiquette ZPL",
+      "openedAt": "Ouverture :",
+      "dlc": "DLC :"
+    },
+    "combobox": {
+      "placeholder": "Rechercher un produit…",
+      "noResults": "Aucun produit trouvé"
+    },
+    "print": "Imprimer",
+    "emptyTable": {
+      "title": "Aucun label DLC",
+      "description": "Aucun label ne correspond à ce filtre."
     },
     "empty": "Aucun label DLC pour cette période",
     "loading": "Chargement des labels DLC…",

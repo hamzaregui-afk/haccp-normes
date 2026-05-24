@@ -285,7 +285,10 @@
       "fabrication": "Made on",
       "expiration": "Expires on",
       "daysLeft": "Days left",
-      "status": "Status"
+      "status": "Status",
+      "opened": "Opened on",
+      "dlc": "Use-by",
+      "label": "Label"
     },
     "status": {
       "OK": "OK",
@@ -295,12 +298,33 @@
     },
     "modal": {
       "title": "New DLC label",
+      "description": "Select a product to generate and print a use-by label.",
       "productName": "Product name",
+      "product": "Product",
       "lotNumber": "Batch number",
       "fabricationDate": "Manufacturing date",
+      "openedAt": "Opening date",
       "shelfLifeDays": "Shelf life (days)",
+      "conservation": "Storage duration (days)",
       "submit": "Create label",
-      "cancel": "Cancel"
+      "createPrint": "Create & print",
+      "cancel": "Cancel",
+      "productsError": "Unable to load products.",
+      "createError": "An error occurred. Please try again."
+    },
+    "preview": {
+      "title": "ZPL label preview",
+      "openedAt": "Opened:",
+      "dlc": "Use-by:"
+    },
+    "combobox": {
+      "placeholder": "Search for a product…",
+      "noResults": "No product found"
+    },
+    "print": "Print",
+    "emptyTable": {
+      "title": "No DLC labels",
+      "description": "No label matches this filter."
     },
     "empty": "No DLC labels for this period",
     "loading": "Loading DLC labels…",
