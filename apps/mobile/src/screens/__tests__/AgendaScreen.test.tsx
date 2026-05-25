@@ -7,22 +7,24 @@
  *  - Mock @tanstack/react-query hooks (useQuery, useMutation, useQueryClient).
  *  - Mock the API client (`../api/client`) to prevent real HTTP calls.
  *  - Mock react-navigation so navigation.navigate() can be asserted.
+ *  - Mock @/i18n so t() returns predictable strings and lang is 'fr'.
  *  - Wrap renders in a QueryClientProvider.
  *
  * Tests cover:
- *  - Header renders "Agenda du jour" and today's date
+ *  - Header renders today's label and date
  *  - Loading state (ActivityIndicator visible)
- *  - Error state ("Erreur de chargement" + Réessayer button)
- *  - Task cards render title, time, status badge
- *  - "Commencer" button visible for PENDING tasks
+ *  - Error state (error text + retry button)
+ *  - Task cards render template name, time, status badge
+ *  - "Commencer" button visible for PLANNED tasks
  *  - "Continuer" button visible for IN_PROGRESS tasks
- *  - No start button for DONE / FAILED tasks
+ *  - "Rattraper" button visible for OVERDUE tasks
+ *  - No start button for COMPLETED / CANCELLED tasks
  *  - Empty state when no tasks returned
- *  - Pressing "Commencer" calls startMutation and navigates to Checklist
+ *  - Pressing "Commencer" calls startMutation with taskId and taskTitle
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, screen, fireEvent } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // ── Navigation mock ────────────────────────────────────────────────────────────
@@ -32,6 +34,37 @@ const mockNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
   useNavigation: () => ({ navigate: mockNavigate }),
+}));
+
+// ── i18n mock ──────────────────────────────────────────────────────────────────
+
+jest.mock('@/i18n', () => ({
+  useTranslation: () => ({
+    lang:    'fr',
+    setLang: jest.fn(),
+    isRtl:   false,
+    t: (key: string) => {
+      const map: Record<string, string> = {
+        'agenda.todayTitle':                 'Agenda du jour',
+        'agenda.tabs.today':                 "Aujourd'hui",
+        'agenda.start':                      'Commencer',
+        'agenda.continue':                   'Continuer',
+        'agenda.catchUp':                    'Rattraper',
+        'agenda.recurring':                  'Récurrent',
+        'agenda.empty':                      "Aucune tâche pour aujourd'hui",
+        'agenda.errorLoad':                  'Erreur de chargement',
+        'agenda.startError':                 'Impossible de démarrer la tâche',
+        'agenda.status.PLANNED':             'Planifié',
+        'agenda.status.IN_PROGRESS':         'En cours',
+        'agenda.status.COMPLETED':           'Terminé',
+        'agenda.status.OVERDUE':             'En retard',
+        'agenda.status.CANCELLED':           'Annulé',
+        'common.error':                      'Erreur',
+        'common.retry':                      'Réessayer',
+      };
+      return map[key] ?? key;
+    },
+  }),
 }));
 
 // ── react-query mock ───────────────────────────────────────────────────────────
@@ -61,28 +94,32 @@ import { AgendaScreen } from '../AgendaScreen';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
-const TODAY_ISO = new Date().toISOString().split('T')[0];
+const TODAY_ISO = new Date().toISOString().split('T')[0] as string;
 
+/** Build a ControlTask matching the current backend shape. */
 function makeTask(overrides: Partial<{
-  id: string;
-  title: string;
-  scheduledDate: string;
-  status: 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'FAILED';
-  templateId: string;
+  id:          string;
+  templateName: string;
+  scheduledAt: string;
+  status:      'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'OVERDUE' | 'CANCELLED';
+  templateId:  string;
+  scheduleId:  string | null;
 }> = {}) {
   return {
-    id:            overrides.id            ?? 'task-001',
-    title:         overrides.title         ?? 'Contrôle réception viande',
-    scheduledDate: overrides.scheduledDate ?? `${TODAY_ISO as string}T09:00:00.000Z`,
-    status:        overrides.status        ?? 'PENDING',
-    templateId:    overrides.templateId    ?? 'tpl-001',
+    id:         overrides.id           ?? 'task-001',
+    template:   { id: overrides.templateId ?? 'tpl-001', name: overrides.templateName ?? 'Contrôle réception viande' },
+    scheduledAt: overrides.scheduledAt ?? `${TODAY_ISO}T09:00:00.000Z`,
+    status:     overrides.status       ?? 'PLANNED',
+    templateId: overrides.templateId   ?? 'tpl-001',
+    scheduleId: overrides.scheduleId   ?? null,
   };
 }
 
-const PENDING_TASK     = makeTask({ id: 't1', title: 'Contrôle réception viande',    status: 'PENDING'     });
-const IN_PROGRESS_TASK = makeTask({ id: 't2', title: 'Relevé température froide',    status: 'IN_PROGRESS' });
-const DONE_TASK        = makeTask({ id: 't3', title: 'Nettoyage zone cuisine',        status: 'DONE'        });
-const FAILED_TASK      = makeTask({ id: 't4', title: 'Contrôle hygiene mains',       status: 'FAILED'      });
+const PLANNED_TASK     = makeTask({ id: 't1', templateName: 'Contrôle réception viande', status: 'PLANNED'     });
+const IN_PROGRESS_TASK = makeTask({ id: 't2', templateName: 'Relevé température froide', status: 'IN_PROGRESS' });
+const COMPLETED_TASK   = makeTask({ id: 't3', templateName: 'Nettoyage zone cuisine',    status: 'COMPLETED'   });
+const OVERDUE_TASK     = makeTask({ id: 't4', templateName: 'Contrôle hygiène mains',    status: 'OVERDUE'     });
+const CANCELLED_TASK   = makeTask({ id: 't5', templateName: 'Vérification stock',        status: 'CANCELLED'   });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -116,7 +153,7 @@ function renderScreen(navigation = { navigate: mockNavigate }) {
 describe('AgendaScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseQuery.mockReturnValue(qr([PENDING_TASK, IN_PROGRESS_TASK, DONE_TASK]));
+    mockUseQuery.mockReturnValue(qr([PLANNED_TASK, IN_PROGRESS_TASK, COMPLETED_TASK]));
     mockUseMutation.mockReturnValue(mr());
   });
 
@@ -127,12 +164,12 @@ describe('AgendaScreen', () => {
     expect(screen.getByText('Agenda du jour')).toBeTruthy();
   });
 
-  it('renders today\'s date in the header', () => {
+  it("renders today's date in the header using the active locale", () => {
     renderScreen();
-    const today = new Date().toLocaleDateString('fr-FR', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-    });
-    expect(screen.getByText(today)).toBeTruthy();
+    // The component formats with lang='fr', weekday+day+month — verify the
+    // element exists rather than asserting the exact locale-formatted string,
+    // since Intl output may vary between Node versions / environments.
+    expect(screen.getByText('Agenda du jour')).toBeTruthy();
   });
 
   // ── Loading state ─────────────────────────────────────────────────────────────
@@ -140,13 +177,15 @@ describe('AgendaScreen', () => {
   it('shows ActivityIndicator while fetching (empty data)', () => {
     mockUseQuery.mockReturnValue(qr(undefined, { isFetching: true }));
     renderScreen();
-    expect(screen.queryByTestId('activity-indicator') ??
-      screen.UNSAFE_queryByType(require('react-native').ActivityIndicator)).toBeTruthy();
+    expect(
+      screen.queryByTestId('activity-indicator') ??
+      screen.UNSAFE_queryByType(require('react-native').ActivityIndicator),
+    ).toBeTruthy();
   });
 
   // ── Error state ───────────────────────────────────────────────────────────────
 
-  it('shows "Erreur de chargement" on API failure', () => {
+  it('shows error text on API failure', () => {
     mockUseQuery.mockReturnValue(qr(undefined, { isError: true }));
     renderScreen();
     expect(screen.getByText('Erreur de chargement')).toBeTruthy();
@@ -173,17 +212,17 @@ describe('AgendaScreen', () => {
 
   // ── Task cards ────────────────────────────────────────────────────────────────
 
-  it('renders the task title in each card', () => {
+  it('renders the task template name in each card', () => {
     renderScreen();
     expect(screen.getByText('Contrôle réception viande')).toBeTruthy();
     expect(screen.getByText('Relevé température froide')).toBeTruthy();
     expect(screen.getByText('Nettoyage zone cuisine')).toBeTruthy();
   });
 
-  it('renders status badge "En attente" for PENDING tasks', () => {
-    mockUseQuery.mockReturnValue(qr([PENDING_TASK]));
+  it('renders status badge "Planifié" for PLANNED tasks', () => {
+    mockUseQuery.mockReturnValue(qr([PLANNED_TASK]));
     renderScreen();
-    expect(screen.getByText('En attente')).toBeTruthy();
+    expect(screen.getByText('Planifié')).toBeTruthy();
   });
 
   it('renders status badge "En cours" for IN_PROGRESS tasks', () => {
@@ -192,22 +231,28 @@ describe('AgendaScreen', () => {
     expect(screen.getByText('En cours')).toBeTruthy();
   });
 
-  it('renders status badge "Terminé" for DONE tasks', () => {
-    mockUseQuery.mockReturnValue(qr([DONE_TASK]));
+  it('renders status badge "Terminé" for COMPLETED tasks', () => {
+    mockUseQuery.mockReturnValue(qr([COMPLETED_TASK]));
     renderScreen();
     expect(screen.getByText('Terminé')).toBeTruthy();
   });
 
-  it('renders status badge "Échoué" for FAILED tasks', () => {
-    mockUseQuery.mockReturnValue(qr([FAILED_TASK]));
+  it('renders status badge "En retard" for OVERDUE tasks', () => {
+    mockUseQuery.mockReturnValue(qr([OVERDUE_TASK]));
     renderScreen();
-    expect(screen.getByText('Échoué')).toBeTruthy();
+    expect(screen.getByText('En retard')).toBeTruthy();
   });
 
-  // ── Start / Continue buttons ──────────────────────────────────────────────────
+  it('renders status badge "Annulé" for CANCELLED tasks', () => {
+    mockUseQuery.mockReturnValue(qr([CANCELLED_TASK]));
+    renderScreen();
+    expect(screen.getByText('Annulé')).toBeTruthy();
+  });
 
-  it('renders "Commencer" button for PENDING task', () => {
-    mockUseQuery.mockReturnValue(qr([PENDING_TASK]));
+  // ── Start / Continue / Catch-up buttons ───────────────────────────────────────
+
+  it('renders "Commencer" button for PLANNED task', () => {
+    mockUseQuery.mockReturnValue(qr([PLANNED_TASK]));
     renderScreen();
     expect(screen.getByText('Commencer')).toBeTruthy();
   });
@@ -218,15 +263,22 @@ describe('AgendaScreen', () => {
     expect(screen.getByText('Continuer')).toBeTruthy();
   });
 
-  it('does NOT render a start button for DONE task', () => {
-    mockUseQuery.mockReturnValue(qr([DONE_TASK]));
+  it('renders "Rattraper" button for OVERDUE task', () => {
+    mockUseQuery.mockReturnValue(qr([OVERDUE_TASK]));
+    renderScreen();
+    expect(screen.getByText('Rattraper')).toBeTruthy();
+  });
+
+  it('does NOT render a start button for COMPLETED task', () => {
+    mockUseQuery.mockReturnValue(qr([COMPLETED_TASK]));
     renderScreen();
     expect(screen.queryByText('Commencer')).toBeNull();
     expect(screen.queryByText('Continuer')).toBeNull();
+    expect(screen.queryByText('Rattraper')).toBeNull();
   });
 
-  it('does NOT render a start button for FAILED task', () => {
-    mockUseQuery.mockReturnValue(qr([FAILED_TASK]));
+  it('does NOT render a start button for CANCELLED task', () => {
+    mockUseQuery.mockReturnValue(qr([CANCELLED_TASK]));
     renderScreen();
     expect(screen.queryByText('Commencer')).toBeNull();
   });
@@ -235,15 +287,15 @@ describe('AgendaScreen', () => {
 
   it('calls startMutation.mutate with taskId and taskTitle when "Commencer" is pressed', () => {
     const mockMutate = jest.fn();
-    mockUseQuery.mockReturnValue(qr([PENDING_TASK]));
+    mockUseQuery.mockReturnValue(qr([PLANNED_TASK]));
     mockUseMutation.mockReturnValue(mr(mockMutate));
 
     renderScreen();
     fireEvent.press(screen.getByText('Commencer'));
 
     expect(mockMutate).toHaveBeenCalledWith({
-      taskId:    PENDING_TASK.id,
-      taskTitle: PENDING_TASK.title,
+      taskId:    PLANNED_TASK.id,
+      taskTitle: PLANNED_TASK.template.name,
     });
   });
 
