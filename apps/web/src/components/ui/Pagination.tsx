@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface PaginationProps {
   page:      number;
@@ -14,6 +15,8 @@ interface PaginationProps {
  * All pages are rendered as buttons for accessibility.
  */
 export function Pagination({ page, lastPage, total, onPrev, onNext, onPage }: PaginationProps) {
+  const { t } = useTranslation();
+
   if (lastPage <= 1) return null;
 
   // Build the visible page window: current ± 2, clamped to [1, lastPage]
@@ -24,7 +27,7 @@ export function Pagination({ page, lastPage, total, onPrev, onNext, onPage }: Pa
   return (
     <div className="flex items-center justify-between gap-4 py-3">
       <p className="text-xs text-gray-500">
-        {total} résultat{total !== 1 ? 's' : ''}
+        {t('common.results', { count: total, s: total !== 1 ? 's' : '' })}
       </p>
 
       <div className="flex items-center gap-1">
@@ -32,7 +35,7 @@ export function Pagination({ page, lastPage, total, onPrev, onNext, onPage }: Pa
         <button
           onClick={onPrev}
           disabled={page <= 1}
-          aria-label="Page précédente"
+          aria-label={t('common.prevPage')}
           className="flex h-8 w-8 items-center justify-center rounded-lg border border-surface-muted bg-white text-gray-500 hover:bg-surface-page disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -43,7 +46,7 @@ export function Pagination({ page, lastPage, total, onPrev, onNext, onPage }: Pa
           <button
             key={p}
             onClick={() => onPage?.(p)}
-            aria-label={`Page ${p}`}
+            aria-label={`${t('common.page')} ${p}`}
             aria-current={p === page ? 'page' : undefined}
             className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition-colors ${
               p === page
@@ -59,7 +62,7 @@ export function Pagination({ page, lastPage, total, onPrev, onNext, onPage }: Pa
         <button
           onClick={onNext}
           disabled={page >= lastPage}
-          aria-label="Page suivante"
+          aria-label={t('common.nextPage')}
           className="flex h-8 w-8 items-center justify-center rounded-lg border border-surface-muted bg-white text-gray-500 hover:bg-surface-page disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
         >
           <ChevronRight className="h-4 w-4" />

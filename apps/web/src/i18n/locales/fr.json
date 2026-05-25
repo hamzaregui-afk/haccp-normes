@@ -58,7 +58,12 @@
       "retry": "Réessayer",
       "reload": "Recharger la page"
     },
-    "openMenu": "Ouvrir le menu"
+    "openMenu": "Ouvrir le menu",
+    "typeToFilter": "Tapez pour filtrer…",
+    "prevPage": "Page précédente",
+    "nextPage": "Page suivante",
+    "notifications": "Notifications",
+    "results": "{{count}} résultat{{s}}"
   },
   "auth": {
     "login": "Connexion",

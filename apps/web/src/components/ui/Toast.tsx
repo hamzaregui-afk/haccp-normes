@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,6 +50,7 @@ interface ToastItemProps {
 }
 
 function ToastItem({ toast, onRemove }: ToastItemProps) {
+  const { t } = useTranslation();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -74,7 +76,7 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
       <button
         onClick={() => onRemove(toast.id)}
         className="shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-        aria-label="Fermer"
+        aria-label={t('common.close')}
       >
         <X className="h-4 w-4" />
       </button>
@@ -85,6 +87,7 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
 // ─── ToastContainer — mount once at app root ──────────────────────────────────
 
 export function ToastContainer() {
+  const { t } = useTranslation();
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   useEffect(() => {
@@ -105,7 +108,7 @@ export function ToastContainer() {
 
   return (
     <div
-      aria-label="Notifications"
+      aria-label={t('common.notifications')}
       className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2"
     >
       {toasts.map((t) => (

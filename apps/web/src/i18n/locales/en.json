@@ -58,7 +58,12 @@
       "retry": "Try again",
       "reload": "Reload page"
     },
-    "openMenu": "Open menu"
+    "openMenu": "Open menu",
+    "typeToFilter": "Type to filter…",
+    "prevPage": "Previous page",
+    "nextPage": "Next page",
+    "notifications": "Notifications",
+    "results": "{{count}} result{{s}}"
   },
   "auth": {
     "login": "Sign In",

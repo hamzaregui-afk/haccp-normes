@@ -11,6 +11,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown, Loader2, Search, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
 export interface ComboboxOption {
@@ -38,13 +39,15 @@ export function Combobox({
   value,
   onChange,
   label,
-  placeholder = 'Rechercher…',
+  placeholder,
   required,
   disabled,
   loading,
   error,
   className,
 }: ComboboxProps) {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t('common.search');
   const [open, setOpen]     = useState(false);
   const [query, setQuery]   = useState('');
   const containerRef        = useRef<HTMLDivElement>(null);
@@ -167,7 +170,7 @@ export function Combobox({
         )}
 
         <span className={cn('flex-1 truncate', !selectedLabel && 'text-gray-400')}>
-          {selectedLabel || placeholder}
+          {selectedLabel || resolvedPlaceholder}
         </span>
 
         <div className="flex shrink-0 items-center gap-1">
@@ -200,7 +203,7 @@ export function Combobox({
                 value={query}
                 onChange={(e) => { setQuery(e.target.value); setActive(0); }}
                 onKeyDown={handleKeyDown}
-                placeholder="Tapez pour filtrer…"
+                placeholder={t('common.typeToFilter')}
                 className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400"
               />
               {query && (

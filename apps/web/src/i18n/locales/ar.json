@@ -58,7 +58,12 @@
       "retry": "إعادة المحاولة",
       "reload": "إعادة تحميل الصفحة"
     },
-    "openMenu": "فتح القائمة"
+    "openMenu": "فتح القائمة",
+    "typeToFilter": "اكتب للتصفية…",
+    "prevPage": "الصفحة السابقة",
+    "nextPage": "الصفحة التالية",
+    "notifications": "الإشعارات",
+    "results": "{{count}} نتيجة"
   },
   "auth": {
     "login": "تسجيل الدخول",
