@@ -28,3 +28,19 @@ export function extractApiMessage(error: unknown): string {
 export function isRenderableUrl(value: string): boolean {
   return value.startsWith('http') || value.startsWith('data:');
 }
+
+/**
+ * Locale-aware date formatter. Pass `i18n.language` as `locale` so dates
+ * render in the user's selected language (FR / EN / AR).
+ *
+ * ARCH-DECISION: We keep this as a plain function (not a hook) so it can be
+ * used both inside React components and in module-level helpers that accept a
+ * locale parameter. Call sites obtain `locale` from `useTranslation().i18n.language`.
+ */
+export function fmtDate(
+  d: Date | string,
+  locale: string,
+  opts?: Intl.DateTimeFormatOptions,
+): string {
+  return new Date(d).toLocaleDateString(locale, opts);
+}

@@ -24,7 +24,7 @@ interface NotificationItemProps {
 }
 
 function NotificationItem({ notification: n }: NotificationItemProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   return (
     <li
       className={`flex gap-3 px-4 py-3 text-sm transition-colors hover:bg-gray-50 ${
@@ -38,7 +38,7 @@ function NotificationItem({ notification: n }: NotificationItemProps) {
         <p className="font-medium text-gray-900 truncate">{n.title}</p>
         <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.body}</p>
         <p className="mt-1 text-[10px] text-gray-400">
-          {new Date(n.createdAt).toLocaleString('fr-FR', {
+          {new Date(n.createdAt).toLocaleString(i18n.language, {
             day: '2-digit',
             month: 'short',
             hour: '2-digit',

@@ -1,5 +1,6 @@
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { AlertTriangle, Calendar, CheckCircle2, Clock, Repeat, ShieldAlert, ShieldCheck, Tag, TrendingUp } from 'lucide-react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   BarChart,
@@ -523,9 +524,11 @@ export default function DashboardPage() {
     {},
   );
 
-  // ── Pre-compute chart data (memoised via derived constants) ────────────────
-  const monthKeys   = getLast6MonthKeys();
-  const monthLabels = getLast6MonthLabels(i18n.language);
+  // ── Pre-compute chart data ─────────────────────────────────────────────────
+  // monthKeys never changes (static 6-month window); monthLabels re-runs when
+  // the user switches language so chart axis labels update immediately.
+  const monthKeys   = useMemo(() => getLast6MonthKeys(), []);
+  const monthLabels = useMemo(() => getLast6MonthLabels(i18n.language), [i18n.language]);
 
   const ncMonthlyData = groupByMonth(
     ncChartQuery.data ?? [],

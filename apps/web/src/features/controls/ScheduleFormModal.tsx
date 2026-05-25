@@ -171,8 +171,8 @@ function computePreview(
   return results;
 }
 
-function formatPreviewDate(iso: string): string {
-  return new Date(iso).toLocaleString('fr-FR', {
+function formatPreviewDate(iso: string, locale: string): string {
+  return new Date(iso).toLocaleString(locale, {
     weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
@@ -339,7 +339,7 @@ interface ScheduleFormModalProps {
 }
 
 export function ScheduleFormModal({ open, onClose, onCreated }: ScheduleFormModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const tenantId    = useTenantId();
   const queryClient = useQueryClient();
 
@@ -664,7 +664,7 @@ export function ScheduleFormModal({ open, onClose, onCreated }: ScheduleFormModa
                 {preview.map((iso) => (
                   <li key={iso} className="flex items-center gap-2 text-sm text-brand-dark">
                     <RefreshCw className="h-3 w-3 text-brand-medium shrink-0" />
-                    {formatPreviewDate(iso)}
+                    {formatPreviewDate(iso, i18n.language)}
                   </li>
                 ))}
               </ul>

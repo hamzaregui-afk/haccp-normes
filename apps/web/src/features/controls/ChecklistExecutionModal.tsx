@@ -696,8 +696,8 @@ function NonConformityPanel({
 // ─── Read-only results view ────────────────────────────────────────────────────
 
 function ResultsView({ result }: { result: TaskResult }) {
-  const { t } = useTranslation();
-  const completedAt = new Date(result.submittedAt).toLocaleString('fr-FR', {
+  const { t, i18n } = useTranslation();
+  const completedAt = new Date(result.submittedAt).toLocaleString(i18n.language, {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
@@ -741,7 +741,7 @@ function ResultsView({ result }: { result: TaskResult }) {
             ) {
               displayValue = <img src={item.value} alt={item.type} className="h-16 rounded-lg border object-contain" />;
             } else if (item.type === 'DATE' && typeof item.value === 'string') {
-              displayValue = new Date(item.value).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+              displayValue = new Date(item.value).toLocaleString(i18n.language, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
             } else {
               displayValue = item.unit ? `${String(item.value)} ${item.unit}` : String(item.value);
             }

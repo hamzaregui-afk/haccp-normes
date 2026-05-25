@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
 import { api } from '@/lib/api';
+import { fmtDate } from '@/lib/utils';
 import { useTenantId } from '@/hooks/useTenantId';
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
@@ -266,7 +267,7 @@ const STATUS_STYLES: Record<DLCStatus, string> = {
 function daysLeft(expiresAt: string) {
   return Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86_400_000);
 }
-function fmtDate(d: string, locale: string) { return new Date(d).toLocaleDateString(locale); }
+
 function addDays(dateStr: string, days: number): Date {
   const d = new Date(dateStr + 'T12:00:00');
   d.setDate(d.getDate() + days);

@@ -484,7 +484,7 @@ function TaskDetailModal({
   groupOptions: { value: string; label: string }[];
   isOperator:   boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const queryClient  = useQueryClient();
   const tenantId     = useTenantId();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -608,7 +608,7 @@ function TaskDetailModal({
           <div>
             <dt className="font-medium text-gray-500">{t('controls.taskDetail.scheduledAt')}</dt>
             <dd className="mt-0.5 text-gray-900">
-              {new Date(task.scheduledAt).toLocaleString('fr-FR', {
+              {new Date(task.scheduledAt).toLocaleString(i18n.language, {
                 day: '2-digit', month: '2-digit', year: 'numeric',
                 hour: '2-digit', minute: '2-digit',
               })}
@@ -906,7 +906,7 @@ function TasksTab({
   isOperator:   boolean;
   operatorId:   string;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [page, setPage]                     = useState(1);
   const [statusFilter, setStatusFilter]     = useState('');
   const [search, setSearch]                 = useState('');
@@ -1066,7 +1066,7 @@ function TasksTab({
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                      {new Date(task.scheduledAt).toLocaleString('fr-FR', {
+                      {new Date(task.scheduledAt).toLocaleString(i18n.language, {
                         day: '2-digit', month: '2-digit', year: 'numeric',
                         hour: '2-digit', minute: '2-digit',
                       })}
@@ -1340,7 +1340,7 @@ function SchedulesTab({
   userMap:  Record<string, string>;
   groupMap: Record<string, string>;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [modalOpen, setModalOpen] = useState(false);
   const queryClient               = useQueryClient();
   const tenantId                  = useTenantId();
@@ -1439,7 +1439,7 @@ function SchedulesTab({
                     </td>
                     <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                       {schedule.nextRunAt
-                        ? new Date(schedule.nextRunAt).toLocaleString('fr-FR', {
+                        ? new Date(schedule.nextRunAt).toLocaleString(i18n.language, {
                             day: '2-digit', month: '2-digit', year: 'numeric',
                             hour: '2-digit', minute: '2-digit',
                           })
