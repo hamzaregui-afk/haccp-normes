@@ -52,6 +52,7 @@
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|@tanstack)"
     ],
     "moduleNameMapper": {
+      "^@/(.*)$":             "<rootDir>/src/$1",
       "^@haccp/shared-types$": "<rootDir>/../../packages/shared-types/src",
       "^@haccp/shared-utils$": "<rootDir>/../../packages/shared-utils/src",
       "^@haccp/shared-validators$": "<rootDir>/../../packages/shared-validators/src"

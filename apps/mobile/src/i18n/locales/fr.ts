@@ -180,4 +180,13 @@ export const fr = {
   },
 } as const;
 
-export type Translations = typeof fr;
+// ARCH-DECISION: DeepStringify widens every leaf value to `string` so that
+// en.ts and ar.ts (which declare `const x: Translations`) aren't forced to
+// match the exact French literal types produced by `as const`. The `as const`
+// on `fr` itself is kept so the TranslationKey dot-path inference in index.tsx
+// can enumerate all valid keys via `typeof fr`.
+type DeepStringify<T> = T extends string
+  ? string
+  : { [K in keyof T]: DeepStringify<T[K]> };
+
+export type Translations = DeepStringify<typeof fr>;

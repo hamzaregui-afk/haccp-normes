@@ -8,8 +8,14 @@ import { useAuthStore } from '../store/authStore';
 // The gateway URL is set via EXPO_PUBLIC_API_BASE_URL (read at build time by Expo).
 // Default is the Android emulator loopback alias (10.0.2.2 → host localhost).
 // In production, set EXPO_PUBLIC_API_BASE_URL=https://api.normeshaccp.com
+//
+// ARCH-DECISION: We declare `process` narrowly here instead of installing
+// @types/node. Metro/Expo injects EXPO_PUBLIC_* variables via its own
+// environment plugin — we only need the shape, not the full Node.js `process`.
+declare const process: { env: Record<string, string | undefined> };
+
 const GATEWAY_BASE =
-  (process.env['EXPO_PUBLIC_API_BASE_URL'] as string | undefined) ?? 'http://10.0.2.2:80';
+  process.env['EXPO_PUBLIC_API_BASE_URL'] ?? 'http://10.0.2.2:80';
 
 // ── Authenticated gateway client ────────────────────────────────────────────
 // Use this for all API calls — all services are routed through nginx.
