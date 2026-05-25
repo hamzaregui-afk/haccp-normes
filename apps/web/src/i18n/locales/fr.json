@@ -64,7 +64,9 @@
     "nextPage": "Page suivante",
     "notifications": "Notifications",
     "results": "{{count}} résultat{{s}}",
-    "noResults": "Aucun résultat pour « {{query}} »"
+    "noResults": "Aucun résultat pour « {{query}} »",
+    "filteredCount": "{{count}} résultat{{s}}",
+    "optionsExamplePh": "Ex : Conforme, Non conforme, À vérifier"
   },
   "auth": {
     "login": "Connexion",

@@ -64,7 +64,9 @@
     "nextPage": "الصفحة التالية",
     "notifications": "الإشعارات",
     "results": "{{count}} نتيجة",
-    "noResults": "لا توجد نتائج لـ « {{query}} »"
+    "noResults": "لا توجد نتائج لـ « {{query}} »",
+    "filteredCount": "{{count}} نتيجة",
+    "optionsExamplePh": "مثال: مطابق، غير مطابق، للمراجعة"
   },
   "auth": {
     "login": "تسجيل الدخول",

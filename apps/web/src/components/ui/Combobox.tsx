@@ -259,7 +259,7 @@ export function Combobox({
             {/* Count footer */}
             {!loading && filtered.length > 0 && (
               <div className="border-t border-gray-100 px-3 py-1.5 text-right text-xs text-gray-400">
-                {filtered.length} résultat{filtered.length > 1 ? 's' : ''}
+                {t('common.filteredCount', { count: filtered.length, s: filtered.length > 1 ? 's' : '' })}
               </div>
             )}
           </div>

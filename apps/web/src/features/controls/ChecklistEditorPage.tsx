@@ -154,7 +154,7 @@ function ItemForm({
             {t('controls.editor.options')} <span className="text-red-500">*</span>
           </label>
           <Input
-            placeholder="Ex: Conforme, Non conforme, À vérifier"
+            placeholder={t("common.optionsExamplePh")}
             {...register('options')}
           />
           <p className="mt-1 text-xs text-gray-400">
@@ -412,7 +412,7 @@ export default function ChecklistEditorPage() {
           <div className="flex items-center gap-2">
             {dirty && (
               <span className="text-xs text-amber-600 font-medium">
-                Modifications non sauvegardées
+                {t("controls.editor.unsaved")}
               </span>
             )}
             <Button
