@@ -253,14 +253,14 @@ function ItemRow({ item, index, onEdit, onDelete }: ItemRowProps) {
         <button
           className="rounded p-1.5 text-gray-400 hover:bg-surface-page hover:text-brand-medium transition-colors"
           onClick={onEdit}
-          title="Modifier"
+          title={t('common.edit')}
         >
           <CheckSquare className="h-4 w-4" />
         </button>
         <button
           className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
           onClick={onDelete}
-          title="Supprimer"
+          title={t('common.delete')}
         >
           <Trash2 className="h-4 w-4" />
         </button>
@@ -272,6 +272,7 @@ function ItemRow({ item, index, onEdit, onDelete }: ItemRowProps) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ChecklistEditorPage() {
+  const { t }       = useTranslation();
   const { id }      = useParams<{ id: string }>();
   const navigate    = useNavigate();
   const queryClient = useQueryClient();
@@ -395,7 +396,7 @@ export default function ChecklistEditorPage() {
     <>
       <Header
         title={template ? `Checklist — ${template.name}` : 'Checklist'}
-        subtitle="Gérez les points de contrôle de ce modèle"
+        subtitle={t('controls.editor.subtitle')}
       />
       <PageWrapper>
         {/* Back + Save */}
@@ -405,7 +406,7 @@ export default function ChecklistEditorPage() {
             onClick={() => navigate('/controls')}
           >
             <ArrowLeft className="h-4 w-4" />
-            Retour aux contrôles
+            {t('controls.actions.back')}
           </button>
 
           <div className="flex items-center gap-2">

@@ -37,12 +37,12 @@ import type {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function extractApiError(err: unknown): string {
+function extractApiError(err: unknown, t: ReturnType<typeof useTranslation>['t']): string {
   if (axios.isAxiosError(err)) {
     const msg = (err.response?.data as { message?: string } | undefined)?.message;
     if (msg) return msg;
   }
-  return 'Une erreur est survenue. Veuillez réessayer.';
+  return t('common.error');
 }
 
 // ─── Style maps (CSS-only — safe at module level) ─────────────────────────────
@@ -178,7 +178,7 @@ function InfoTab({ tenant, tenantId }: { tenant: Tenant; tenantId: string }) {
       showToast({ title: t('clients.detail.infoUpdated'), variant: 'success' });
       setEditing(false);
     },
-    onError: (err) => showToast({ title: extractApiError(err), variant: 'error' }),
+    onError: (err) => showToast({ title: extractApiError(err, t), variant: 'error' }),
   });
 
   if (!editing) {
@@ -321,7 +321,7 @@ function AdminTab({ tenant, tenantId }: AdminTabProps) {
       setShowCreate(false);
       reset();
     },
-    onError: (err) => showToast({ title: extractApiError(err), variant: 'error' }),
+    onError: (err) => showToast({ title: extractApiError(err, t), variant: 'error' }),
   });
 
   const hasAdmin = !!tenant.primaryAdminId;
@@ -456,7 +456,7 @@ function ModulesTab({ tenantId }: { tenantId: string }) {
       setDirty(false);
       setLocalState({});
     },
-    onError: (err) => showToast({ title: extractApiError(err), variant: 'error' }),
+    onError: (err) => showToast({ title: extractApiError(err, t), variant: 'error' }),
   });
 
   if (isLoading) {
@@ -577,7 +577,7 @@ function SubscriptionTab({ tenantId, tenant }: { tenantId: string; tenant: Tenan
       showToast({ title: t('clients.detail.subscription.toast'), variant: 'success' });
       setEditing(false);
     },
-    onError: (err) => showToast({ title: extractApiError(err), variant: 'error' }),
+    onError: (err) => showToast({ title: extractApiError(err, t), variant: 'error' }),
   });
 
   if (isLoading) {
@@ -728,7 +728,7 @@ function SitesTab({ tenantId }: { tenantId: string }) {
       setNewSiteName('');
       setNewSiteAddr('');
     },
-    onError: (err) => showToast({ title: extractApiError(err), variant: 'error' }),
+    onError: (err) => showToast({ title: extractApiError(err, t), variant: 'error' }),
   });
 
   const deleteMutation = useMutation({
@@ -738,7 +738,7 @@ function SitesTab({ tenantId }: { tenantId: string }) {
       qc.invalidateQueries({ queryKey: ['tenant', tenantId] });
       showToast({ title: t('clients.detail.sites.toast.deleted'), variant: 'success' });
     },
-    onError: (err) => showToast({ title: extractApiError(err), variant: 'error' }),
+    onError: (err) => showToast({ title: extractApiError(err, t), variant: 'error' }),
   });
 
   return (

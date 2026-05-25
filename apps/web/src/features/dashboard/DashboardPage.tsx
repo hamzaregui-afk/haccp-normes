@@ -65,18 +65,17 @@ interface NcControl {
 
 // ─── Chart helper functions ───────────────────────────────────────────────────
 
-const FR_MONTH_ABBR = [
-  'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun',
-  'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc',
-] as const;
-
-/** Returns the last 6 month labels (French abbreviations), oldest first. */
-function getLast6MonthLabels(): string[] {
-  const now = new Date();
+/**
+ * Returns the last 6 month labels (abbreviated), oldest first.
+ * Uses Intl.DateTimeFormat so the locale matches the app language.
+ */
+function getLast6MonthLabels(locale: string): string[] {
+  const fmt = new Intl.DateTimeFormat(locale, { month: 'short' });
+  const now  = new Date();
   const labels: string[] = [];
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    labels.push(FR_MONTH_ABBR[d.getMonth()]);
+    labels.push(fmt.format(d));
   }
   return labels;
 }
@@ -328,7 +327,7 @@ function OperatorTasksWidget({ assigneeId }: { assigneeId: string }) {
             return (
               <li key={task.id} className="flex items-center justify-between py-2.5">
                 <div>
-                  <p className="text-sm font-medium text-gray-800">{task.template?.name ?? 'Contrôle'}</p>
+                  <p className="text-sm font-medium text-gray-800">{task.template?.name ?? t('controls.title')}</p>
                   <p className="text-xs text-gray-400">
                     {new Date(task.scheduledAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                   </p>
@@ -407,7 +406,7 @@ function RecentNcControlsWidget({ zoneMap }: { zoneMap: Record<string, string> }
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-gray-800">
-                      {ctrl.template?.name ?? 'Contrôle'}
+                      {ctrl.template?.name ?? t('controls.title')}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-400">
                       {t('dashboard.zone')} : {zone} · {completedAt}
@@ -434,7 +433,7 @@ function RecentNcControlsWidget({ zoneMap }: { zoneMap: Record<string, string> }
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const currentUser = useAuthStore((s) => s.user);
   const tenantId    = useTenantId();
   const isOperator  = currentUser?.role === 'OPERATOR';
@@ -526,7 +525,7 @@ export default function DashboardPage() {
 
   // ── Pre-compute chart data (memoised via derived constants) ────────────────
   const monthKeys   = getLast6MonthKeys();
-  const monthLabels = getLast6MonthLabels();
+  const monthLabels = getLast6MonthLabels(i18n.language);
 
   const ncMonthlyData = groupByMonth(
     ncChartQuery.data ?? [],

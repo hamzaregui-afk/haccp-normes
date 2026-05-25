@@ -63,7 +63,8 @@
     "prevPage": "Previous page",
     "nextPage": "Next page",
     "notifications": "Notifications",
-    "results": "{{count}} result{{s}}"
+    "results": "{{count}} result{{s}}",
+    "noResults": "No results for « {{query}} »"
   },
   "auth": {
     "login": "Sign In",

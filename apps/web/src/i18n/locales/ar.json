@@ -63,7 +63,8 @@
     "prevPage": "الصفحة السابقة",
     "nextPage": "الصفحة التالية",
     "notifications": "الإشعارات",
-    "results": "{{count}} نتيجة"
+    "results": "{{count}} نتيجة",
+    "noResults": "لا توجد نتائج لـ « {{query}} »"
   },
   "auth": {
     "login": "تسجيل الدخول",

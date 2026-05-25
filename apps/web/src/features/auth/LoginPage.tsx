@@ -52,7 +52,12 @@ export default function LoginPage() {
     }
   };
 
-  const featureTags = ['Contrôles CCP', 'Non-conformités', 'Rapports', 'DLC'];
+  const featureTags = [
+    `${t('nav.controls')} CCP`,
+    t('nav.nonconformities'),
+    t('nav.reports'),
+    t('nav.dlc'),
+  ];
 
   return (
     <div className="flex min-h-screen bg-surface-page">

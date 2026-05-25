@@ -222,11 +222,11 @@ export function Combobox({
               {loading ? (
                 <li className="flex items-center justify-center gap-2 py-6 text-sm text-gray-400">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Chargement…
+                  {t('common.loading')}
                 </li>
               ) : filtered.length === 0 ? (
                 <li className="py-6 text-center text-sm text-gray-400">
-                  Aucun résultat pour « {query} »
+                  {t('common.noResults', { query })}
                 </li>
               ) : (
                 filtered.map((opt, idx) => (
