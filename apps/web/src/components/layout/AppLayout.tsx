@@ -1,6 +1,7 @@
 import { Menu } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Outlet } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Sidebar } from './Sidebar';
 import { ToastContainer } from '@/components/ui/Toast';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -19,6 +20,7 @@ interface AppLayoutProps {
  * scrollable <main>, so mobile users also get the page chrome.
  */
 export function AppLayout({ children }: AppLayoutProps) {
+  const { t } = useTranslation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -32,7 +34,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <div className="flex h-14 shrink-0 items-center border-b border-surface-muted bg-white px-4 lg:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
-            aria-label="Ouvrir le menu"
+            aria-label={t('common.openMenu')}
             className="rounded-md p-2 text-gray-500 hover:bg-surface-page hover:text-gray-900"
           >
             <Menu className="h-5 w-5" />

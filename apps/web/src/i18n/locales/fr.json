@@ -57,7 +57,8 @@
       "description": "L'application a rencontré un problème. Vous pouvez recharger la page ou contacter le support si l'erreur persiste.",
       "retry": "Réessayer",
       "reload": "Recharger la page"
-    }
+    },
+    "openMenu": "Ouvrir le menu"
   },
   "auth": {
     "login": "Connexion",
