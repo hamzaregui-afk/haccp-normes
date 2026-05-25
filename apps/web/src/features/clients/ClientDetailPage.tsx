@@ -623,7 +623,7 @@ function SubscriptionTab({ tenantId, tenant }: { tenantId: string; tenant: Tenan
               {
                 label: t('clients.detail.subscription.fields.trialEndsAt'),
                 value: sub.trialEndsAt
-                  ? `${new Date(sub.trialEndsAt).toLocaleDateString('fr-FR')} (${t('clients.detail.subscription.fields.trialDaysLeft', { count: trialDays })})`
+                  ? `${new Date(sub.trialEndsAt).toLocaleDateString('fr-FR')} (${t('clients.detail.subscription.fields.trialDaysLeft', { count: trialDays ?? 0 })})`
                   : '—',
               },
               {

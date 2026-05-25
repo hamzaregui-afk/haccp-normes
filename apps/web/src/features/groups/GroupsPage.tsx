@@ -110,7 +110,7 @@ function AddMemberModal({ group, onClose, onAdded }: AddMemberModalProps) {
 
   const userOptions = (usersData ?? []).map((u) => ({
     value: u.id,
-    label: `${u.name} — ${t(`groups.roles.${u.role}` as Parameters<typeof t>[0], u.role)}`,
+    label: `${u.name} — ${t(`groups.roles.${u.role}` as Parameters<typeof t>[0])}`,
   }));
 
   const addMutation = useMutation({

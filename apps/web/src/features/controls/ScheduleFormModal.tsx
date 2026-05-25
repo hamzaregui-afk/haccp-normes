@@ -10,6 +10,7 @@ import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Calendar, Clock, Plus, RefreshCw, Repeat, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button }   from '@/components/ui/Button';
 import { Combobox } from '@/components/ui/Combobox';
@@ -43,13 +44,6 @@ interface FormValues {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const FREQ_TABS: { value: ScheduleFrequency; label: string }[] = [
-  { value: 'DAILY',   label: 'Quotidienne' },
-  { value: 'WEEKLY',  label: 'Hebdomadaire' },
-  { value: 'MONTHLY', label: 'Mensuelle' },
-  { value: 'CUSTOM',  label: 'Personnalisée' },
-];
-
 // French labels — Mon = 1, Tue = 2 … Sun = 0
 const DAYS_FR = [
   { dow: 1, short: 'L' },
@@ -59,12 +53,6 @@ const DAYS_FR = [
   { dow: 5, short: 'V' },
   { dow: 6, short: 'S' },
   { dow: 0, short: 'D' },
-];
-
-const INTERVAL_UNIT_OPTIONS = [
-  { value: 'HOURS', label: 'heures' },
-  { value: 'DAYS',  label: 'jours'  },
-  { value: 'WEEKS', label: 'semaines' },
 ];
 
 // ─── Local preview computation ─────────────────────────────────────────────────
@@ -199,6 +187,7 @@ function TimeSlotManager({
   slots:    string[];
   onChange: (s: string[]) => void;
 }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState('');
 
   const add = () => {
@@ -212,7 +201,7 @@ function TimeSlotManager({
   return (
     <div>
       <label className="mb-1.5 block text-sm font-medium text-gray-700">
-        Créneaux horaires <span className="text-red-500">*</span>
+        {t('controls.schedule.timeSlots')} <span className="text-red-500">*</span>
       </label>
       <div className="flex flex-wrap gap-2">
         {slots.map((s) => (
@@ -249,7 +238,7 @@ function TimeSlotManager({
         </div>
       </div>
       {slots.length === 0 && (
-        <p className="mt-1 text-xs text-red-500">Ajoutez au moins un créneau horaire.</p>
+        <p className="mt-1 text-xs text-red-500">{t('controls.schedule.timeSlotsRequired')}</p>
       )}
     </div>
   );
@@ -264,6 +253,7 @@ function DayOfWeekPicker({
   selected: number[];
   onChange: (d: number[]) => void;
 }) {
+  const { t } = useTranslation();
   const toggle = (dow: number) => {
     onChange(
       selected.includes(dow) ? selected.filter((d) => d !== dow) : [...selected, dow],
@@ -272,7 +262,7 @@ function DayOfWeekPicker({
   return (
     <div>
       <label className="mb-1.5 block text-sm font-medium text-gray-700">
-        Jours de la semaine <span className="text-red-500">*</span>
+        {t('controls.schedule.daysOfWeek')} <span className="text-red-500">*</span>
       </label>
       <div className="flex gap-1.5">
         {DAYS_FR.map(({ dow, short }) => (
@@ -292,7 +282,7 @@ function DayOfWeekPicker({
         ))}
       </div>
       {selected.length === 0 && (
-        <p className="mt-1 text-xs text-red-500">Sélectionnez au moins un jour.</p>
+        <p className="mt-1 text-xs text-red-500">{t('controls.schedule.daysOfWeekRequired')}</p>
       )}
     </div>
   );
@@ -307,13 +297,14 @@ function DayOfMonthPicker({
   selected: number[];
   onChange: (d: number[]) => void;
 }) {
+  const { t } = useTranslation();
   const toggle = (d: number) => {
     onChange(selected.includes(d) ? selected.filter((x) => x !== d) : [...selected, d].sort((a, b) => a - b));
   };
   return (
     <div>
       <label className="mb-1.5 block text-sm font-medium text-gray-700">
-        Jours du mois <span className="text-red-500">*</span>
+        {t('controls.schedule.daysOfMonth')} <span className="text-red-500">*</span>
       </label>
       <div className="flex flex-wrap gap-1">
         {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
@@ -333,7 +324,7 @@ function DayOfMonthPicker({
         ))}
       </div>
       {selected.length === 0 && (
-        <p className="mt-1 text-xs text-red-500">Sélectionnez au moins un jour.</p>
+        <p className="mt-1 text-xs text-red-500">{t('controls.schedule.daysOfMonthRequired')}</p>
       )}
     </div>
   );
@@ -348,6 +339,7 @@ interface ScheduleFormModalProps {
 }
 
 export function ScheduleFormModal({ open, onClose, onCreated }: ScheduleFormModalProps) {
+  const { t } = useTranslation();
   const tenantId    = useTenantId();
   const queryClient = useQueryClient();
 
@@ -369,6 +361,19 @@ export function ScheduleFormModal({ open, onClose, onCreated }: ScheduleFormModa
   const interval     = useWatch({ control, name: 'interval'     });
   const intervalUnit = useWatch({ control, name: 'intervalUnit' });
   const startDate    = useWatch({ control, name: 'startDate'    });
+
+  const freqTabs = useMemo<{ value: ScheduleFrequency; label: string }[]>(() => [
+    { value: 'DAILY',   label: t('controls.frequency.DAILY') },
+    { value: 'WEEKLY',  label: t('controls.frequency.WEEKLY') },
+    { value: 'MONTHLY', label: t('controls.frequency.MONTHLY') },
+    { value: 'CUSTOM',  label: t('controls.frequency.CUSTOM') },
+  ], [t]);
+
+  const intervalUnitOptions = useMemo(() => [
+    { value: 'HOURS', label: t('controls.schedule.hours', 'heures') },
+    { value: 'DAYS',  label: t('controls.schedule.days') },
+    { value: 'WEEKS', label: t('controls.schedule.weeks') },
+  ], [t]);
 
   // ── Data lookups ──────────────────────────────────────────────────────────
   const { data: templatesRaw, isLoading: templatesLoading } = useQuery({
@@ -458,13 +463,13 @@ export function ScheduleFormModal({ open, onClose, onCreated }: ScheduleFormModa
       api.post('/api/v1/controls/schedules', body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['controls.schedules', tenantId] });
-      showToast({ title: 'Planification créée', variant: 'success' });
+      showToast({ title: t('controls.toast.scheduleCreated'), variant: 'success' });
       onCreated?.();
       onClose();
     },
     onError: (err: unknown) => {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      showToast({ title: 'Erreur', body: msg ?? 'Impossible de créer la planification', variant: 'error' });
+      showToast({ title: t('controls.toast.scheduleCreateError'), body: msg ?? t('controls.toast.scheduleCreateErrorBody'), variant: 'error' });
     },
   });
 
@@ -494,7 +499,7 @@ export function ScheduleFormModal({ open, onClose, onCreated }: ScheduleFormModa
   const isHours = frequency === 'CUSTOM' && intervalUnit === 'HOURS';
 
   return (
-    <Modal open={open} onClose={onClose} title="Nouvelle planification récurrente" size="lg">
+    <Modal open={open} onClose={onClose} title={t('controls.schedule.title')} size="lg">
       <form onSubmit={(e) => void handleSubmit(onSubmit)(e)}>
         <div className="max-h-[70vh] overflow-y-auto space-y-5 pr-1">
 
@@ -503,11 +508,11 @@ export function ScheduleFormModal({ open, onClose, onCreated }: ScheduleFormModa
             <Controller
               name="templateId"
               control={control}
-              rules={{ required: 'Modèle requis' }}
+              rules={{ required: t('controls.schedule.modelRequired') }}
               render={({ field }) => (
                 <Combobox
-                  label="Modèle de contrôle"
-                  placeholder="Rechercher…"
+                  label={t('controls.schedule.templateLabel')}
+                  placeholder={t('controls.planForm.templatePlaceholder')}
                   required
                   loading={templatesLoading}
                   options={templateOptions}
@@ -520,11 +525,11 @@ export function ScheduleFormModal({ open, onClose, onCreated }: ScheduleFormModa
             <Controller
               name="zoneId"
               control={control}
-              rules={{ required: 'Zone requise' }}
+              rules={{ required: t('controls.schedule.zoneRequired') }}
               render={({ field }) => (
                 <Combobox
-                  label="Zone / Emplacement"
-                  placeholder="Rechercher…"
+                  label={t('controls.schedule.zoneLabel')}
+                  placeholder={t('controls.planForm.zonePlaceholder')}
                   required
                   loading={zonesLoading}
                   options={zoneOptions}
@@ -538,22 +543,22 @@ export function ScheduleFormModal({ open, onClose, onCreated }: ScheduleFormModa
 
           {/* ── Assignation ────────────────────────────────────────────── */}
           <div>
-            <p className="mb-1.5 text-sm font-medium text-gray-700">Assigner à</p>
+            <p className="mb-1.5 text-sm font-medium text-gray-700">{t('controls.schedule.assignTo')}</p>
             <div className="flex gap-4 mb-2">
-              {(['user', 'group'] as const).map((t) => {
-                const enabled = t === 'user' ? userOptions.length > 0 : groupOptions.length > 0;
+              {(['user', 'group'] as const).map((assignType) => {
+                const enabled = assignType === 'user' ? userOptions.length > 0 : groupOptions.length > 0;
                 return (
-                  <label key={t} className={`flex cursor-pointer items-center gap-2 ${!enabled ? 'opacity-40 cursor-not-allowed' : ''}`}>
-                    <input type="radio" value={t} disabled={!enabled} {...register('assigneeType')} className="accent-brand-medium" />
-                    <span className="text-sm text-gray-700">{t === 'user' ? 'Utilisateur' : 'Groupe'}</span>
+                  <label key={assignType} className={`flex cursor-pointer items-center gap-2 ${!enabled ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                    <input type="radio" value={assignType} disabled={!enabled} {...register('assigneeType')} className="accent-brand-medium" />
+                    <span className="text-sm text-gray-700">{assignType === 'user' ? t('controls.schedule.userRadio') : t('controls.schedule.groupRadio')}</span>
                   </label>
                 );
               })}
             </div>
             {assigneeType === 'user' ? (
-              <Select placeholder="Sélectionner un utilisateur" options={userOptions} {...register('assigneeId')} />
+              <Select placeholder={t('controls.schedule.userPlaceholder')} options={userOptions} {...register('assigneeId')} />
             ) : (
-              <Select placeholder="Sélectionner un groupe"     options={groupOptions} {...register('groupId')} />
+              <Select placeholder={t('controls.schedule.groupPlaceholder')} options={groupOptions} {...register('groupId')} />
             )}
           </div>
 
@@ -561,11 +566,11 @@ export function ScheduleFormModal({ open, onClose, onCreated }: ScheduleFormModa
           <div>
             <p className="mb-2 text-sm font-medium text-gray-700">
               <Repeat className="mr-1.5 inline h-3.5 w-3.5 text-brand-medium" />
-              Fréquence de répétition
+              {t('controls.schedule.frequencyLabel')}
             </p>
             {/* Frequency tabs */}
             <div className="flex rounded-lg border border-surface-muted bg-surface-page p-0.5">
-              {FREQ_TABS.map(({ value, label }) => (
+              {freqTabs.map(({ value, label }) => (
                 <label key={value} className="flex-1 cursor-pointer text-center">
                   <input type="radio" value={value} {...register('frequency')} className="sr-only" />
                   <span
@@ -586,7 +591,7 @@ export function ScheduleFormModal({ open, onClose, onCreated }: ScheduleFormModa
             <div className="mt-3 space-y-3">
               {/* Interval row */}
               <div className="flex items-center gap-2 text-sm text-gray-700">
-                <span>Toutes les</span>
+                <span>{t('controls.schedule.interval')}</span>
                 <input
                   type="number"
                   min={1}
@@ -594,15 +599,15 @@ export function ScheduleFormModal({ open, onClose, onCreated }: ScheduleFormModa
                   {...register('interval', { min: 1, valueAsNumber: true })}
                   className="h-8 w-16 rounded-lg border border-surface-muted px-2 text-center text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
                 />
-                {frequency === 'DAILY'   && <span>jours</span>}
-                {frequency === 'WEEKLY'  && <span>semaines</span>}
-                {frequency === 'MONTHLY' && <span>mois</span>}
+                {frequency === 'DAILY'   && <span>{t('controls.schedule.days')}</span>}
+                {frequency === 'WEEKLY'  && <span>{t('controls.schedule.weeks')}</span>}
+                {frequency === 'MONTHLY' && <span>{t('controls.schedule.months')}</span>}
                 {frequency === 'CUSTOM'  && (
                   <select
                     {...register('intervalUnit')}
                     className="h-8 rounded-lg border border-surface-muted bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
                   >
-                    {INTERVAL_UNIT_OPTIONS.map((o) => (
+                    {intervalUnitOptions.map((o) => (
                       <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
                   </select>
@@ -628,21 +633,21 @@ export function ScheduleFormModal({ open, onClose, onCreated }: ScheduleFormModa
           {isHours && (
             <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
               <Clock className="mr-1 inline h-3 w-3" />
-              Les tâches seront générées toutes les {Number(interval) || 1} heure(s) à partir de la date de début.
+              {t('controls.schedule.hourlyInfo', { count: Number(interval) || 1 })}
             </div>
           )}
 
           {/* ── Période ────────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Date de début"
+              label={t('controls.schedule.startDate')}
               type="datetime-local"
               required
-              {...register('startDate', { required: 'Date de début requise' })}
+              {...register('startDate', { required: t('controls.schedule.startDateRequired') })}
               error={errors.startDate?.message}
             />
             <Input
-              label="Date de fin (optionnel)"
+              label={t('controls.schedule.endDate')}
               type="datetime-local"
               {...register('endDate')}
             />
@@ -653,7 +658,7 @@ export function ScheduleFormModal({ open, onClose, onCreated }: ScheduleFormModa
             <div className="rounded-xl border border-brand-medium/30 bg-brand-light px-4 py-3">
               <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-brand-dark">
                 <Calendar className="h-3.5 w-3.5" />
-                5 prochaines occurrences (aperçu)
+                {t('controls.schedule.previewTitle')}
               </p>
               <ul className="space-y-1">
                 {preview.map((iso) => (
@@ -671,10 +676,10 @@ export function ScheduleFormModal({ open, onClose, onCreated }: ScheduleFormModa
         {/* Footer */}
         <div className="mt-5 flex justify-end gap-3 border-t border-surface-muted pt-4">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Annuler
+            {t('controls.checklist.cancel')}
           </Button>
           <Button type="submit" loading={createMutation.isPending}>
-            Créer la planification
+            {t('controls.actions.createScheduleBtn')}
           </Button>
         </div>
       </form>

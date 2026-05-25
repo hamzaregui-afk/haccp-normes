@@ -15,6 +15,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
@@ -150,6 +151,7 @@ type ValuesMap = Record<string, ItemValue>;
 // ─── Progress bar ─────────────────────────────────────────────────────────────
 
 function ProgressBar({ filled, total }: { filled: number; total: number }) {
+  const { t } = useTranslation();
   const pct = total === 0 ? 0 : Math.round((filled / total) * 100);
   const color =
     pct === 100 ? 'bg-green-500' :
@@ -158,7 +160,12 @@ function ProgressBar({ filled, total }: { filled: number; total: number }) {
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between text-xs font-medium text-gray-600">
-        <span>{filled} / {total} point{total !== 1 ? 's' : ''} renseigné{filled !== 1 ? 's' : ''}</span>
+        <span>{t('controls.checklist.progressPoints', {
+          filled,
+          total,
+          pluralS: total !== 1 ? 's' : '',
+          pluralSFilled: filled !== 1 ? 's' : '',
+        })}</span>
         <span className="font-bold text-gray-800">{pct}%</span>
       </div>
       <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
@@ -234,6 +241,7 @@ function PhotoInput({
   };
 
   // Accept presigned HTTPS URLs (new) and legacy base64 data URIs (read-only view)
+  const { t } = useTranslation();
   const photoUrl = typeof value === 'string' && isRenderableUrl(value) ? value : null;
 
   return (
@@ -242,7 +250,7 @@ function PhotoInput({
         <div className="relative">
           <img
             src={photoUrl}
-            alt="Photo capturée"
+            alt={t('controls.checklist.takePhoto')}
             className="h-44 w-full rounded-xl object-cover border-2 border-surface-muted"
           />
           <button
@@ -264,9 +272,9 @@ function PhotoInput({
             <Camera className="h-8 w-8" />
             <div className="text-center">
               <p className="font-medium">
-                {uploading ? 'Envoi en cours…' : 'Prendre une photo'}
+                {uploading ? t('controls.checklist.uploadingPhoto') : t('controls.checklist.takePhoto')}
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">Appuyez pour ouvrir l'appareil photo</p>
+              <p className="text-xs text-gray-400 mt-0.5">{t('controls.checklist.openCamera')}</p>
             </div>
           </button>
           {uploadError && (
@@ -285,6 +293,27 @@ function PhotoInput({
         className="hidden"
         onChange={(e) => { void handleFileChange(e); }}
       />
+    </div>
+  );
+}
+
+// ─── Signature footer (translated) ────────────────────────────────────────────
+
+function SignatureFooter({ value, onClear }: { value: ItemValue; onClear: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="mt-2 flex items-center justify-between px-1">
+      <p className="text-xs text-gray-400">{t('controls.checklist.signHere')}</p>
+      {value && (
+        <button
+          type="button"
+          onClick={onClear}
+          className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors"
+        >
+          <Trash2 className="h-3 w-3" />
+          {t('controls.checklist.clearSignature')}
+        </button>
+      )}
     </div>
   );
 }
@@ -381,19 +410,7 @@ function SignatureInput({
         onTouchMove={(e) => { e.preventDefault(); draw(e); }}
         onTouchEnd={stopDraw}
       />
-      <div className="mt-2 flex items-center justify-between px-1">
-        <p className="text-xs text-gray-400">Signez dans la zone blanche</p>
-        {value && (
-          <button
-            type="button"
-            onClick={clear}
-            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors"
-          >
-            <Trash2 className="h-3 w-3" />
-            Effacer
-          </button>
-        )}
-      </div>
+      <SignatureFooter value={value} onClear={clear} />
     </div>
   );
 }
@@ -415,6 +432,7 @@ function ChecklistItemCard({
   onMeasuredTempChange: (v: string) => void;
   taskId:               string;
 }) {
+  const { t } = useTranslation();
   const Icon         = TYPE_ICONS[item.type];
   const compliant    = isItemCompliant(item, value);
   const filled       = hasValue(value);
@@ -447,7 +465,7 @@ function ChecklistItemCard({
             </p>
             {(item.type === 'TEMPERATURE' || item.type === 'NUMBER') && (item.min !== undefined || item.max !== undefined) && (
               <p className="mt-0.5 text-xs text-gray-400">
-                Plage : {item.min !== undefined ? `${item.min}` : ''}
+                {t('controls.checklist.range')} : {item.min !== undefined ? `${item.min}` : ''}
                 {item.min !== undefined && item.max !== undefined ? ' → ' : ''}
                 {item.max !== undefined ? `${item.max}` : ''}
                 {item.type === 'TEMPERATURE' ? ' °C' : item.unit ? ` ${item.unit}` : ''}
@@ -464,8 +482,8 @@ function ChecklistItemCard({
               : 'border-red-200 bg-red-50 text-red-600',
           ].join(' ')}>
             {compliant
-              ? <><CheckCircle2 className="h-3.5 w-3.5" />Conforme</>
-              : <><XCircle className="h-3.5 w-3.5" />Non conforme</>
+              ? <><CheckCircle2 className="h-3.5 w-3.5" />{t('controls.checklist.compliant')}</>
+              : <><XCircle className="h-3.5 w-3.5" />{t('controls.checklist.nonCompliant')}</>
             }
           </span>
         )}
@@ -474,7 +492,7 @@ function ChecklistItemCard({
       {/* ── Température relevée — visible sur tous les items ─────────────── */}
       <div className="mx-4 mb-3 flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2">
         <Thermometer className="h-4 w-4 shrink-0 text-blue-500" />
-        <span className="text-xs font-medium text-blue-700 whitespace-nowrap">Valeur relevée</span>
+        <span className="text-xs font-medium text-blue-700 whitespace-nowrap">{t('controls.checklist.measuredValue')}</span>
         <input
           type="number"
           inputMode="decimal"
@@ -503,7 +521,7 @@ function ChecklistItemCard({
               ].join(' ')}
             >
               <CheckCircle2 className="h-5 w-5" />
-              Oui / Conforme
+              {t('controls.checklist.yesCompliant')}
             </button>
             <button
               type="button"
@@ -516,7 +534,7 @@ function ChecklistItemCard({
               ].join(' ')}
             >
               <XCircle className="h-5 w-5" />
-              Non
+              {t('controls.checklist.no')}
             </button>
           </div>
         )}
@@ -531,7 +549,7 @@ function ChecklistItemCard({
                 value={value === null || value === undefined ? '' : String(value)}
                 onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
                 step="0.1"
-                placeholder="Saisir une valeur…"
+                placeholder={t('controls.checklist.valuePlaceholder')}
                 className={[
                   'h-14 w-full rounded-xl border-2 px-4 pr-16 text-lg font-semibold transition-colors focus:outline-none focus:ring-2',
                   isOutOfRange
@@ -548,7 +566,7 @@ function ChecklistItemCard({
             {isOutOfRange && (
               <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-red-600">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                Valeur hors plage — non-conformité enregistrée
+                {t('controls.checklist.outOfRange')}
               </p>
             )}
           </div>
@@ -560,7 +578,7 @@ function ChecklistItemCard({
             rows={3}
             value={typeof value === 'string' ? value : ''}
             onChange={(e) => onChange(e.target.value || null)}
-            placeholder="Saisir une observation…"
+            placeholder={t('controls.checklist.textPlaceholder')}
             className="w-full resize-none rounded-xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
           />
         )}
@@ -604,7 +622,7 @@ function ChecklistItemCard({
               </button>
             ))}
             {(item.options ?? []).length === 0 && (
-              <p className="text-xs text-gray-400">Aucune option configurée</p>
+              <p className="text-xs text-gray-400">{t('controls.checklist.noOptions', 'Aucune option configurée')}</p>
             )}
           </div>
         )}
@@ -628,6 +646,7 @@ function NonConformityPanel({
   onPhoto:   (v: string | null) => void;
   taskId:    string;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-4">
       <div className="mb-4 flex items-center gap-3">
@@ -635,25 +654,25 @@ function NonConformityPanel({
           <AlertTriangle className="h-5 w-5 text-red-600" />
         </div>
         <div>
-          <p className="font-bold text-red-800">Non-conformité détectée</p>
-          <p className="text-xs text-red-600">Un commentaire est obligatoire avant de valider</p>
+          <p className="font-bold text-red-800">{t('controls.checklist.ncDetected')}</p>
+          <p className="text-xs text-red-600">{t('controls.checklist.ncRequired')}</p>
         </div>
       </div>
 
       <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-red-700">
-        Commentaire de non-conformité <span className="text-red-500">*</span>
+        {t('controls.checklist.ncComment')} <span className="text-red-500">*</span>
       </label>
       <textarea
         rows={3}
         value={comment}
         onChange={(e) => onComment(e.target.value)}
-        placeholder="Décrivez la non-conformité et les actions correctives prises…"
+        placeholder={t('controls.checklist.ncCommentPh', 'Décrivez la non-conformité et les actions correctives prises…')}
         className="w-full resize-none rounded-xl border-2 border-red-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 placeholder:text-red-300"
       />
 
       <div className="mt-3">
         <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-red-700">
-          Photo (optionnel)
+          {t('controls.checklist.ncPhoto')}
         </label>
         {photo ? (
           <div className="relative">
@@ -677,6 +696,7 @@ function NonConformityPanel({
 // ─── Read-only results view ────────────────────────────────────────────────────
 
 function ResultsView({ result }: { result: TaskResult }) {
+  const { t } = useTranslation();
   const completedAt = new Date(result.submittedAt).toLocaleString('fr-FR', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
@@ -697,10 +717,10 @@ function ResultsView({ result }: { result: TaskResult }) {
         }
         <div className="flex-1">
           <p className={`font-bold ${result.overallCompliant ? 'text-green-800' : 'text-red-800'}`}>
-            {result.overallCompliant ? 'Contrôle conforme' : 'Non-conformité enregistrée'}
+            {result.overallCompliant ? t('controls.checklist.resultCompliant') : t('controls.checklist.resultNonCompliant')}
           </p>
           <p className={`text-xs ${result.overallCompliant ? 'text-green-600' : 'text-red-600'}`}>
-            Complété le {completedAt}
+            {t('controls.checklist.completedAt', { date: completedAt })}
           </p>
         </div>
       </div>
@@ -711,7 +731,7 @@ function ResultsView({ result }: { result: TaskResult }) {
           let displayValue: React.ReactNode = '—';
           if (item.value !== null && item.value !== undefined) {
             if (item.type === 'BOOLEAN') {
-              displayValue = item.value ? 'Oui / Conforme' : 'Non / Non conforme';
+              displayValue = item.value ? t('controls.checklist.yesCompliant') : t('controls.checklist.nonCompliant');
             } else if (item.type === 'TEMPERATURE') {
               displayValue = `${String(item.value)} °C`;
             } else if (
@@ -740,7 +760,7 @@ function ResultsView({ result }: { result: TaskResult }) {
                 {item.measuredTemp && (
                   <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-blue-700">
                     <Thermometer className="h-3 w-3" />
-                    Relevé : {item.measuredTemp} °C
+                    {t('controls.checklist.measured', { value: item.measuredTemp })}
                   </p>
                 )}
                 <p className="mt-0.5 text-sm text-gray-600">{displayValue}</p>
@@ -750,8 +770,8 @@ function ResultsView({ result }: { result: TaskResult }) {
                 item.compliant ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600',
               ].join(' ')}>
                 {item.compliant
-                  ? <><CheckCircle2 className="h-3 w-3" />OK</>
-                  : <><XCircle className="h-3 w-3" />NC</>
+                  ? <><CheckCircle2 className="h-3 w-3" />{t('controls.checklist.compliant')}</>
+                  : <><XCircle className="h-3 w-3" />{t('controls.checklist.nonCompliant')}</>
                 }
               </span>
             </div>
@@ -762,7 +782,7 @@ function ResultsView({ result }: { result: TaskResult }) {
       {/* NC comment */}
       {!result.overallCompliant && result.ncComment && (
         <div className="rounded-xl border-2 border-red-200 bg-red-50 px-4 py-3">
-          <p className="mb-1 text-xs font-bold uppercase tracking-wide text-red-700">Action corrective</p>
+          <p className="mb-1 text-xs font-bold uppercase tracking-wide text-red-700">{t('controls.checklist.correctiveAction')}</p>
           <p className="text-sm text-red-900">{result.ncComment}</p>
           {result.ncPhoto && isRenderableUrl(result.ncPhoto) && (
             <img src={result.ncPhoto} alt="Photo NC" className="mt-2 h-24 rounded-xl object-cover border border-red-200" />
@@ -772,7 +792,7 @@ function ResultsView({ result }: { result: TaskResult }) {
 
       {result.notes && (
         <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-          <p className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-500">Notes</p>
+          <p className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-500">{t('controls.checklist.additionalNotes')}</p>
           <p className="text-sm text-gray-700">{result.notes}</p>
         </div>
       )}
@@ -783,6 +803,7 @@ function ResultsView({ result }: { result: TaskResult }) {
 // ─── Success overlay ───────────────────────────────────────────────────────────
 
 function SuccessOverlay({ compliant }: { compliant: boolean }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
       <div className={[
@@ -795,10 +816,10 @@ function SuccessOverlay({ compliant }: { compliant: boolean }) {
         }
       </div>
       <p className={`mt-5 text-xl font-bold ${compliant ? 'text-green-800' : 'text-amber-800'}`}>
-        {compliant ? 'Contrôle conforme ✓' : 'Non-conformité enregistrée'}
+        {compliant ? t('controls.checklist.successCompliant') : t('controls.checklist.successNonCompliant')}
       </p>
       <p className={`mt-2 text-sm ${compliant ? 'text-green-600' : 'text-amber-600'}`}>
-        Les résultats ont été sauvegardés avec succès.
+        {t('controls.checklist.savedSuccess')}
       </p>
     </div>
   );
@@ -819,6 +840,7 @@ export function ChecklistExecutionModal({
   onClose,
   onCompleted,
 }: ChecklistExecutionModalProps) {
+  const { t } = useTranslation();
   const currentUser = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
   const tenantId    = useTenantId();
@@ -976,8 +998,8 @@ export function ChecklistExecutionModal({
 
   const zoneName   = taskDetail ? (zoneMap[taskDetail.zoneId] ?? taskDetail.zoneId) : '';
   const modalTitle = taskDetail
-    ? `${taskDetail.template?.name ?? 'Contrôle'} — ${zoneName}`
-    : 'Exécution du contrôle';
+    ? `${taskDetail.template?.name ?? t('controls.checklist.control')} — ${zoneName}`
+    : t('controls.checklist.executionTitle');
 
   if (!isOpen) return null;
 
@@ -1042,9 +1064,9 @@ export function ChecklistExecutionModal({
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
                 <AlertTriangle className="h-8 w-8 text-amber-500" />
               </div>
-              <p className="mt-4 font-semibold text-gray-700">Aucun point de contrôle défini</p>
+              <p className="mt-4 font-semibold text-gray-700">{t('controls.empty.noChecklistItems', 'Aucun point de contrôle défini')}</p>
               <p className="mt-1 text-sm text-gray-500">
-                Ce modèle ne contient pas encore d'items.<br />Contactez un responsable.
+                {t('controls.empty.noChecklistItemsHint', 'Ce modèle ne contient pas encore d\'items. Contactez un responsable.')}
               </p>
             </div>
           ) : (
@@ -1078,14 +1100,14 @@ export function ChecklistExecutionModal({
               {/* Notes */}
               <div className="rounded-2xl border-2 border-gray-200 bg-white p-4">
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Notes complémentaires
-                  <span className="ml-1 text-xs font-normal text-gray-400">(optionnel)</span>
+                  {t('controls.checklist.additionalNotes')}
+                  <span className="ml-1 text-xs font-normal text-gray-400">{t('controls.checklist.additionalNotesOptional')}</span>
                 </label>
                 <textarea
                   rows={2}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Observations, contexte, informations utiles…"
+                  placeholder={t('controls.checklist.notesPh')}
                   className="w-full resize-none rounded-xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
                 />
               </div>
@@ -1099,12 +1121,12 @@ export function ChecklistExecutionModal({
             {/* Helper text when button is disabled */}
             {!requiredFulfilled && (
               <p className="mb-2 text-center text-xs text-gray-400">
-                Renseignez tous les points obligatoires (<span className="text-red-500">*</span>) pour valider
+                {t('controls.checklist.fillRequired')}
               </p>
             )}
             {requiredFulfilled && !overallCompliant && ncComment.trim().length === 0 && (
               <p className="mb-2 text-center text-xs text-amber-600 font-medium">
-                ⚠ Ajoutez un commentaire de non-conformité ci-dessus pour valider
+                {t('controls.checklist.addNcComment')}
               </p>
             )}
 
@@ -1115,7 +1137,7 @@ export function ChecklistExecutionModal({
                 disabled={completeMutation.isPending}
                 className="h-14 rounded-2xl border-2 border-gray-200 px-5 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
-                Annuler
+                {t('controls.checklist.cancel')}
               </button>
               <button
                 type="button"
@@ -1134,12 +1156,12 @@ export function ChecklistExecutionModal({
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
                     </svg>
-                    Validation…
+                    {t('controls.checklist.validating')}
                   </span>
                 ) : overallCompliant ? (
-                  <><CheckCircle2 className="h-5 w-5" />Valider le contrôle</>
+                  <><CheckCircle2 className="h-5 w-5" />{t('controls.checklist.validate')}</>
                 ) : (
-                  <><AlertTriangle className="h-5 w-5" />Valider avec non-conformité</>
+                  <><AlertTriangle className="h-5 w-5" />{t('controls.checklist.validateNc')}</>
                 )}
               </button>
             </div>

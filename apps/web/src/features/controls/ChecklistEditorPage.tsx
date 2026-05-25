@@ -25,8 +25,9 @@ import {
   Type,
   ToggleLeft,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { PageWrapper } from '@/components/layout/AppLayout';
@@ -49,17 +50,6 @@ const ALL_VALID_TYPES = [
   'BOOLEAN', 'NUMBER', 'TEXT', 'TEMPERATURE', 'PHOTO', 'SIGNATURE', 'DATE', 'SELECT',
 ] as const;
 
-const ITEM_TYPE_OPTIONS = [
-  { value: 'BOOLEAN',     label: 'Oui / Non (conforme / non conforme)' },
-  { value: 'NUMBER',      label: 'Valeur numérique' },
-  { value: 'TEMPERATURE', label: 'Température (°C)' },
-  { value: 'TEXT',        label: 'Texte libre' },
-  { value: 'PHOTO',       label: 'Photo' },
-  { value: 'SIGNATURE',   label: 'Signature' },
-  { value: 'DATE',        label: 'Date / Heure' },
-  { value: 'SELECT',      label: 'Choix multiple' },
-];
-
 const ITEM_TYPE_ICONS: Record<ChecklistItem['type'], React.ElementType> = {
   BOOLEAN:     ToggleLeft,
   NUMBER:      Hash,
@@ -69,17 +59,6 @@ const ITEM_TYPE_ICONS: Record<ChecklistItem['type'], React.ElementType> = {
   SIGNATURE:   Pen,
   DATE:        Calendar,
   SELECT:      List,
-};
-
-const ITEM_TYPE_LABELS: Record<ChecklistItem['type'], string> = {
-  BOOLEAN:     'Oui / Non',
-  NUMBER:      'Numérique',
-  TEMPERATURE: 'Température',
-  TEXT:        'Texte',
-  PHOTO:       'Photo',
-  SIGNATURE:   'Signature',
-  DATE:        'Date / Heure',
-  SELECT:      'Choix multiple',
 };
 
 // ─── Add / edit item form ─────────────────────────────────────────────────────
@@ -104,6 +83,7 @@ function ItemForm({
   onSave:   (v: ItemFormValues) => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const { register, handleSubmit, watch } = useForm<ItemFormValues>({
     defaultValues: {
       label:    initial?.label    ?? '',
@@ -119,18 +99,25 @@ function ItemForm({
   const showLimits  = itemType === 'NUMBER' || itemType === 'TEMPERATURE';
   const showOptions = itemType === 'SELECT';
 
+  const itemTypeOptions = useMemo(() =>
+    ALL_VALID_TYPES.map((type) => ({
+      value: type,
+      label: t(`controls.editor.itemTypes.${type}` as Parameters<typeof t>[0]),
+    })),
+  [t]);
+
   return (
     <form onSubmit={(e) => void handleSubmit(onSave)(e)} className="space-y-4">
       <Input
-        label="Libellé du point de contrôle"
-        placeholder="Ex: Température à réception, DLC produit, Signature responsable…"
+        label={t('controls.editor.itemLabel')}
+        placeholder={t('controls.editor.itemLabelPh')}
         required
         {...register('label')}
       />
 
       <Select
-        label="Type de saisie"
-        options={ITEM_TYPE_OPTIONS}
+        label={t('controls.editor.itemType')}
+        options={itemTypeOptions}
         required
         {...register('type')}
       />
@@ -139,19 +126,19 @@ function ItemForm({
       {showLimits && (
         <div className="grid grid-cols-3 gap-3">
           <Input
-            label="Unité"
-            placeholder="°C, %, ppm…"
+            label={t('controls.editor.unit')}
+            placeholder={t('controls.editor.unitPh')}
             {...register('unit')}
           />
           <Input
-            label="Limite min"
+            label={t('controls.editor.minLimit')}
             type="number"
             step="any"
             placeholder="–18"
             {...register('min')}
           />
           <Input
-            label="Limite max"
+            label={t('controls.editor.maxLimit')}
             type="number"
             step="any"
             placeholder="4"
@@ -164,14 +151,14 @@ function ItemForm({
       {showOptions && (
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            Options (séparées par des virgules) <span className="text-red-500">*</span>
+            {t('controls.editor.options')} <span className="text-red-500">*</span>
           </label>
           <Input
             placeholder="Ex: Conforme, Non conforme, À vérifier"
             {...register('options')}
           />
           <p className="mt-1 text-xs text-gray-400">
-            Chaque valeur séparée par une virgule deviendra un bouton de sélection.
+            {t('controls.editor.optionsHint')}
           </p>
         </div>
       )}
@@ -179,17 +166,17 @@ function ItemForm({
       {/* Type descriptions */}
       {itemType === 'PHOTO' && (
         <p className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-700">
-          📷 L'opérateur devra prendre ou sélectionner une photo depuis son appareil.
+          {t('controls.editor.photoHint')}
         </p>
       )}
       {itemType === 'SIGNATURE' && (
         <p className="rounded-lg bg-purple-50 border border-purple-100 px-3 py-2 text-xs text-purple-700">
-          ✍️ L'opérateur devra apposer sa signature électronique dans un cadre dédié.
+          {t('controls.editor.signatureHint')}
         </p>
       )}
       {itemType === 'DATE' && (
         <p className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-700">
-          📅 L'opérateur devra renseigner une date et une heure.
+          {t('controls.editor.dateHint')}
         </p>
       )}
 
@@ -199,13 +186,13 @@ function ItemForm({
           className="h-4 w-4 rounded border-gray-300 accent-brand-medium"
           {...register('required')}
         />
-        <span className="text-sm text-gray-700">Champ obligatoire</span>
-        <span className="text-xs text-gray-400">(bloque la validation si non renseigné)</span>
+        <span className="text-sm text-gray-700">{t('controls.editor.required')}</span>
+        <span className="text-xs text-gray-400">{t('controls.editor.requiredHint')}</span>
       </label>
 
       <div className="flex justify-end gap-2 border-t border-surface-muted pt-3">
-        <Button type="button" variant="secondary" size="sm" onClick={onCancel}>Annuler</Button>
-        <Button type="submit" size="sm">Enregistrer</Button>
+        <Button type="button" variant="secondary" size="sm" onClick={onCancel}>{t('common.cancel')}</Button>
+        <Button type="submit" size="sm">{t('common.save')}</Button>
       </div>
     </form>
   );
@@ -221,6 +208,7 @@ interface ItemRowProps {
 }
 
 function ItemRow({ item, index, onEdit, onDelete }: ItemRowProps) {
+  const { t } = useTranslation();
   const TypeIcon = ITEM_TYPE_ICONS[item.type];
 
   const meta: string[] = [];
@@ -250,11 +238,11 @@ function ItemRow({ item, index, onEdit, onDelete }: ItemRowProps) {
       <div className="flex-1 min-w-0">
         <p className="truncate font-medium text-gray-900">{item.label}</p>
         <p className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-          <span>{ITEM_TYPE_LABELS[item.type]}</span>
+          <span>{t(`controls.editor.itemTypeLabels.${item.type}` as Parameters<typeof t>[0])}</span>
           {meta.length > 0 && <span className="text-gray-400">— {meta.join(' · ')}</span>}
           {item.required && (
             <span className="rounded-full bg-brand-lighter px-1.5 py-0.5 text-brand-dark font-medium">
-              Obligatoire
+              {t('controls.editor.required_badge')}
             </span>
           )}
         </p>

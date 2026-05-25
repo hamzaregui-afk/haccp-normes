@@ -21,6 +21,7 @@ import {
 import { Component, useEffect, useMemo, useRef, useState } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { PageWrapper } from '@/components/layout/AppLayout';
@@ -42,8 +43,38 @@ import { ChecklistExecutionModal } from './ChecklistExecutionModal';
 import { ScheduleFormModal } from './ScheduleFormModal';
 
 // ─── Error Boundary ────────────────────────────────────────────────────────────
+// ARCH-DECISION: ErrorBoundary is a class component (React requirement).
+// useTranslation() cannot be called inside class methods.
+// We delegate the translated error UI to a separate function component ErrorFallback
+// that wraps the retry button and message, and pass t() results as props.
 
 interface ErrorBoundaryState { hasError: boolean; error?: Error; }
+
+function ErrorFallback({
+  message,
+  onRetry,
+}: {
+  message: string | undefined;
+  onRetry: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col items-center justify-center py-24 text-center">
+      <AlertTriangle className="mb-4 h-10 w-10 text-amber-400" />
+      <p className="text-lg font-semibold text-gray-900">{t('controls.errorBoundary.title')}</p>
+      <p className="mt-1 text-sm text-gray-500">
+        {message ?? t('controls.error.unknown')}
+      </p>
+      <button
+        onClick={onRetry}
+        className="mt-4 rounded-lg bg-brand-medium px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark"
+      >
+        {t('controls.errorBoundary.retry')}
+      </button>
+    </div>
+  );
+}
+
 class ControlsErrorBoundary extends Component<
   { children: ReactNode },
   ErrorBoundaryState
@@ -58,26 +89,17 @@ class ControlsErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <AlertTriangle className="mb-4 h-10 w-10 text-amber-400" />
-          <p className="text-lg font-semibold text-gray-900">Une erreur est survenue</p>
-          <p className="mt-1 text-sm text-gray-500">
-            {this.state.error?.message ?? 'Erreur inconnue'}
-          </p>
-          <button
-            onClick={() => this.setState({ hasError: false })}
-            className="mt-4 rounded-lg bg-brand-medium px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark"
-          >
-            Réessayer
-          </button>
-        </div>
+        <ErrorFallback
+          message={this.state.error?.message}
+          onRetry={() => this.setState({ hasError: false })}
+        />
       );
     }
     return this.props.children;
   }
 }
 
-// ─── Style maps ────────────────────────────────────────────────────────────────
+// ─── Style maps (CSS only — no labels) ─────────────────────────────────────────
 
 const STATUS_STYLES: Record<ControlTask['status'], string> = {
   PLANNED:     'bg-gray-100 text-gray-700 border-gray-200',
@@ -86,31 +108,6 @@ const STATUS_STYLES: Record<ControlTask['status'], string> = {
   OVERDUE:     'bg-red-50 text-red-700 border-red-200',
   CANCELLED:   'bg-gray-100 text-gray-500 border-gray-200',
 };
-
-const STATUS_LABELS: Record<ControlTask['status'], string> = {
-  PLANNED:     'Planifié',
-  IN_PROGRESS: 'En cours',
-  COMPLETED:   'Complété',
-  OVERDUE:     'En retard',
-  CANCELLED:   'Annulé',
-};
-
-const STATUS_FILTER_OPTIONS = [
-  { value: '',            label: 'Tous les statuts' },
-  { value: 'PLANNED',     label: 'Planifié' },
-  { value: 'IN_PROGRESS', label: 'En cours' },
-  { value: 'COMPLETED',   label: 'Complété' },
-  { value: 'OVERDUE',     label: 'En retard' },
-  { value: 'CANCELLED',   label: 'Annulé' },
-];
-
-const FREQUENCY_OPTIONS = [
-  { value: 'DAILY',        label: 'Quotidienne' },
-  { value: 'WEEKLY',       label: 'Hebdomadaire' },
-  { value: 'MONTHLY',      label: 'Mensuelle' },
-  { value: 'ON_RECEPTION', label: 'À la réception' },
-  { value: 'ON_DEMAND',    label: 'À la demande' },
-];
 
 // ─── Lookup types ──────────────────────────────────────────────────────────────
 
@@ -271,6 +268,8 @@ function PlanTaskForm({
   onSubmit:     (v: PlanTaskFormValues) => Promise<unknown>;
   loading?:     boolean;
 }) {
+  const { t } = useTranslation();
+
   // ── Live templates ────────────────────────────────────────────────────────
   const tenantId = useTenantId();
   const { data: templatesData, isLoading: templatesLoading } = useQuery({
@@ -296,13 +295,21 @@ function PlanTaskForm({
     refetchOnWindowFocus: true,
   });
 
+  const frequencyOptions = useMemo(() => [
+    { value: 'DAILY',        label: t('controls.frequency.DAILY') },
+    { value: 'WEEKLY',       label: t('controls.frequency.WEEKLY') },
+    { value: 'MONTHLY',      label: t('controls.frequency.MONTHLY') },
+    { value: 'ON_RECEPTION', label: t('controls.frequency.ON_RECEPTION') },
+    { value: 'ON_DEMAND',    label: t('controls.frequency.ON_DEMAND') },
+  ], [t]);
+
   const templateOptions = useMemo(
-    () => (templatesData ?? []).map((t) => ({
-      value:    t.id,
-      label:    t.name,
-      sublabel: FREQUENCY_OPTIONS.find((f) => f.value === t.frequency)?.label,
+    () => (templatesData ?? []).map((tpl) => ({
+      value:    tpl.id,
+      label:    tpl.name,
+      sublabel: frequencyOptions.find((f) => f.value === tpl.frequency)?.label,
     })),
-    [templatesData],
+    [templatesData, frequencyOptions],
   );
 
   const zoneOptions = useMemo(() => {
@@ -334,11 +341,11 @@ function PlanTaskForm({
       <Controller
         name="templateId"
         control={control}
-        rules={{ required: 'Veuillez sélectionner un modèle' }}
+        rules={{ required: t('controls.planForm.templateRequired') }}
         render={({ field }) => (
           <Combobox
-            label="Modèle de contrôle"
-            placeholder="Rechercher un modèle…"
+            label={t('controls.planForm.templateLabel')}
+            placeholder={t('controls.planForm.templatePlaceholder')}
             required
             loading={templatesLoading}
             options={templateOptions}
@@ -353,11 +360,11 @@ function PlanTaskForm({
       <Controller
         name="zoneId"
         control={control}
-        rules={{ required: 'Veuillez sélectionner une zone' }}
+        rules={{ required: t('controls.planForm.zoneRequired') }}
         render={({ field }) => (
           <Combobox
-            label="Zone / Emplacement"
-            placeholder="Rechercher une zone…"
+            label={t('controls.planForm.zoneLabel')}
+            placeholder={t('controls.planForm.zonePlaceholder')}
             required
             loading={zonesLoading}
             options={zoneOptions}
@@ -371,7 +378,7 @@ function PlanTaskForm({
       {/* ── Assignation ──────────────────────────────────────────────────── */}
       {(canAssignUser || canAssignGroup) ? (
         <div>
-          <p className="mb-1.5 text-sm font-medium text-gray-700">Assigner à</p>
+          <p className="mb-1.5 text-sm font-medium text-gray-700">{t('controls.planForm.assignTo')}</p>
           <div className="flex gap-4">
             {(['user', 'group'] as const).map((type) => {
               const enabled = type === 'user' ? canAssignUser : canAssignGroup;
@@ -389,7 +396,7 @@ function PlanTaskForm({
                   />
                   <span className="flex items-center gap-1 text-sm text-gray-700">
                     {type === 'user' ? <User className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
-                    {type === 'user' ? 'Utilisateur' : 'Groupe'}
+                    {type === 'user' ? t('controls.planForm.userLabel') : t('controls.planForm.groupLabel')}
                   </span>
                 </label>
               );
@@ -398,22 +405,22 @@ function PlanTaskForm({
 
           {!canAssignUser && assigneeType === 'group' && (
             <p className="mt-1.5 text-[11px] text-gray-400">
-              L'assignation individuelle n'est disponible que pour les administrateurs.
+              {t('controls.planForm.noUserAssign')}
             </p>
           )}
 
           <div className="mt-3">
             {assigneeType === 'user' ? (
               <Select
-                label="Utilisateur"
-                placeholder="Sélectionner un utilisateur"
+                label={t('controls.planForm.userLabel')}
+                placeholder={t('controls.planForm.userPlaceholder')}
                 options={userOptions}
                 {...register('assigneeId')}
               />
             ) : (
               <Select
-                label="Groupe"
-                placeholder="Sélectionner un groupe"
+                label={t('controls.planForm.groupLabel')}
+                placeholder={t('controls.planForm.groupPlaceholder')}
                 options={groupOptions}
                 {...register('groupId')}
               />
@@ -422,18 +429,18 @@ function PlanTaskForm({
         </div>
       ) : (
         <div className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2.5 text-xs text-orange-700">
-          Aucun utilisateur ou groupe disponible. Contactez un administrateur pour en créer.
+          {t('controls.empty.noAssignees')}
         </div>
       )}
 
       <Input
-        label="Date planifiée"
+        label={t('controls.planForm.scheduledAt')}
         type="datetime-local"
         required
-        {...register('scheduledAt', { required: 'Veuillez saisir une date planifiée' })}
+        {...register('scheduledAt', { required: t('controls.planForm.scheduledAtRequired') })}
       />
       <div className="flex justify-end gap-3 border-t border-surface-muted pt-4">
-        <Button type="submit" loading={loading}>Planifier</Button>
+        <Button type="submit" loading={loading}>{t('controls.actions.planTask')}</Button>
       </div>
     </form>
   );
@@ -477,6 +484,7 @@ function TaskDetailModal({
   groupOptions: { value: string; label: string }[];
   isOperator:   boolean;
 }) {
+  const { t } = useTranslation();
   const queryClient  = useQueryClient();
   const tenantId     = useTenantId();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -534,7 +542,7 @@ function TaskDetailModal({
       void queryClient.invalidateQueries({ queryKey: ['controls.tasks', tenantId] });
       onClose();
     },
-    onError: () => showToast({ title: 'Erreur lors de la réassignation', variant: 'error' }),
+    onError: () => showToast({ title: t('controls.toast.reassignError'), variant: 'error' }),
   });
 
   const cancelMutation = useMutation({
@@ -548,7 +556,11 @@ function TaskDetailModal({
       onClose();
       reset();
     },
-    onError: () => showToast({ title: 'Erreur', body: "Impossible d'annuler la tâche", variant: 'error' }),
+    onError: () => showToast({
+      title: t('controls.toast.cancelErrorTitle'),
+      body: t('controls.toast.cancelError'),
+      variant: 'error',
+    }),
   });
 
   const handleReassign = (v: ReassignFormValues) => {
@@ -568,31 +580,33 @@ function TaskDetailModal({
     : task.groupId
       ? (groupMap[task.groupId] ?? task.groupId)
       : '—';
-  const assigneeKind = task.groupId ? 'Groupe' : 'Utilisateur';
+  const assigneeKind = task.groupId
+    ? t('controls.taskDetail.currentGroup')
+    : t('controls.taskDetail.currentUser');
 
   return (
     <>
-      <Modal open={open} onClose={() => { onClose(); reset(); }} title="Détail de la tâche" size="lg">
+      <Modal open={open} onClose={() => { onClose(); reset(); }} title={t('controls.taskDetail.title')} size="lg">
         {/* Info grid */}
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
           <div>
-            <dt className="font-medium text-gray-500">Modèle</dt>
+            <dt className="font-medium text-gray-500">{t('controls.taskDetail.template')}</dt>
             <dd className="mt-0.5 text-gray-900">{task.template?.name ?? task.templateId.slice(0, 8)}</dd>
           </div>
           <div>
-            <dt className="font-medium text-gray-500">Zone</dt>
+            <dt className="font-medium text-gray-500">{t('controls.taskDetail.zone')}</dt>
             <dd className="mt-0.5 text-gray-900">{zoneName}</dd>
           </div>
           <div>
-            <dt className="font-medium text-gray-500">Statut</dt>
+            <dt className="font-medium text-gray-500">{t('controls.taskDetail.status')}</dt>
             <dd className="mt-0.5">
               <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[task.status]}`}>
-                {STATUS_LABELS[task.status]}
+                {t(`controls.statusLabel.${task.status}` as Parameters<typeof t>[0])}
               </span>
             </dd>
           </div>
           <div>
-            <dt className="font-medium text-gray-500">Date planifiée</dt>
+            <dt className="font-medium text-gray-500">{t('controls.taskDetail.scheduledAt')}</dt>
             <dd className="mt-0.5 text-gray-900">
               {new Date(task.scheduledAt).toLocaleString('fr-FR', {
                 day: '2-digit', month: '2-digit', year: 'numeric',
@@ -601,7 +615,7 @@ function TaskDetailModal({
             </dd>
           </div>
           <div>
-            <dt className="font-medium text-gray-500">{assigneeKind} actuel</dt>
+            <dt className="font-medium text-gray-500">{assigneeKind}</dt>
             <dd className="mt-0.5 text-gray-900 flex items-center gap-1">
               {task.groupId ? <Users className="h-3.5 w-3.5 text-gray-400" /> : <User className="h-3.5 w-3.5 text-gray-400" />}
               {assigneeName}
@@ -615,7 +629,7 @@ function TaskDetailModal({
           return (
             <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4">
               <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-semibold text-green-800">Résultats du contrôle</p>
+                <p className="text-sm font-semibold text-green-800">{t('controls.taskDetail.results')}</p>
                 <span
                   className={[
                     'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
@@ -625,9 +639,9 @@ function TaskDetailModal({
                   ].join(' ')}
                 >
                   {result.overallCompliant ? (
-                    <><CheckCircle2 className="h-3 w-3" />Conforme</>
+                    <><CheckCircle2 className="h-3 w-3" />{t('controls.taskDetail.compliant')}</>
                   ) : (
-                    <><Clock className="h-3 w-3" />Non conforme</>
+                    <><Clock className="h-3 w-3" />{t('controls.taskDetail.nonCompliant')}</>
                   )}
                 </span>
               </div>
@@ -635,9 +649,9 @@ function TaskDetailModal({
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-green-100 bg-green-50 text-left text-[10px] font-semibold uppercase tracking-wider text-green-700">
-                      <th className="px-3 py-2">Point</th>
-                      <th className="px-3 py-2">Valeur</th>
-                      <th className="px-3 py-2">Conformité</th>
+                      <th className="px-3 py-2">{t('controls.columns.point')}</th>
+                      <th className="px-3 py-2">{t('controls.columns.value')}</th>
+                      <th className="px-3 py-2">{t('controls.columns.compliance')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-green-50">
@@ -646,7 +660,7 @@ function TaskDetailModal({
                         item.value === null || item.value === undefined
                           ? '—'
                           : item.type === 'BOOLEAN'
-                            ? (item.value ? 'Oui' : 'Non')
+                            ? (item.value ? t('controls.taskDetail.yesCompliant') : t('controls.taskDetail.noCompliant'))
                             : item.type === 'TEMPERATURE'
                               ? `${String(item.value)} °C`
                               : item.unit
@@ -671,7 +685,7 @@ function TaskDetailModal({
               </div>
               {result.notes && (
                 <p className="mt-2 text-xs text-green-800">
-                  <span className="font-medium">Notes :</span> {result.notes}
+                  <span className="font-medium">{t('controls.taskDetail.notes')}</span> {result.notes}
                 </p>
               )}
             </div>
@@ -683,7 +697,7 @@ function TaskDetailModal({
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
               <Camera className="h-4 w-4 text-brand-medium" />
-              Photos du contrôle ({photos.length})
+              {t('controls.taskDetail.photosSection', { count: photos.length })}
             </h3>
             <button
               type="button"
@@ -692,7 +706,7 @@ function TaskDetailModal({
               className="flex items-center gap-1.5 rounded-lg border border-brand-medium bg-white px-3 py-1.5 text-xs font-medium text-brand-medium hover:bg-brand-light transition-colors disabled:opacity-50"
             >
               <Upload className="h-3.5 w-3.5" />
-              {uploadPhotoMutation.isPending ? 'Upload…' : 'Ajouter une photo'}
+              {uploadPhotoMutation.isPending ? t('controls.taskDetail.uploading') : t('controls.actions.addPhoto')}
             </button>
             <input
               ref={fileInputRef}
@@ -706,14 +720,14 @@ function TaskDetailModal({
 
           {uploadPhotoMutation.isError && (
             <p className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
-              Erreur lors du téléversement. Veuillez réessayer.
+              {t('controls.taskDetail.uploadError')}
             </p>
           )}
 
           {photos.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-surface-muted py-8 text-center">
               <ImageOff className="mb-2 h-7 w-7 text-gray-300" />
-              <p className="text-sm text-gray-400">Aucune photo pour ce contrôle</p>
+              <p className="text-sm text-gray-400">{t('controls.empty.photos')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -726,7 +740,7 @@ function TaskDetailModal({
                 >
                   <img
                     src={photo.url}
-                    alt="Photo contrôle"
+                    alt={t('controls.columns.template')}
                     className="h-full w-full object-cover transition-transform group-hover:scale-105"
                     loading="lazy"
                   />
@@ -741,7 +755,7 @@ function TaskDetailModal({
 
         {/* Reassign section — hidden for OPERATOR (only managers/admins can reassign) */}
         {!isOperator && <div className="mt-5 rounded-lg border border-surface-muted bg-surface-page px-4 py-4">
-          <p className="mb-3 text-sm font-semibold text-gray-700">Réassigner la tâche</p>
+          <p className="mb-3 text-sm font-semibold text-gray-700">{t('controls.taskDetail.reassign')}</p>
           {(userOptions.length > 0 || groupOptions.length > 0) ? (
             <form onSubmit={(e) => void handleSubmit(handleReassign)(e)} className="space-y-3">
               <div className="flex gap-4">
@@ -761,7 +775,7 @@ function TaskDetailModal({
                       />
                       <span className="flex items-center gap-1 text-sm text-gray-700">
                         {type === 'user' ? <User className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
-                        {type === 'user' ? 'Utilisateur' : 'Groupe'}
+                        {type === 'user' ? t('controls.planForm.userLabel') : t('controls.planForm.groupLabel')}
                       </span>
                     </label>
                   );
@@ -769,20 +783,20 @@ function TaskDetailModal({
               </div>
 
               {assigneeType === 'user' ? (
-                <Select placeholder="Sélectionner un utilisateur" options={userOptions} {...register('assigneeId')} />
+                <Select placeholder={t('controls.planForm.userPlaceholder')} options={userOptions} {...register('assigneeId')} />
               ) : (
-                <Select placeholder="Sélectionner un groupe" options={groupOptions} {...register('groupId')} />
+                <Select placeholder={t('controls.planForm.groupPlaceholder')} options={groupOptions} {...register('groupId')} />
               )}
 
               <div className="flex justify-end">
                 <Button type="submit" size="sm" loading={reassignMutation.isPending}>
-                  Réassigner
+                  {t('controls.actions.reassign')}
                 </Button>
               </div>
             </form>
           ) : (
             <p className="text-xs text-gray-400">
-              Aucun utilisateur ou groupe disponible pour la réassignation.
+              {t('controls.empty.noAssigneesReassign')}
             </p>
           )}
         </div>}
@@ -796,7 +810,7 @@ function TaskDetailModal({
               loading={cancelMutation.isPending}
               className="text-red-600 border-red-200 hover:bg-red-50"
             >
-              Annuler la tâche
+              {t('controls.actions.cancelTask')}
             </Button>
           </div>
         )}
@@ -817,7 +831,7 @@ function TaskDetailModal({
           </button>
           <img
             src={lightboxUrl}
-            alt="Photo contrôle agrandie"
+            alt={t('controls.taskDetail.photosSection', { count: 1 })}
             className="max-h-full max-w-full rounded-lg object-contain"
             onClick={(e) => e.stopPropagation()}
           />
@@ -841,23 +855,33 @@ function CreateTemplateForm({
   onSubmit: (v: CreateTemplateFormValues) => Promise<unknown>;
   loading?: boolean;
 }) {
+  const { t } = useTranslation();
+
+  const frequencyOptions = useMemo(() => [
+    { value: 'DAILY',        label: t('controls.frequency.DAILY') },
+    { value: 'WEEKLY',       label: t('controls.frequency.WEEKLY') },
+    { value: 'MONTHLY',      label: t('controls.frequency.MONTHLY') },
+    { value: 'ON_RECEPTION', label: t('controls.frequency.ON_RECEPTION') },
+    { value: 'ON_DEMAND',    label: t('controls.frequency.ON_DEMAND') },
+  ], [t]);
+
   const { register, handleSubmit } = useForm<CreateTemplateFormValues>();
   return (
     <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4">
       <Input
-        label="Nom du modèle"
-        placeholder="Contrôle réception viande…"
+        label={t('controls.templateForm.nameLabel')}
+        placeholder={t('controls.templateForm.namePlaceholder')}
         required
         {...register('name')}
       />
       <Select
-        label="Fréquence"
-        placeholder="Sélectionner une fréquence"
-        options={FREQUENCY_OPTIONS}
+        label={t('controls.templateForm.frequencyLabel')}
+        placeholder={t('controls.templateForm.frequencyPlaceholder')}
+        options={frequencyOptions}
         {...register('frequency')}
       />
       <div className="flex justify-end gap-3 border-t border-surface-muted pt-4">
-        <Button type="submit" loading={loading}>Créer le modèle</Button>
+        <Button type="submit" loading={loading}>{t('controls.actions.createModel')}</Button>
       </div>
     </form>
   );
@@ -882,6 +906,7 @@ function TasksTab({
   isOperator:   boolean;
   operatorId:   string;
 }) {
+  const { t } = useTranslation();
   const [page, setPage]                     = useState(1);
   const [statusFilter, setStatusFilter]     = useState('');
   const [search, setSearch]                 = useState('');
@@ -890,6 +915,15 @@ function TasksTab({
   const [selectedExecTaskId, setSelectedExecTaskId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const tenantId    = useTenantId();
+
+  const statusFilterOptions = useMemo(() => [
+    { value: '',            label: t('controls.statusFilter.all') },
+    { value: 'PLANNED',     label: t('controls.statusFilter.PLANNED') },
+    { value: 'IN_PROGRESS', label: t('controls.statusFilter.IN_PROGRESS') },
+    { value: 'COMPLETED',   label: t('controls.statusFilter.COMPLETED') },
+    { value: 'OVERDUE',     label: t('controls.statusFilter.OVERDUE') },
+    { value: 'CANCELLED',   label: t('controls.statusFilter.CANCELLED') },
+  ], [t]);
 
   // Reset search when status filter changes
   useEffect(() => {
@@ -917,7 +951,7 @@ function TasksTab({
       void queryClient.invalidateQueries({ queryKey: ['controls.stats', tenantId] });
       setPlanModalOpen(false);
     },
-    onError: () => showToast({ title: 'Erreur lors de la planification', variant: 'error' }),
+    onError: () => showToast({ title: t('controls.toast.planError'), variant: 'error' }),
   });
 
   const tasks = data?.data ?? [];
@@ -925,9 +959,9 @@ function TasksTab({
   // Client-side search filter on the current page's data
   // (backend doesn't support task search yet)
   const filteredTasks = search.trim()
-    ? tasks.filter((t) =>
-        t.template?.name.toLowerCase().includes(search.toLowerCase()) ||
-        t.zoneId.toLowerCase().includes(search.toLowerCase())
+    ? tasks.filter((task) =>
+        task.template?.name.toLowerCase().includes(search.toLowerCase()) ||
+        task.zoneId.toLowerCase().includes(search.toLowerCase())
       )
     : tasks;
 
@@ -949,14 +983,14 @@ function TasksTab({
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
           className="h-9 rounded-lg border border-surface-muted bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
         >
-          {STATUS_FILTER_OPTIONS.map((o) => (
+          {statusFilterOptions.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
         {/* OPERATOR cannot plan tasks — that's the manager/admin role */}
         {!isOperator && (
           <Button size="sm" onClick={() => setPlanModalOpen(true)}>
-            <Plus className="h-4 w-4" /> Planifier
+            <Plus className="h-4 w-4" /> {t('controls.actions.planTask')}
           </Button>
         )}
       </div>
@@ -966,7 +1000,7 @@ function TasksTab({
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
         <input
           type="text"
-          placeholder="Rechercher…"
+          placeholder={t('controls.searchPlaceholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="h-9 w-full rounded-lg border border-surface-muted pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
@@ -975,13 +1009,13 @@ function TasksTab({
 
       {/* Content */}
       {isLoading ? (
-        <div className="py-20 text-center text-sm text-gray-400">Chargement…</div>
+        <div className="py-20 text-center text-sm text-gray-400">{t('controls.loading')}</div>
       ) : tasks.length === 0 ? (
         <EmptyState
           icon={Calendar}
-          title="Aucune tâche"
-          description="Planifiez votre première tâche de contrôle à partir d'un modèle existant."
-          actionLabel="Planifier une tâche"
+          title={t('controls.empty.tasks.title')}
+          description={t('controls.empty.tasks.description')}
+          actionLabel={t('controls.empty.tasks.action')}
           onAction={() => setPlanModalOpen(true)}
         />
       ) : (
@@ -989,11 +1023,11 @@ function TasksTab({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-surface-muted bg-surface-page text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                <th className="px-4 py-3">Modèle</th>
-                <th className="px-4 py-3">Zone</th>
-                <th className="px-4 py-3">Assigné</th>
-                <th className="px-4 py-3">Date planifiée</th>
-                <th className="px-4 py-3">Statut</th>
+                <th className="px-4 py-3">{t('controls.columns.template')}</th>
+                <th className="px-4 py-3">{t('controls.columns.zone')}</th>
+                <th className="px-4 py-3">{t('controls.columns.assignee')}</th>
+                <th className="px-4 py-3">{t('controls.columns.scheduledAt')}</th>
+                <th className="px-4 py-3">{t('controls.columns.status')}</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -1041,7 +1075,7 @@ function TasksTab({
                       <span
                         className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[task.status]}`}
                       >
-                        {STATUS_LABELS[task.status]}
+                        {t(`controls.statusLabel.${task.status}` as Parameters<typeof t>[0])}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -1056,7 +1090,7 @@ function TasksTab({
                           }
                         }}
                       >
-                        {isOperator ? 'Exécuter' : 'Voir'}
+                        {isOperator ? t('controls.actions.execute') : t('controls.actions.view')}
                       </button>
                     </td>
                   </tr>
@@ -1067,10 +1101,20 @@ function TasksTab({
 
           {data?.meta && data.meta.lastPage > 1 && (
             <div className="flex items-center justify-between border-t border-surface-muted px-4 py-3 text-sm text-gray-500">
-              <span>Page {data.meta.page} sur {data.meta.lastPage} — {data.meta.total} tâche(s)</span>
+              <span>
+                {t('controls.pagination.tasks', {
+                  page: data.meta.page,
+                  lastPage: data.meta.lastPage,
+                  total: data.meta.total,
+                })}
+              </span>
               <div className="flex gap-2">
-                <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Précédent</Button>
-                <Button variant="secondary" size="sm" disabled={page === data.meta.lastPage} onClick={() => setPage((p) => p + 1)}>Suivant</Button>
+                <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+                  {t('common.previous')}
+                </Button>
+                <Button variant="secondary" size="sm" disabled={page === data.meta.lastPage} onClick={() => setPage((p) => p + 1)}>
+                  {t('common.next')}
+                </Button>
               </div>
             </div>
           )}
@@ -1078,7 +1122,7 @@ function TasksTab({
       )}
 
       {/* Plan task modal */}
-      <Modal open={planModalOpen} onClose={() => setPlanModalOpen(false)} title="Planifier une tâche" size="md">
+      <Modal open={planModalOpen} onClose={() => setPlanModalOpen(false)} title={t('controls.planTask')} size="md">
         <PlanTaskForm
           userOptions={userOptions}
           groupOptions={groupOptions}
@@ -1121,6 +1165,7 @@ function TasksTab({
 // ─── Templates tab ─────────────────────────────────────────────────────────────
 
 function TemplatesTab() {
+  const { t } = useTranslation();
   const [page, setPage]         = useState(1);
   const [search, setSearch]     = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -1128,6 +1173,14 @@ function TemplatesTab() {
   const navigate                = useNavigate();
   const debouncedSearch         = useDebounce(search, 400);
   const tenantId                = useTenantId();
+
+  const frequencyOptions = useMemo(() => [
+    { value: 'DAILY',        label: t('controls.frequency.DAILY') },
+    { value: 'WEEKLY',       label: t('controls.frequency.WEEKLY') },
+    { value: 'MONTHLY',      label: t('controls.frequency.MONTHLY') },
+    { value: 'ON_RECEPTION', label: t('controls.frequency.ON_RECEPTION') },
+    { value: 'ON_DEMAND',    label: t('controls.frequency.ON_DEMAND') },
+  ], [t]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['controls.templates', tenantId, page, debouncedSearch],
@@ -1145,19 +1198,19 @@ function TemplatesTab() {
       void queryClient.invalidateQueries({ queryKey: ['controls.templates', tenantId] });
       setModalOpen(false);
     },
-    onError: () => showToast({ title: 'Erreur lors de la création du modèle', variant: 'error' }),
+    onError: () => showToast({ title: t('controls.toast.createTemplateError'), variant: 'error' }),
   });
 
   const deleteTemplateMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/controls/templates/${id}`),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['controls.templates', tenantId] }),
-    onError: () => showToast({ title: 'Erreur lors de la suppression', variant: 'error' }),
+    onError: () => showToast({ title: t('controls.toast.deleteTemplateError'), variant: 'error' }),
   });
 
   const templates = data?.data ?? [];
 
   const handleDelete = (id: string, name: string) => {
-    if (window.confirm(`Supprimer le modèle "${name}" ?`)) {
+    if (window.confirm(t('controls.confirm.deleteTemplate', { name }))) {
       void deleteTemplateMutation.mutate(id);
     }
   };
@@ -1169,26 +1222,26 @@ function TemplatesTab() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
-            placeholder="Rechercher un modèle…"
+            placeholder={t('controls.searchPlaceholder')}
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="h-9 w-60 rounded-lg border border-surface-muted bg-white pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
           />
         </div>
         <Button size="sm" onClick={() => setModalOpen(true)}>
-          <Plus className="h-4 w-4" /> Nouveau modèle
+          <Plus className="h-4 w-4" /> {t('controls.actions.newTemplate')}
         </Button>
       </div>
 
       {/* Content */}
       {isLoading ? (
-        <div className="py-20 text-center text-sm text-gray-400">Chargement…</div>
+        <div className="py-20 text-center text-sm text-gray-400">{t('controls.loading')}</div>
       ) : templates.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
-          title="Aucun modèle"
-          description="Créez des modèles de contrôle réutilisables pour standardiser vos relevés HACCP."
-          actionLabel="Créer un modèle"
+          title={t('controls.empty.templates.title')}
+          description={t('controls.empty.templates.description')}
+          actionLabel={t('controls.empty.templates.action')}
           onAction={() => setModalOpen(true)}
         />
       ) : (
@@ -1216,7 +1269,7 @@ function TemplatesTab() {
                     {tpl.frequency && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-gold-light px-2.5 py-0.5 font-medium text-gold">
                         <Clock className="h-3 w-3" />
-                        {FREQUENCY_OPTIONS.find((f) => f.value === tpl.frequency)?.label ?? tpl.frequency}
+                        {frequencyOptions.find((f) => f.value === tpl.frequency)?.label ?? tpl.frequency}
                       </span>
                     )}
                     <span className="inline-flex items-center gap-1">
@@ -1231,14 +1284,14 @@ function TemplatesTab() {
                       onClick={() => navigate(`/controls/templates/${tpl.id}`)}
                     >
                       <Edit2 className="h-3 w-3" />
-                      Gérer la checklist
+                      {t('controls.actions.manageChecklist')}
                     </button>
                     <span className="text-gray-300">·</span>
                     <button
                       className="text-xs text-red-500 hover:underline"
                       onClick={() => handleDelete(tpl.id, tpl.name)}
                     >
-                      Supprimer
+                      {t('controls.actions.delete')}
                     </button>
                   </div>
                 </div>
@@ -1248,15 +1301,19 @@ function TemplatesTab() {
 
           {data?.meta && data.meta.lastPage > 1 && (
             <div className="mt-4 flex justify-end gap-2">
-              <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Précédent</Button>
-              <Button variant="secondary" size="sm" disabled={page === data.meta.lastPage} onClick={() => setPage((p) => p + 1)}>Suivant</Button>
+              <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+                {t('common.previous')}
+              </Button>
+              <Button variant="secondary" size="sm" disabled={page === data.meta.lastPage} onClick={() => setPage((p) => p + 1)}>
+                {t('common.next')}
+              </Button>
             </div>
           )}
         </>
       )}
 
       {/* Create template modal */}
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nouveau modèle de contrôle" size="md">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={t('controls.createTemplate')} size="md">
         <CreateTemplateForm
           loading={createTemplateMutation.isPending}
           onSubmit={(v) =>
@@ -1274,14 +1331,6 @@ function TemplatesTab() {
 
 // ─── Schedules tab ─────────────────────────────────────────────────────────────
 
-const FREQUENCY_LABELS: Record<string, string> = {
-  DAILY:   'Quotidienne',
-  WEEKLY:  'Hebdomadaire',
-  MONTHLY: 'Mensuelle',
-  YEARLY:  'Annuelle',
-  CUSTOM:  'Personnalisée',
-};
-
 function SchedulesTab({
   zoneMap,
   userMap,
@@ -1291,6 +1340,7 @@ function SchedulesTab({
   userMap:  Record<string, string>;
   groupMap: Record<string, string>;
 }) {
+  const { t } = useTranslation();
   const [modalOpen, setModalOpen] = useState(false);
   const queryClient               = useQueryClient();
   const tenantId                  = useTenantId();
@@ -1307,15 +1357,15 @@ function SchedulesTab({
     mutationFn: (id: string) => api.delete(`/api/v1/controls/schedules/${id}`),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['controls.schedules', tenantId] });
-      showToast({ title: 'Planification désactivée', variant: 'success' });
+      showToast({ title: t('controls.toast.scheduleDeactivated'), variant: 'success' });
     },
-    onError: () => showToast({ title: 'Erreur lors de la désactivation', variant: 'error' }),
+    onError: () => showToast({ title: t('controls.toast.scheduleDeactivateError'), variant: 'error' }),
   });
 
   const schedules = data ?? [];
 
   const handleDeactivate = (id: string) => {
-    if (window.confirm('Désactiver cette planification récurrente ? Les tâches déjà créées ne seront pas supprimées.')) {
+    if (window.confirm(t('controls.confirm.deactivateSchedule'))) {
       void deactivateMutation.mutate(id);
     }
   };
@@ -1325,18 +1375,18 @@ function SchedulesTab({
       {/* Toolbar */}
       <div className="mb-4 flex justify-end">
         <Button size="sm" onClick={() => setModalOpen(true)}>
-          <Plus className="h-4 w-4" /> Créer une planification
+          <Plus className="h-4 w-4" /> {t('controls.actions.createSchedule')}
         </Button>
       </div>
 
       {isLoading ? (
-        <div className="py-20 text-center text-sm text-gray-400">Chargement…</div>
+        <div className="py-20 text-center text-sm text-gray-400">{t('controls.loading')}</div>
       ) : schedules.length === 0 ? (
         <EmptyState
           icon={Repeat}
-          title="Aucune planification récurrente"
-          description="Automatisez la génération de tâches de contrôle avec des planifications récurrentes."
-          actionLabel="Créer une planification"
+          title={t('controls.empty.schedules.title')}
+          description={t('controls.empty.schedules.description')}
+          actionLabel={t('controls.empty.schedules.action')}
           onAction={() => setModalOpen(true)}
         />
       ) : (
@@ -1344,12 +1394,12 @@ function SchedulesTab({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-surface-muted bg-surface-page text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                <th className="px-4 py-3">Modèle</th>
-                <th className="px-4 py-3">Zone</th>
-                <th className="px-4 py-3">Fréquence</th>
-                <th className="px-4 py-3">Assigné</th>
-                <th className="px-4 py-3">Prochaine occurrence</th>
-                <th className="px-4 py-3">Statut</th>
+                <th className="px-4 py-3">{t('controls.columns.template')}</th>
+                <th className="px-4 py-3">{t('controls.columns.zone')}</th>
+                <th className="px-4 py-3">{t('controls.columns.frequency')}</th>
+                <th className="px-4 py-3">{t('controls.columns.assignee')}</th>
+                <th className="px-4 py-3">{t('controls.columns.nextRun')}</th>
+                <th className="px-4 py-3">{t('controls.columns.status')}</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -1375,7 +1425,7 @@ function SchedulesTab({
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center gap-1 rounded-full bg-brand-lighter px-2.5 py-0.5 text-xs font-medium text-brand-dark">
                         <Repeat className="h-3 w-3" />
-                        {FREQUENCY_LABELS[schedule.frequency] ?? schedule.frequency}
+                        {t(`controls.frequency.${schedule.frequency}` as Parameters<typeof t>[0])}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-700">
@@ -1399,11 +1449,11 @@ function SchedulesTab({
                     <td className="px-4 py-3">
                       {schedule.isActive ? (
                         <span className="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                          Active
+                          {t('controls.schedule.scheduleActive')}
                         </span>
                       ) : (
                         <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
-                          Inactive
+                          {t('controls.schedule.scheduleInactive')}
                         </span>
                       )}
                     </td>
@@ -1414,7 +1464,7 @@ function SchedulesTab({
                           disabled={deactivateMutation.isPending}
                           onClick={() => handleDeactivate(schedule.id)}
                         >
-                          Désactiver
+                          {t('controls.actions.deactivate')}
                         </button>
                       )}
                     </td>
@@ -1443,6 +1493,7 @@ function SchedulesTab({
 type Tab = 'tasks' | 'templates' | 'schedules';
 
 export default function ControlsPage() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>('tasks');
 
   const currentUser = useAuthStore((s) => s.user);
@@ -1471,15 +1522,21 @@ export default function ControlsPage() {
   const overdueIconColor = (stats?.openOverdue ?? 0) > 0 ? 'text-red-600'  : 'text-gray-500';
   const overdueIconBg   = (stats?.openOverdue ?? 0) > 0 ? 'bg-red-50'     : 'bg-gray-100';
 
+  const tabs = useMemo(() => ([
+    { key: 'tasks' as Tab,     label: t('controls.tabs.tasks') },
+    ...(!isOperator ? [{ key: 'templates' as Tab,  label: t('controls.tabs.templates') }] : []),
+    ...(!isOperator ? [{ key: 'schedules' as Tab,  label: t('controls.tabs.schedules') }] : []),
+  ]), [t, isOperator]);
+
   return (
     <ControlsErrorBoundary>
-      <Header title="Contrôle" subtitle="Planification et suivi des tâches de contrôle HACCP" />
+      <Header title={t('controls.title')} subtitle={t('controls.subtitle')} />
       <PageWrapper>
 
         {/* KPI row */}
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard
-            label="Contrôles du jour"
+            label={t('controls.kpi.todayTotal')}
             value={String(stats?.todayTotal ?? '—')}
             icon={CheckCircle2}
             iconColor="text-green-600"
@@ -1487,7 +1544,7 @@ export default function ControlsPage() {
             valueColor="text-green-600"
           />
           <KpiCard
-            label="Complétés"
+            label={t('controls.kpi.completed')}
             value={stats ? `${stats.todayCompleted} / ${stats.todayTotal}` : '—'}
             icon={CheckCircle2}
             iconColor="text-brand-dark"
@@ -1495,7 +1552,7 @@ export default function ControlsPage() {
             valueColor="text-brand-dark"
           />
           <KpiCard
-            label="En retard"
+            label={t('controls.kpi.overdue')}
             value={String(stats?.openOverdue ?? '—')}
             icon={Clock}
             iconColor={overdueIconColor}
@@ -1503,7 +1560,7 @@ export default function ControlsPage() {
             valueColor={overdueColor}
           />
           <KpiCard
-            label="Taux conformité"
+            label={t('controls.kpi.complianceRate')}
             value={stats ? `${stats.complianceRate}%` : '—'}
             icon={TrendingUp}
             iconColor="text-brand-dark"
@@ -1514,11 +1571,7 @@ export default function ControlsPage() {
 
         {/* Tab bar — OPERATOR only sees "Tâches" (no template or schedule management) */}
         <div className="mb-5 flex border-b border-surface-muted">
-          {(([
-            { key: 'tasks',     label: 'Tâches planifiées' },
-            ...(!isOperator ? [{ key: 'templates',  label: 'Modèles de contrôle' }] : []),
-            ...(!isOperator ? [{ key: 'schedules',  label: 'Planifications récurrentes' }] : []),
-          ]) as { key: Tab; label: string }[]).map(({ key, label }) => (
+          {tabs.map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
