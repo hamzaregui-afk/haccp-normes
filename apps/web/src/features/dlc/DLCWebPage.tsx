@@ -266,7 +266,7 @@ const STATUS_STYLES: Record<DLCStatus, string> = {
 function daysLeft(expiresAt: string) {
   return Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86_400_000);
 }
-function fmtDate(d: string) { return new Date(d).toLocaleDateString('fr-FR'); }
+function fmtDate(d: string, locale: string) { return new Date(d).toLocaleDateString(locale); }
 function addDays(dateStr: string, days: number): Date {
   const d = new Date(dateStr + 'T12:00:00');
   d.setDate(d.getDate() + days);
@@ -276,7 +276,7 @@ function addDays(dateStr: string, days: number): Date {
 // ─── DLC table ────────────────────────────────────────────────────────────────
 
 function DLCTable({ labels }: { labels: DLCLabel[] }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   if (labels.length === 0) {
     return (
@@ -315,8 +315,8 @@ function DLCTable({ labels }: { labels: DLCLabel[] }) {
             return (
               <tr key={label.id} className="transition-colors hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium text-gray-900">{label.productName}</td>
-                <td className="px-4 py-3 text-gray-500">{fmtDate(label.producedAt)}</td>
-                <td className="px-4 py-3 font-medium text-gray-800">{fmtDate(label.expiresAt)}</td>
+                <td className="px-4 py-3 text-gray-500">{fmtDate(label.producedAt, i18n.language)}</td>
+                <td className="px-4 py-3 font-medium text-gray-800">{fmtDate(label.expiresAt, i18n.language)}</td>
                 <td className="px-4 py-3 text-center font-semibold text-gray-800">
                   {remaining <= 0 ? '—' : remaining}
                 </td>
@@ -416,7 +416,7 @@ function useAllLabels(page: number) {
 type Tab = 'today' | 'soon' | 'all';
 
 export default function DLCWebPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>('today');
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm]           = useState<FormState>(INITIAL);
@@ -595,10 +595,10 @@ export default function DLCWebPage() {
                 <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">{t('dlc.preview.title')}</p>
                 <p className="text-sm font-bold text-gray-900">{form.selectedProduct.name}</p>
                 <p className="text-sm text-gray-600">
-                  {t('dlc.preview.openedAt')}&nbsp;{new Date(form.producedAt + 'T12:00:00').toLocaleDateString('fr-FR')}
+                  {t('dlc.preview.openedAt')}&nbsp;{new Date(form.producedAt + 'T12:00:00').toLocaleDateString(i18n.language)}
                 </p>
                 <p className="text-sm font-semibold text-brand-dark">
-                  {t('dlc.preview.dlc')}&nbsp;{previewDlc.toLocaleDateString('fr-FR')}
+                  {t('dlc.preview.dlc')}&nbsp;{previewDlc.toLocaleDateString(i18n.language)}
                 </p>
               </div>
             )}

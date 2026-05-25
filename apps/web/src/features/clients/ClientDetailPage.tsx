@@ -154,7 +154,7 @@ function useTenantSites(id: string) {
 // ─── Tab: Informations ────────────────────────────────────────────────────────
 
 function InfoTab({ tenant, tenantId }: { tenant: Tenant; tenantId: string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
 
@@ -201,7 +201,7 @@ function InfoTab({ tenant, tenantId }: { tenant: Tenant; tenantId: string }) {
             { label: t('clients.detail.fields.sector'),    value: tenant.sector },
             { label: t('clients.detail.fields.status'),    value: t(`clients.status.${tenant.status}` as Parameters<typeof t>[0]) },
             { label: t('clients.detail.fields.plan'),      value: t(`clients.plans.${tenant.plan}` as Parameters<typeof t>[0]) },
-            { label: t('clients.detail.fields.createdAt'), value: new Date(tenant.createdAt).toLocaleDateString('fr-FR', { dateStyle: 'long' }) },
+            { label: t('clients.detail.fields.createdAt'), value: new Date(tenant.createdAt).toLocaleDateString(i18n.language, { dateStyle: 'long' }) },
           ].map(({ label, value, mono }) => (
             <div key={label}>
               <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">{label}</dt>
@@ -552,7 +552,7 @@ function ModulesTab({ tenantId }: { tenantId: string }) {
 // ─── Tab: Abonnement ──────────────────────────────────────────────────────────
 
 function SubscriptionTab({ tenantId, tenant }: { tenantId: string; tenant: Tenant }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const qc = useQueryClient();
   const { data: sub, isLoading } = useTenantSubscription(tenantId);
   const [editing, setEditing] = useState(false);
@@ -623,12 +623,12 @@ function SubscriptionTab({ tenantId, tenant }: { tenantId: string; tenant: Tenan
               {
                 label: t('clients.detail.subscription.fields.trialEndsAt'),
                 value: sub.trialEndsAt
-                  ? `${new Date(sub.trialEndsAt).toLocaleDateString('fr-FR')} (${t('clients.detail.subscription.fields.trialDaysLeft', { count: trialDays ?? 0 })})`
+                  ? `${new Date(sub.trialEndsAt).toLocaleDateString(i18n.language)} (${t('clients.detail.subscription.fields.trialDaysLeft', { count: trialDays ?? 0 })})`
                   : '—',
               },
               {
                 label: t('clients.detail.subscription.fields.startedAt'),
-                value: new Date(sub.startedAt).toLocaleDateString('fr-FR', { dateStyle: 'long' }),
+                value: new Date(sub.startedAt).toLocaleDateString(i18n.language, { dateStyle: 'long' }),
               },
             ].map(({ label, value }) => (
               <div key={label} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -892,7 +892,7 @@ interface AuditEntry {
 }
 
 function HistoryTab({ tenantId }: { tenantId: string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [page, setPage] = useState(1);
   const LIMIT = 20;
 
@@ -980,7 +980,7 @@ function HistoryTab({ tenantId }: { tenantId: string }) {
                       {entry.ipAddress ?? '—'}
                     </td>
                     <td className="px-4 py-2.5 text-xs text-gray-500">
-                      {new Date(entry.createdAt).toLocaleString('fr-FR', {
+                      {new Date(entry.createdAt).toLocaleString(i18n.language, {
                         day: '2-digit', month: 'short', year: 'numeric',
                         hour: '2-digit', minute: '2-digit',
                       })}
@@ -1021,7 +1021,7 @@ function HistoryTab({ tenantId }: { tenantId: string }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ClientDetailPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState<TabId>('info');
 
@@ -1099,7 +1099,7 @@ export default function ClientDetailPage() {
               {tenant.email && <span>{tenant.email}</span>}
               {tenant.phone && <span>{tenant.phone}</span>}
               <span>{t('clients.detail.summaryBar.sites', { count: tenant._count?.sites ?? 0 })}</span>
-              <span>{t('clients.detail.summaryBar.createdAt', { date: new Date(tenant.createdAt).toLocaleDateString('fr-FR') })}</span>
+              <span>{t('clients.detail.summaryBar.createdAt', { date: new Date(tenant.createdAt).toLocaleDateString(i18n.language) })}</span>
             </div>
           </div>
         </div>

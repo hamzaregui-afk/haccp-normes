@@ -232,7 +232,7 @@ interface DlcLabel {
 }
 
 function DlcAlertWidget() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const tenantId = useTenantId();
   const { data, isLoading } = useQuery({
     queryKey: ['dlc.expiring-today', tenantId],
@@ -264,7 +264,7 @@ function DlcAlertWidget() {
             {label.productName}
             {label.lotNumber ? ` · Lot ${label.lotNumber}` : ''}
             {' · '}
-            {new Date(label.expiresAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            {new Date(label.expiresAt).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
           </li>
         ))}
       </ul>
@@ -292,7 +292,7 @@ const MY_TASK_CSS: Record<string, string> = {
 };
 
 function OperatorTasksWidget({ assigneeId }: { assigneeId: string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const tenantId = useTenantId();
   const { data, isLoading } = useQuery({
     queryKey: ['my.tasks.today', tenantId, assigneeId],
@@ -329,7 +329,7 @@ function OperatorTasksWidget({ assigneeId }: { assigneeId: string }) {
                 <div>
                   <p className="text-sm font-medium text-gray-800">{task.template?.name ?? t('controls.title')}</p>
                   <p className="text-xs text-gray-400">
-                    {new Date(task.scheduledAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(task.scheduledAt).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${color}`}>{label}</span>
@@ -362,7 +362,7 @@ const NC_STATUS_STYLE: Record<string, string> = {
 // ─── Recent NC Controls widget ────────────────────────────────────────────────
 
 function RecentNcControlsWidget({ zoneMap }: { zoneMap: Record<string, string> }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const tenantId = useTenantId();
   const { data, isLoading } = useQuery({
     queryKey: ['controls.nc-controls', tenantId],
@@ -396,7 +396,7 @@ function RecentNcControlsWidget({ zoneMap }: { zoneMap: Record<string, string> }
             const zone      = zoneMap[ctrl.zoneId] ?? ctrl.zoneId;
             const ncComment = ctrl.resultJson?.ncComment;
             const completedAt = ctrl.completedAt
-              ? new Date(ctrl.completedAt).toLocaleString('fr-FR', {
+              ? new Date(ctrl.completedAt).toLocaleString(i18n.language, {
                   day: '2-digit', month: '2-digit',
                   hour: '2-digit', minute: '2-digit',
                 })

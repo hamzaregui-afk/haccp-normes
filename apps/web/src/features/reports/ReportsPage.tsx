@@ -134,7 +134,7 @@ const INITIAL_FORM: CreateReportValues = {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [page, setPage]               = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
@@ -324,11 +324,11 @@ export default function ReportsPage() {
                       <ReportStatusBadge status={report.status} />
                     </td>
                     <td className="px-4 py-3 text-gray-500">
-                      {new Date(report.generatedAt).toLocaleDateString('fr-FR')}
+                      {new Date(report.generatedAt).toLocaleDateString(i18n.language)}
                     </td>
                     <td className="px-4 py-3 text-gray-500">
                       {report.validatedAt
-                        ? new Date(report.validatedAt).toLocaleDateString('fr-FR')
+                        ? new Date(report.validatedAt).toLocaleDateString(i18n.language)
                         : '—'}
                     </td>
                     <td className="px-4 py-3">

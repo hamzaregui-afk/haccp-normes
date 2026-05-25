@@ -420,7 +420,7 @@ type ModalState =
 // ─── UsersPage ────────────────────────────────────────────────────────────────
 
 export default function UsersPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [page, setPage]       = useState(1);
   const [search, setSearch]   = useState('');
   const [roleFilter, setRole] = useState('');
@@ -574,7 +574,7 @@ export default function UsersPage() {
                           <td className="px-4 py-3"><RoleBadge role={user.role} /></td>
                           <td className="px-4 py-3"><StatusBadge status={user.status} /></td>
                           <td className="px-4 py-3 text-gray-500">
-                            {new Date(user.createdAt).toLocaleDateString('fr-FR')}
+                            {new Date(user.createdAt).toLocaleDateString(i18n.language)}
                           </td>
                           <td className="px-4 py-3">
                             {canManageUsers ? (

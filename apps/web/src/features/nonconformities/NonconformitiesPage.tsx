@@ -176,7 +176,7 @@ function NCDetailModal({
   onClose:          () => void;
   onPhotosUpdated?: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const queryClient  = useQueryClient();
   const tenantId     = useTenantId();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -235,7 +235,7 @@ function NCDetailModal({
           <div>
             <dt className="font-medium text-gray-500">{t('nonconformities.detail.reportedAt')}</dt>
             <dd className="mt-0.5 text-gray-800">
-              {new Date(nc.createdAt).toLocaleDateString('fr-FR')}
+              {new Date(nc.createdAt).toLocaleDateString(i18n.language)}
             </dd>
           </div>
         </dl>
@@ -299,7 +299,7 @@ function NCDetailModal({
                   <Eye className="h-5 w-5 text-white" />
                 </div>
                 <p className="absolute bottom-0 left-0 right-0 truncate bg-black/50 px-1 py-0.5 text-[10px] text-white">
-                  {new Date(photo.uploadedAt).toLocaleDateString('fr-FR')}
+                  {new Date(photo.uploadedAt).toLocaleDateString(i18n.language)}
                 </p>
               </button>
             ))}
@@ -394,7 +394,7 @@ function useProductOptions() {
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function NonconformitiesPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [page, setPage]                   = useState(1);
   const [search, setSearch]               = useState('');
   const [statusFilter, setStatusFilter]   = useState('');
@@ -600,7 +600,7 @@ export default function NonconformitiesPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-gray-500">
-                        {new Date(nc.createdAt).toLocaleDateString('fr-FR')}
+                        {new Date(nc.createdAt).toLocaleDateString(i18n.language)}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -676,7 +676,7 @@ export default function NonconformitiesPage() {
                     <NCBadge value={nc.severity} type="severity" />
                   </div>
                   <p className="mt-1 text-xs text-gray-400">
-                    {new Date(nc.createdAt).toLocaleDateString('fr-FR')}
+                    {new Date(nc.createdAt).toLocaleDateString(i18n.language)}
                   </p>
                 </button>
               ))}

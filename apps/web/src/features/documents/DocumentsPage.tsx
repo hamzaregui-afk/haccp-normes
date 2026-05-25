@@ -385,7 +385,7 @@ function DocCard({
   onView:    (doc: GedDocument) => void;
   canDelete: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const meta = CATEGORY_META[doc.category];
   const CatIcon = meta.icon;
   const catLabel = t(`documents.categories.${doc.category}` as Parameters<typeof t>[0]);
@@ -415,7 +415,7 @@ function DocCard({
           </span>
           <span className="text-[10px] text-gray-400">{formatBytes(doc.sizeBytes)}</span>
         </div>
-        <p className="text-[10px] text-gray-400">{new Date(doc.createdAt).toLocaleDateString('fr-FR')}</p>
+        <p className="text-[10px] text-gray-400">{new Date(doc.createdAt).toLocaleDateString(i18n.language)}</p>
       </div>
 
       {/* Action buttons */}
@@ -458,7 +458,7 @@ function DocRow({
   onView:    (doc: GedDocument) => void;
   canDelete: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const meta = CATEGORY_META[doc.category];
   const CatIcon = meta.icon;
   const catLabel = t(`documents.categories.${doc.category}` as Parameters<typeof t>[0]);
@@ -480,7 +480,7 @@ function DocRow({
       </td>
       <td className="px-4 py-3 text-xs text-gray-500">{formatBytes(doc.sizeBytes)}</td>
       <td className="px-4 py-3 text-xs text-gray-500">
-        {new Date(doc.createdAt).toLocaleDateString('fr-FR')}
+        {new Date(doc.createdAt).toLocaleDateString(i18n.language)}
       </td>
       <td className="px-4 py-3 text-right">
         <div className="flex items-center justify-end gap-3">
@@ -893,7 +893,7 @@ function FulfillModal({
 // ─── Requests tab ─────────────────────────────────────────────────────────────
 
 function RequestsTab({ isAdmin }: { isAdmin: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const [statusFilter, setStatusFilter] = useState<DocRequestStatus | ''>('');
   const [newModalOpen, setNewModalOpen] = useState(false);
@@ -1000,7 +1000,7 @@ function RequestsTab({ isAdmin }: { isAdmin: boolean }) {
                   )}
                   <p className="mt-1 text-[10px] text-gray-400">
                     {t('documents.requestsTab.requestedOn', {
-                      date: new Date(req.createdAt).toLocaleDateString('fr-FR'),
+                      date: new Date(req.createdAt).toLocaleDateString(i18n.language),
                     })}
                   </p>
                 </div>
@@ -1036,7 +1036,7 @@ function RequestsTab({ isAdmin }: { isAdmin: boolean }) {
 // ─── NC Photos tab ────────────────────────────────────────────────────────────
 
 function NCPhotosTab() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const { data: ncs, isLoading, isError } = useNCPhotos();
 
@@ -1069,7 +1069,7 @@ function NCPhotosTab() {
                   {nc.reference}
                 </code>
                 <span className="text-xs text-gray-400">
-                  · {new Date(nc.createdAt).toLocaleDateString('fr-FR')}
+                  · {new Date(nc.createdAt).toLocaleDateString(i18n.language)}
                   · {photoCountLabel}
                 </span>
               </div>
@@ -1106,7 +1106,7 @@ function NCPhotosTab() {
 // ─── Reports tab ──────────────────────────────────────────────────────────────
 
 function ReportsTab() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [page, setPage] = useState(1);
   const { data, isLoading, isError } = useReports(page);
   const reports = data?.data ?? [];
@@ -1150,7 +1150,7 @@ function ReportsTab() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-gray-500 text-xs">
-                  {new Date(report.createdAt).toLocaleDateString('fr-FR')}
+                  {new Date(report.createdAt).toLocaleDateString(i18n.language)}
                 </td>
                 <td className="px-4 py-3 text-right">
                   {report.fileUrl && (

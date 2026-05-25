@@ -30,7 +30,7 @@ function useAuditLogs(page: number, from: string, to: string) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AuditPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [page, setPage]     = useState(1);
   const [from, setFrom]     = useState('');
   const [to, setTo]         = useState('');
@@ -139,7 +139,7 @@ export default function AuditPage() {
                 {filteredLogs.map((log) => (
                   <tr key={log.id} className="transition-colors hover:bg-gray-50">
                     <td className="whitespace-nowrap px-4 py-3 text-gray-500">
-                      {new Date(log.createdAt).toLocaleString('fr-FR')}
+                      {new Date(log.createdAt).toLocaleString(i18n.language)}
                     </td>
                     <td className="px-4 py-3">
                       <span className="rounded bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-700">

@@ -270,7 +270,7 @@ interface TenantRowProps {
 }
 
 function TenantRow({ tenant, onEdit, onStatus }: TenantRowProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const statusCss = STATUS_CSS[tenant.status] ?? STATUS_CSS.ACTIVE;
   const planCss   = PLAN_CSS[tenant.plan] ?? PLAN_CSS.standard;
   const subStatus = (tenant.subscription as { status?: string } | undefined | null)?.status;
@@ -355,7 +355,7 @@ function TenantRow({ tenant, onEdit, onStatus }: TenantRowProps) {
 
       {/* Created */}
       <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
-        {new Date(tenant.createdAt).toLocaleDateString('fr-FR')}
+        {new Date(tenant.createdAt).toLocaleDateString(i18n.language)}
       </td>
 
       {/* Actions */}
