@@ -1,16 +1,6 @@
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAuthStore } from '../store/authStore';
-
-// ── Role labels ───────────────────────────────────────────────────────────────
-
-const ROLE_LABELS: Record<string, string> = {
-  SUPER_ADMIN:     'Super Administrateur',
-  ADMIN:           'Administrateur',
-  MANAGER:         'Manager',
-  QUALITY_OFFICER: 'Responsable Qualité',
-  OPERATOR:        'Opérateur',
-  VIEWER:          'Lecteur',
-};
+import { useTranslation } from '@/i18n';
 
 // ── Info row ──────────────────────────────────────────────────────────────────
 
@@ -31,16 +21,17 @@ function InfoRow({ label, value }: InfoRowProps) {
 // ── ProfileScreen ─────────────────────────────────────────────────────────────
 
 export function ProfileScreen() {
+  const { t } = useTranslation();
   const user   = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
   const handleLogout = () => {
     Alert.alert(
-      'Déconnexion',
-      'Voulez-vous vous déconnecter ?',
+      t('profile.logoutTitle'),
+      t('profile.logoutMsg'),
       [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Déconnexion', style: 'destructive', onPress: () => void logout() },
+        { text: t('profile.logoutCancel'), style: 'cancel' },
+        { text: t('profile.logoutConfirm'), style: 'destructive', onPress: () => void logout() },
       ],
     );
   };
@@ -48,7 +39,15 @@ export function ProfileScreen() {
   if (!user) return null;
 
   const initials = user.email.charAt(0).toUpperCase();
-  const roleLabel = ROLE_LABELS[user.role] ?? user.role;
+
+  // ARCH-DECISION: role label is resolved via t() so it respects the active locale.
+  // We cast through a union of known role keys to keep TypeScript strict — the
+  // TranslationKey type enforces valid dot-paths, so we assert only after a guard.
+  type RoleKey = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'QUALITY_OFFICER' | 'OPERATOR' | 'VIEWER';
+  const VALID_ROLES: readonly string[] = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'OPERATOR', 'VIEWER'];
+  const roleLabel = VALID_ROLES.includes(user.role)
+    ? t(`profile.roles.${user.role as RoleKey}`)
+    : user.role;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -64,23 +63,23 @@ export function ProfileScreen() {
 
       {/* Info card */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Informations du compte</Text>
-        <InfoRow label="Email"      value={user.email} />
-        <InfoRow label="Rôle"       value={roleLabel} />
-        <InfoRow label="Tenant ID"  value={user.tenantId} />
-        <InfoRow label="User ID"    value={user.sub} />
+        <Text style={styles.cardTitle}>{t('profile.accountInfo')}</Text>
+        <InfoRow label={t('profile.email')}    value={user.email} />
+        <InfoRow label={t('profile.role')}     value={roleLabel} />
+        <InfoRow label={t('profile.tenantId')} value={user.tenantId} />
+        <InfoRow label={t('profile.userId')}   value={user.sub} />
       </View>
 
       {/* App info card */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Application</Text>
-        <InfoRow label="Version"    value="1.0.0" />
-        <InfoRow label="Plateforme" value="NORMES HACCP Mobile" />
+        <Text style={styles.cardTitle}>{t('profile.appInfo')}</Text>
+        <InfoRow label={t('profile.version')}  value="1.0.0" />
+        <InfoRow label={t('profile.platform')} value="NORMES HACCP Mobile" />
       </View>
 
       {/* Logout button */}
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
-        <Text style={styles.logoutText}>🚪  Déconnexion</Text>
+        <Text style={styles.logoutText}>{t('profile.logout')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

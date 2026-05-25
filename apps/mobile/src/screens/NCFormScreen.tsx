@@ -14,6 +14,7 @@ import {
 
 import { nonconformityClient, tenantClient } from '../api/client';
 import { useAuthStore } from '../store/authStore';
+import { useTranslation } from '@/i18n';
 import type { MainTabParamList } from '../navigation/MainNavigator';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -41,24 +42,24 @@ interface CreateNCPayload {
 
 // ── Severity config ───────────────────────────────────────────────────────────
 
-const SEVERITY_OPTIONS: Array<{ value: NCSeverity; label: string; bg: string; text: string }> = [
-  { value: 'LOW',      label: 'Faible',   bg: '#D1FAE5', text: '#065F46' },
-  { value: 'MEDIUM',   label: 'Moyen',    bg: '#FEF3C7', text: '#92400E' },
-  { value: 'HIGH',     label: 'Élevé',    bg: '#FEE2E2', text: '#991B1B' },
-  { value: 'CRITICAL', label: 'Critique', bg: '#7F1D1D', text: '#fff'    },
+const SEVERITY_OPTIONS: Array<{ value: NCSeverity; bg: string; text: string }> = [
+  { value: 'LOW',      bg: '#D1FAE5', text: '#065F46' },
+  { value: 'MEDIUM',   bg: '#FEF3C7', text: '#92400E' },
+  { value: 'HIGH',     bg: '#FEE2E2', text: '#991B1B' },
+  { value: 'CRITICAL', bg: '#7F1D1D', text: '#fff'    },
 ];
 
 // ── Category config ───────────────────────────────────────────────────────────
 
-const CATEGORY_OPTIONS: Array<{ value: NCCategory; label: string }> = [
-  { value: 'TEMPERATURE',  label: 'Température' },
-  { value: 'HYGIENE',      label: 'Hygiène' },
-  { value: 'LABELING',     label: 'Étiquetage' },
-  { value: 'TRACEABILITY', label: 'Traçabilité' },
-  { value: 'EQUIPMENT',    label: 'Équipement' },
-  { value: 'SUPPLIER',     label: 'Fournisseur' },
-  { value: 'PROCESS',      label: 'Procédé' },
-  { value: 'OTHER',        label: 'Autre' },
+const CATEGORY_VALUES: NCCategory[] = [
+  'TEMPERATURE',
+  'HYGIENE',
+  'LABELING',
+  'TRACEABILITY',
+  'EQUIPMENT',
+  'SUPPLIER',
+  'PROCESS',
+  'OTHER',
 ];
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -66,6 +67,7 @@ const CATEGORY_OPTIONS: Array<{ value: NCCategory; label: string }> = [
 type Props = BottomTabScreenProps<MainTabParamList, 'Non-conformités'>;
 
 export function NCFormScreen(_props: Props) {
+  const { t } = useTranslation();
   const hasToken = !!useAuthStore((s) => s.token);
 
   const [description,      setDescription]      = useState('');
@@ -89,9 +91,9 @@ export function NCFormScreen(_props: Props) {
       await nonconformityClient.post('/api/v1/nonconformities', payload);
     },
     onSuccess: () => {
-      Alert.alert('Succès', 'Non-conformité créée avec succès.', [
+      Alert.alert(t('ncForm.successTitle'), t('ncForm.successMsg'), [
         {
-          text: 'OK',
+          text: t('common.ok'),
           onPress: () => {
             setDescription('');
             setCorrectiveAction('');
@@ -103,18 +105,18 @@ export function NCFormScreen(_props: Props) {
       ]);
     },
     onError: () => {
-      Alert.alert('Erreur', 'Impossible de créer la non-conformité. Veuillez réessayer.');
+      Alert.alert(t('ncForm.errorTitle'), t('ncForm.errorMsg'));
     },
   });
 
   const handleSubmit = () => {
     if (!description.trim()) {
-      Alert.alert('Champ requis', 'Veuillez saisir une description.');
+      Alert.alert(t('ncForm.requiredField'), t('ncForm.requiredDesc'));
       return;
     }
     const resolvedSiteId = siteId ?? sites[0]?.id;
     if (!resolvedSiteId) {
-      Alert.alert('Site requis', 'Aucun site disponible. Contactez votre administrateur.');
+      Alert.alert(t('ncForm.requiredSite'), t('ncForm.noSiteMsg'));
       return;
     }
     mutation.mutate({
@@ -128,12 +130,12 @@ export function NCFormScreen(_props: Props) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.pageTitle}>Signaler une non-conformité</Text>
+      <Text style={styles.pageTitle}>{t('ncForm.pageTitle')}</Text>
 
       {/* Site selector */}
       {sites.length > 1 && (
         <>
-          <Text style={styles.label}>Site *</Text>
+          <Text style={styles.label}>{t('ncForm.site')}</Text>
           <View style={styles.categoryGrid}>
             {sites.map((s) => {
               const selected = (siteId ?? sites[0]?.id) === s.id;
@@ -155,10 +157,10 @@ export function NCFormScreen(_props: Props) {
       )}
 
       {/* Description */}
-      <Text style={styles.label}>Description *</Text>
+      <Text style={styles.label}>{t('ncForm.description')} *</Text>
       <TextInput
         style={[styles.input, styles.textArea]}
-        placeholder="Décrivez le problème en détail…"
+        placeholder={t('ncForm.descriptionHint')}
         placeholderTextColor="#9CA3AF"
         value={description}
         onChangeText={setDescription}
@@ -168,7 +170,7 @@ export function NCFormScreen(_props: Props) {
       />
 
       {/* Severity */}
-      <Text style={styles.label}>Sévérité</Text>
+      <Text style={styles.label}>{t('ncForm.severity')}</Text>
       <View style={styles.severityRow}>
         {SEVERITY_OPTIONS.map((opt) => (
           <TouchableOpacity
@@ -187,26 +189,26 @@ export function NCFormScreen(_props: Props) {
                 { color: severity === opt.value ? opt.text : '#6B7280' },
               ]}
             >
-              {opt.label}
+              {t(`ncForm.severity_values.${opt.value}`)}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
       {/* Category */}
-      <Text style={styles.label}>Catégorie</Text>
+      <Text style={styles.label}>{t('ncForm.category')}</Text>
       <View style={styles.categoryGrid}>
-        {CATEGORY_OPTIONS.map((opt) => {
-          const selected = category === opt.value;
+        {CATEGORY_VALUES.map((cat) => {
+          const selected = category === cat;
           return (
             <TouchableOpacity
-              key={opt.value}
+              key={cat}
               style={[styles.categoryBtn, selected && styles.categoryBtnActive]}
-              onPress={() => setCategory(opt.value)}
+              onPress={() => setCategory(cat)}
               activeOpacity={0.8}
             >
               <Text style={[styles.categoryBtnText, selected && styles.categoryBtnTextActive]}>
-                {opt.label}
+                {t(`ncForm.category_values.${cat}`)}
               </Text>
             </TouchableOpacity>
           );
@@ -214,10 +216,10 @@ export function NCFormScreen(_props: Props) {
       </View>
 
       {/* Corrective action (optional) */}
-      <Text style={styles.label}>Action corrective (optionnel)</Text>
+      <Text style={styles.label}>{t('ncForm.correctiveAction')}</Text>
       <TextInput
         style={[styles.input, styles.textArea]}
-        placeholder="Action corrective immédiate…"
+        placeholder={t('ncForm.correctiveHint')}
         placeholderTextColor="#9CA3AF"
         value={correctiveAction}
         onChangeText={setCorrectiveAction}
@@ -236,7 +238,7 @@ export function NCFormScreen(_props: Props) {
         {mutation.isPending ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.submitBtnText}>Soumettre le signalement</Text>
+          <Text style={styles.submitBtnText}>{t('ncForm.submit')}</Text>
         )}
       </TouchableOpacity>
     </ScrollView>

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 
 import { controlClient } from '../api/client';
+import { useTranslation } from '@/i18n';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -64,6 +65,8 @@ interface CheckpointRowProps {
 }
 
 function CheckpointRow({ index, entry, onChange }: CheckpointRowProps) {
+  const { t } = useTranslation();
+
   return (
     <View style={styles.checkpointRow}>
       <Text style={styles.checkpointDesc}>{entry.description}</Text>
@@ -82,7 +85,7 @@ function CheckpointRow({ index, entry, onChange }: CheckpointRowProps) {
           activeOpacity={0.8}
         >
           <Text style={[styles.resultBtnText, entry.result === 'PASS' && styles.resultBtnTextActive]}>
-            ✓ OK
+            {t('checklist.ok')}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -91,7 +94,7 @@ function CheckpointRow({ index, entry, onChange }: CheckpointRowProps) {
           activeOpacity={0.8}
         >
           <Text style={[styles.resultBtnText, entry.result === 'FAIL' && styles.resultBtnTextActive]}>
-            ✗ NOK
+            {t('checklist.nok')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -104,6 +107,7 @@ function CheckpointRow({ index, entry, onChange }: CheckpointRowProps) {
 type Props = NativeStackScreenProps<RootStackParamList, 'Checklist'>;
 
 export function ChecklistScreen({ route, navigation }: Props) {
+  const { t } = useTranslation();
   const { taskId } = route.params;
   const [entries, setEntries] = useState<CheckpointEntry[]>([]);
   const [templateLoaded, setTemplateLoaded] = useState(false);
@@ -145,13 +149,13 @@ export function ChecklistScreen({ route, navigation }: Props) {
       if (hasFailure) {
         setShowNCModal(true);
       } else {
-        Alert.alert('Succès', 'Contrôle soumis avec succès.', [
-          { text: 'OK', onPress: () => navigation.navigate('Main') },
+        Alert.alert(t('checklist.successTitle'), t('checklist.successMsg'), [
+          { text: t('common.ok'), onPress: () => navigation.navigate('Main') },
         ]);
       }
     },
     onError: () => {
-      Alert.alert('Erreur', 'Impossible de soumettre le contrôle. Veuillez réessayer.');
+      Alert.alert(t('checklist.errorTitle'), t('checklist.errorMsg'));
     },
   });
 
@@ -162,10 +166,7 @@ export function ChecklistScreen({ route, navigation }: Props) {
   const handleSubmit = () => {
     const incomplete = entries.some((e) => e.result === null);
     if (incomplete) {
-      Alert.alert(
-        'Incomplet',
-        'Veuillez renseigner un résultat (OK/NOK) pour chaque point de contrôle.',
-      );
+      Alert.alert(t('checklist.incompleteTitle'), t('checklist.incompleteMsg'));
       return;
     }
     const now = new Date().toISOString();
@@ -188,13 +189,13 @@ export function ChecklistScreen({ route, navigation }: Props) {
     navigation.navigate('Main');
     // Navigate to NC tab — user can switch manually; deep-linking into tabs
     // from a stack screen requires root navigation ref which is out of scope.
-    Alert.alert('Info', 'Accédez à l\'onglet "Non-conformités" pour créer un signalement.');
+    Alert.alert(t('checklist.ncInfo'), t('checklist.ncInfoMsg'));
   };
 
   const handleNCModalNo = () => {
     setShowNCModal(false);
-    Alert.alert('Succès', 'Contrôle soumis avec succès.', [
-      { text: 'OK', onPress: () => navigation.navigate('Main') },
+    Alert.alert(t('checklist.successTitle'), t('checklist.successMsg'), [
+      { text: t('common.ok'), onPress: () => navigation.navigate('Main') },
     ]);
   };
 
@@ -205,7 +206,7 @@ export function ChecklistScreen({ route, navigation }: Props) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#2D6A4F" />
-        <Text style={styles.loadingText}>Chargement du contrôle…</Text>
+        <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
   }
@@ -213,7 +214,7 @@ export function ChecklistScreen({ route, navigation }: Props) {
   if (isError) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>Impossible de charger le contrôle.</Text>
+        <Text style={styles.errorText}>{t('checklist.loadErrorMsg')}</Text>
       </View>
     );
   }
@@ -221,7 +222,7 @@ export function ChecklistScreen({ route, navigation }: Props) {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.sectionTitle}>Points de contrôle</Text>
+        <Text style={styles.sectionTitle}>{t('checklist.checkpoints')}</Text>
         {entries.map((entry, idx) => (
           <CheckpointRow
             key={idx}
@@ -240,7 +241,7 @@ export function ChecklistScreen({ route, navigation }: Props) {
           {submitMutation.isPending ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>Soumettre le contrôle</Text>
+            <Text style={styles.submitButtonText}>{t('checklist.submit')}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -254,16 +255,14 @@ export function ChecklistScreen({ route, navigation }: Props) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>⚠️ Points de contrôle échoués</Text>
-            <Text style={styles.modalBody}>
-              Des non-conformités ont été détectées. Voulez-vous créer un signalement ?
-            </Text>
+            <Text style={styles.modalTitle}>{t('checklist.ncModalTitle')}</Text>
+            <Text style={styles.modalBody}>{t('checklist.ncModalBody')}</Text>
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.modalBtnNo} onPress={handleNCModalNo}>
-                <Text style={styles.modalBtnNoText}>Non</Text>
+                <Text style={styles.modalBtnNoText}>{t('checklist.ncModalNo')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalBtnYes} onPress={handleNCModalYes}>
-                <Text style={styles.modalBtnYesText}>Oui, créer</Text>
+                <Text style={styles.modalBtnYesText}>{t('checklist.ncModalYes')}</Text>
               </TouchableOpacity>
             </View>
           </View>

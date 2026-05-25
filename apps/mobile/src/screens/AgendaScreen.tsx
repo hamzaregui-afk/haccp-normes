@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { controlClient } from '../api/client';
+import { useTranslation } from '@/i18n';
 import type { MainTabParamList } from '../navigation/MainNavigator';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -42,12 +43,12 @@ interface TasksResponse {
 
 // ── Status badge styles ───────────────────────────────────────────────────────
 
-const STATUS_STYLES: Record<TaskStatus, { bg: string; text: string; label: string }> = {
-  PLANNED:     { bg: '#E5E7EB', text: '#374151', label: 'Planifié' },
-  IN_PROGRESS: { bg: '#DBEAFE', text: '#1D4ED8', label: 'En cours' },
-  COMPLETED:   { bg: '#D1FAE5', text: '#065F46', label: 'Terminé' },
-  OVERDUE:     { bg: '#FEE2E2', text: '#991B1B', label: 'En retard' },
-  CANCELLED:   { bg: '#F3F4F6', text: '#6B7280', label: 'Annulé' },
+const STATUS_COLORS: Record<TaskStatus, { bg: string; text: string }> = {
+  PLANNED:     { bg: '#E5E7EB', text: '#374151' },
+  IN_PROGRESS: { bg: '#DBEAFE', text: '#1D4ED8' },
+  COMPLETED:   { bg: '#D1FAE5', text: '#065F46' },
+  OVERDUE:     { bg: '#FEE2E2', text: '#991B1B' },
+  CANCELLED:   { bg: '#F3F4F6', text: '#6B7280' },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -80,10 +81,19 @@ interface TaskCardProps {
 }
 
 function TaskCard({ task, onStart, starting }: TaskCardProps) {
-  // STATUS_STYLES covers every TaskStatus value — no runtime fallback needed.
-  const badge = STATUS_STYLES[task.status];
+  const { t } = useTranslation();
+
+  // STATUS_COLORS covers every TaskStatus value — no runtime fallback needed.
+  const colors = STATUS_COLORS[task.status];
   const canStart = task.status === 'PLANNED' || task.status === 'IN_PROGRESS' || task.status === 'OVERDUE';
   const isRecurring = Boolean(task.scheduleId);
+
+  const startLabel =
+    task.status === 'IN_PROGRESS'
+      ? t('agenda.continue')
+      : task.status === 'OVERDUE'
+        ? t('agenda.catchUp')
+        : t('agenda.start');
 
   return (
     <View style={styles.card}>
@@ -92,12 +102,14 @@ function TaskCard({ task, onStart, starting }: TaskCardProps) {
           <Text style={styles.taskTitle}>{task.template.name}</Text>
           {isRecurring && (
             <View style={styles.recurringBadge}>
-              <Text style={styles.recurringBadgeText}>🔄 Récurrent</Text>
+              <Text style={styles.recurringBadgeText}>{t('agenda.recurring')}</Text>
             </View>
           )}
         </View>
-        <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-          <Text style={[styles.badgeText, { color: badge.text }]}>{badge.label}</Text>
+        <View style={[styles.badge, { backgroundColor: colors.bg }]}>
+          <Text style={[styles.badgeText, { color: colors.text }]}>
+            {t(`agenda.status.${task.status}`)}
+          </Text>
         </View>
       </View>
       <Text style={styles.taskTime}>⏰ {formatDateFR(task.scheduledAt)}</Text>
@@ -115,9 +127,7 @@ function TaskCard({ task, onStart, starting }: TaskCardProps) {
           {starting ? (
             <ActivityIndicator color="#fff" size="small" />
           ) : (
-            <Text style={styles.startButtonText}>
-              {task.status === 'IN_PROGRESS' ? 'Continuer' : task.status === 'OVERDUE' ? 'Rattraper' : 'Commencer'}
-            </Text>
+            <Text style={styles.startButtonText}>{startLabel}</Text>
           )}
         </TouchableOpacity>
       )}
@@ -133,6 +143,7 @@ type Props = CompositeScreenProps<
 >;
 
 export function AgendaScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [startingId, setStartingId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -164,7 +175,7 @@ export function AgendaScreen({ navigation }: Props) {
       };
       // ARCH-DECISION: Three parallel requests so operators see:
       //   IN_PROGRESS — tasks they started but didn't finish
-      //   OVERDUE     — tasks they missed (shown with "Rattraper" CTA)
+      //   OVERDUE     — tasks they missed (shown with "Catch up" CTA)
       //   PLANNED     — upcoming tasks for the selected day
       const [inProgressRes, overdueRes, plannedRes] = await Promise.all([
         controlClient.get<TasksResponse>('/api/v1/controls/tasks', {
@@ -185,9 +196,9 @@ export function AgendaScreen({ navigation }: Props) {
       ];
       // Deduplicate by id (shouldn't happen, but defensive)
       const seen = new Set<string>();
-      return merged.filter((t) => {
-        if (seen.has(t.id)) return false;
-        seen.add(t.id);
+      return merged.filter((task) => {
+        if (seen.has(task.id)) return false;
+        seen.add(task.id);
         return true;
       });
     },
@@ -209,7 +220,7 @@ export function AgendaScreen({ navigation }: Props) {
       navigation.navigate('Checklist', { taskId, taskTitle });
     },
     onError: () => {
-      Alert.alert('Erreur', 'Impossible de démarrer la tâche. Veuillez réessayer.');
+      Alert.alert(t('common.error'), t('agenda.startError'));
     },
   });
 
@@ -229,7 +240,7 @@ export function AgendaScreen({ navigation }: Props) {
           </TouchableOpacity>
           <TouchableOpacity onPress={goToToday} style={styles.datePill}>
             <Text style={styles.headerTitle}>
-              {isToday ? "Agenda du jour" : dateFR(selectedDate)}
+              {isToday ? t('agenda.todayTitle') : dateFR(selectedDate)}
             </Text>
             {isToday && (
               <Text style={styles.headerDate}>{dateFR(selectedDate)}</Text>
@@ -241,7 +252,7 @@ export function AgendaScreen({ navigation }: Props) {
         </View>
         {!isToday && (
           <TouchableOpacity onPress={goToToday} style={styles.todayChip}>
-            <Text style={styles.todayChipText}>Aujourd'hui</Text>
+            <Text style={styles.todayChipText}>{t('agenda.tabs.today')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -249,9 +260,9 @@ export function AgendaScreen({ navigation }: Props) {
       {/* Content */}
       {isError ? (
         <View style={styles.centered}>
-          <Text style={styles.errorText}>Erreur de chargement</Text>
+          <Text style={styles.errorText}>{t('agenda.errorLoad')}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
-            <Text style={styles.retryText}>Réessayer</Text>
+            <Text style={styles.retryText}>{t('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -273,7 +284,7 @@ export function AgendaScreen({ navigation }: Props) {
             ) : (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyIcon}>✅</Text>
-                <Text style={styles.emptyText}>Aucune tâche pour aujourd'hui</Text>
+                <Text style={styles.emptyText}>{t('agenda.empty')}</Text>
               </View>
             )
           }

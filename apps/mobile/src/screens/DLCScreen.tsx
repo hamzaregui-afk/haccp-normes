@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { dlcClient } from '../api/client';
+import { useTranslation } from '@/i18n';
 import type { MainTabParamList } from '../navigation/MainNavigator';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -127,8 +128,6 @@ function buildLabelHtml(label: LabelData): string {
 </html>`;
 }
 
-// ── Screen ────────────────────────────────────────────────────────────────────
-
 // ── Expiring today alert ──────────────────────────────────────────────────────
 
 interface DlcLabel {
@@ -139,6 +138,7 @@ interface DlcLabel {
 }
 
 function ExpiringTodayBanner() {
+  const { t } = useTranslation();
   const { data } = useQuery<DlcLabel[]>({
     queryKey: ['dlc', 'expiring-today'],
     queryFn: async () => {
@@ -153,7 +153,7 @@ function ExpiringTodayBanner() {
   return (
     <View style={alertStyles.banner}>
       <Text style={alertStyles.bannerTitle}>
-        ⚠️  {data.length} DLC expirent aujourd'hui
+        ⚠️  {data.length} {t('dlc.expiringToday')}
       </Text>
       {data.map((label) => (
         <Text key={label.id} style={alertStyles.bannerItem}>
@@ -192,6 +192,7 @@ const alertStyles = StyleSheet.create({
 type Props = BottomTabScreenProps<MainTabParamList, 'DLC'>;
 
 export function DLCScreen(_props: Props) {
+  const { t } = useTranslation();
   const [productName, setProductName] = useState('');
   const [lotNumber, setLotNumber]   = useState('');
   const [fabDate, setFabDate]       = useState('');
@@ -202,17 +203,17 @@ export function DLCScreen(_props: Props) {
   const handleCalculateAndPrint = async () => {
     // Basic validation
     if (!productName.trim() || !lotNumber.trim() || !fabDate.trim()) {
-      Alert.alert('Champs requis', 'Veuillez remplir le produit, le lot et la date de fabrication.');
+      Alert.alert(t('dlc.errorTitle'), t('dlc.validation.requiredFields'));
       return;
     }
     const days = parseInt(shelfLife, 10);
     if (isNaN(days) || days <= 0) {
-      Alert.alert('Valeur invalide', 'La durée de conservation doit être un entier positif.');
+      Alert.alert(t('dlc.errorTitle'), t('dlc.validation.invalidDays'));
       return;
     }
     // Validate date format loosely (YYYY-MM-DD)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fabDate.trim())) {
-      Alert.alert('Format invalide', 'La date de fabrication doit être au format YYYY-MM-DD.');
+      Alert.alert(t('dlc.errorTitle'), t('dlc.validation.invalidDate'));
       return;
     }
 
@@ -248,7 +249,7 @@ export function DLCScreen(_props: Props) {
       if (canShare) {
         await Sharing.shareAsync(uri, {
           mimeType: 'application/pdf',
-          dialogTitle: `Étiquette DLC — ${productName}`,
+          dialogTitle: `${t('dlc.share')} — ${productName}`,
         });
       } else {
         // On physical devices that support direct printing
@@ -256,9 +257,9 @@ export function DLCScreen(_props: Props) {
       }
     } catch (err: unknown) {
       const msg = isApiError(err)
-        ? String(err.response?.data?.message ?? 'Erreur de calcul DLC.')
-        : 'Impossible de se connecter au serveur.';
-      Alert.alert('Erreur', msg);
+        ? String(err.response?.data?.message ?? t('dlc.errorMsg'))
+        : t('dlc.serverError');
+      Alert.alert(t('dlc.errorTitle'), msg);
     } finally {
       setCalculating(false);
     }
@@ -275,13 +276,13 @@ export function DLCScreen(_props: Props) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <ExpiringTodayBanner />
-      <Text style={styles.pageTitle}>Calcul & Impression DLC</Text>
+      <Text style={styles.pageTitle}>{t('dlc.pageTitle')}</Text>
 
       {/* Product name */}
-      <Text style={styles.label}>Produit *</Text>
+      <Text style={styles.label}>{t('dlc.productLabel')}</Text>
       <TextInput
         style={styles.input}
-        placeholder="Ex: Yaourt nature"
+        placeholder={t('dlc.productNameHint')}
         placeholderTextColor="#9CA3AF"
         value={productName}
         onChangeText={setProductName}
@@ -289,10 +290,10 @@ export function DLCScreen(_props: Props) {
       />
 
       {/* Lot number */}
-      <Text style={styles.label}>N° de lot *</Text>
+      <Text style={styles.label}>{t('dlc.lotLabel')}</Text>
       <TextInput
         style={styles.input}
-        placeholder="Ex: LOT-2025-042"
+        placeholder={t('dlc.lotNumberHint')}
         placeholderTextColor="#9CA3AF"
         value={lotNumber}
         onChangeText={setLotNumber}
@@ -301,7 +302,7 @@ export function DLCScreen(_props: Props) {
       />
 
       {/* Fabrication date */}
-      <Text style={styles.label}>Date de fabrication * (YYYY-MM-DD)</Text>
+      <Text style={styles.label}>{t('dlc.fabricationLabel')}</Text>
       <TextInput
         style={styles.input}
         placeholder="2025-05-03"
@@ -313,7 +314,7 @@ export function DLCScreen(_props: Props) {
       />
 
       {/* Shelf life */}
-      <Text style={styles.label}>Durée de conservation (jours) *</Text>
+      <Text style={styles.label}>{t('dlc.shelfLifeLabel')}</Text>
       <TextInput
         style={styles.input}
         placeholder="3"
@@ -327,7 +328,7 @@ export function DLCScreen(_props: Props) {
       {/* Result preview */}
       {lastResult ? (
         <View style={styles.resultCard}>
-          <Text style={styles.resultTitle}>Date limite de consommation</Text>
+          <Text style={styles.resultTitle}>{t('dlc.resultTitle')}</Text>
           <Text style={styles.resultDate}>{expirationLabel}</Text>
         </View>
       ) : null}
@@ -344,14 +345,12 @@ export function DLCScreen(_props: Props) {
         ) : (
           <>
             <Text style={styles.printBtnIcon}>🖨️</Text>
-            <Text style={styles.printBtnText}>Calculer & Imprimer</Text>
+            <Text style={styles.printBtnText}>{t('dlc.calculatePrint')}</Text>
           </>
         )}
       </TouchableOpacity>
 
-      <Text style={styles.hint}>
-        L'étiquette sera générée en PDF et partageable via votre application d'impression.
-      </Text>
+      <Text style={styles.hint}>{t('dlc.shareHint')}</Text>
     </ScrollView>
   );
 }

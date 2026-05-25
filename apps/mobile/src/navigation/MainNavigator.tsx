@@ -5,6 +5,7 @@ import { AgendaScreen }  from '../screens/AgendaScreen';
 import { DLCScreen }     from '../screens/DLCScreen';
 import { NCFormScreen }  from '../screens/NCFormScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { useTranslation } from '@/i18n';
 
 export type MainTabParamList = {
   Agenda:             undefined;
@@ -36,27 +37,43 @@ function TabIcon({ label, focused }: TabIconProps) {
   );
 }
 
-export const MainNavigator = () => (
-  <Tab.Navigator
-    screenOptions={({ route }) => ({
-      headerStyle: { backgroundColor: '#1A3D2B' },
-      headerTintColor: '#fff',
-      headerTitleStyle: { fontWeight: '700' },
-      tabBarStyle: { backgroundColor: '#1A3D2B', borderTopColor: '#2D6A4F' },
-      tabBarActiveTintColor: '#B5833A',
-      tabBarInactiveTintColor: 'rgba(255,255,255,0.5)',
-      tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
-    })}
-  >
-    <Tab.Screen name="Agenda" component={AgendaScreen} options={{ title: 'Agenda' }} />
-    <Tab.Screen
-      name="Non-conformités"
-      component={NCFormScreen}
-      options={{ title: 'Non-conformités' }}
-    />
-    <Tab.Screen name="DLC"    component={DLCScreen}    options={{ title: 'DLC' }} />
-    <Tab.Screen name="Profil" component={ProfileScreen} options={{ title: 'Mon profil' }} />
-  </Tab.Navigator>
-);
+export function MainNavigator() {
+  const { t } = useTranslation();
+
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerStyle: { backgroundColor: '#1A3D2B' },
+        headerTintColor: '#fff',
+        headerTitleStyle: { fontWeight: '700' },
+        tabBarStyle: { backgroundColor: '#1A3D2B', borderTopColor: '#2D6A4F' },
+        tabBarActiveTintColor: '#B5833A',
+        tabBarInactiveTintColor: 'rgba(255,255,255,0.5)',
+        tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
+      })}
+    >
+      <Tab.Screen
+        name="Agenda"
+        component={AgendaScreen}
+        options={{ title: t('nav.agenda') }}
+      />
+      <Tab.Screen
+        name="Non-conformités"
+        component={NCFormScreen}
+        options={{ title: t('nav.nc') }}
+      />
+      <Tab.Screen
+        name="DLC"
+        component={DLCScreen}
+        options={{ title: t('nav.dlc') }}
+      />
+      <Tab.Screen
+        name="Profil"
+        component={ProfileScreen}
+        options={{ title: t('nav.profile') }}
+      />
+    </Tab.Navigator>
+  );
+}
 
 MainNavigator.displayName = 'MainNavigator';
