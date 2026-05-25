@@ -53,17 +53,17 @@ const STATUS_COLORS: Record<TaskStatus, { bg: string; text: string }> = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatDateFR(iso: string): string {
+function formatTime(iso: string, locale: string): string {
   const d = new Date(iso);
-  return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 }
 
 function dateISO(d: Date): string {
   return d.toISOString().split('T')[0] as string;
 }
 
-function dateFR(d: Date): string {
-  return d.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' });
+function formatFullDate(d: Date, locale: string): string {
+  return d.toLocaleDateString(locale, { weekday: 'long', day: '2-digit', month: 'long' });
 }
 
 function addDays(d: Date, n: number): Date {
@@ -81,7 +81,7 @@ interface TaskCardProps {
 }
 
 function TaskCard({ task, onStart, starting }: TaskCardProps) {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
 
   // STATUS_COLORS covers every TaskStatus value — no runtime fallback needed.
   const colors = STATUS_COLORS[task.status];
@@ -112,7 +112,7 @@ function TaskCard({ task, onStart, starting }: TaskCardProps) {
           </Text>
         </View>
       </View>
-      <Text style={styles.taskTime}>⏰ {formatDateFR(task.scheduledAt)}</Text>
+      <Text style={styles.taskTime}>⏰ {formatTime(task.scheduledAt, lang)}</Text>
       {canStart && (
         <TouchableOpacity
           style={[
@@ -143,7 +143,7 @@ type Props = CompositeScreenProps<
 >;
 
 export function AgendaScreen({ navigation }: Props) {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const qc = useQueryClient();
   const [startingId, setStartingId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -240,10 +240,10 @@ export function AgendaScreen({ navigation }: Props) {
           </TouchableOpacity>
           <TouchableOpacity onPress={goToToday} style={styles.datePill}>
             <Text style={styles.headerTitle}>
-              {isToday ? t('agenda.todayTitle') : dateFR(selectedDate)}
+              {isToday ? t('agenda.todayTitle') : formatFullDate(selectedDate, lang)}
             </Text>
             {isToday && (
-              <Text style={styles.headerDate}>{dateFR(selectedDate)}</Text>
+              <Text style={styles.headerDate}>{formatFullDate(selectedDate, lang)}</Text>
             )}
           </TouchableOpacity>
           <TouchableOpacity onPress={goToNext} style={styles.navArrow}>

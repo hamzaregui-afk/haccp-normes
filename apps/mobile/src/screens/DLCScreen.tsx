@@ -55,6 +55,10 @@ interface LabelData {
   dlcDays:     number;
 }
 
+// ARCH-DECISION: Physical DLC labels are always formatted in French (fr-FR).
+// Table headers (N° Lot, Fabrication, Date limite) are French regulatory
+// terminology — identical to the Zebra ZPL labels in the web app. The locale
+// for printed labels must not follow the operator's UI language preference.
 function buildLabelHtml(label: LabelData): string {
   const expDate = new Date(label.expiresAt).toLocaleDateString('fr-FR');
   const fabDate = new Date(label.producedAt).toLocaleDateString('fr-FR');
@@ -192,7 +196,7 @@ const alertStyles = StyleSheet.create({
 type Props = BottomTabScreenProps<MainTabParamList, 'DLC'>;
 
 export function DLCScreen(_props: Props) {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const [productName, setProductName] = useState('');
   const [lotNumber, setLotNumber]   = useState('');
   const [fabDate, setFabDate]       = useState('');
@@ -266,7 +270,7 @@ export function DLCScreen(_props: Props) {
   };
 
   const expirationLabel = lastResult
-    ? new Date(lastResult.expiresAt).toLocaleDateString('fr-FR', {
+    ? new Date(lastResult.expiresAt).toLocaleDateString(lang, {
         day: '2-digit',
         month: 'long',
         year: 'numeric',
