@@ -1343,7 +1343,10 @@
     "taskAssigned": "تم تعيين مهمة جديدة",
     "tasksOverdue": "مهام متأخرة",
     "dlcExpiring": "تواريخ صلاحية تنتهي اليوم",
-    "reportValidated": "تم التحقق من التقرير"
+    "reportValidated": "تم التحقق من التقرير",
+    "unreadCount": "{{count}} إشعار غير مقروء",
+    "unreadBadge": "غير مقروء",
+    "panel": "لوحة الإشعارات"
   },
   "documents": {
     "title": "إدارة الوثائق",
@@ -1515,5 +1518,9 @@
       "siteDeleted": "تم حذف الموقع",
       "zoneDeleted": "تم حذف المنطقة"
     }
+  },
+  "sidebar": {
+    "closeMenu": "إغلاق القائمة",
+    "logout": "تسجيل الخروج"
   }
 }

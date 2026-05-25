@@ -24,6 +24,7 @@ interface NotificationItemProps {
 }
 
 function NotificationItem({ notification: n }: NotificationItemProps) {
+  const { t } = useTranslation();
   return (
     <li
       className={`flex gap-3 px-4 py-3 text-sm transition-colors hover:bg-gray-50 ${
@@ -48,7 +49,7 @@ function NotificationItem({ notification: n }: NotificationItemProps) {
       {!n.isRead && (
         <span
           className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand-mid"
-          aria-label="Non lu"
+          aria-label={t('notifications.unreadBadge')}
         />
       )}
     </li>
@@ -94,7 +95,7 @@ export function NotificationBell(_props: NotificationBellProps) {
         {unreadCount > 0 && (
           <span
             className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white"
-            aria-label={`${unreadCount} notifications non lues`}
+            aria-label={t('notifications.unreadCount', { count: unreadCount, s: unreadCount !== 1 ? 's' : '' })}
           >
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
@@ -105,7 +106,7 @@ export function NotificationBell(_props: NotificationBellProps) {
       {open && (
         <div
           role="dialog"
-          aria-label="Panneau de notifications"
+          aria-label={t('notifications.panel')}
           className="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-gray-200 bg-white shadow-xl"
         >
           {/* Header */}

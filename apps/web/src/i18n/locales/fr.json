@@ -1343,7 +1343,10 @@
     "taskAssigned": "Nouvelle tâche assignée",
     "tasksOverdue": "Tâches en retard",
     "dlcExpiring": "DLC expirant aujourd'hui",
-    "reportValidated": "Rapport validé"
+    "reportValidated": "Rapport validé",
+    "unreadCount": "{{count}} notification{{s}} non lue{{s}}",
+    "unreadBadge": "Non lu",
+    "panel": "Panneau de notifications"
   },
   "documents": {
     "title": "GED — Documents",
@@ -1515,5 +1518,9 @@
       "siteDeleted": "Site supprimé",
       "zoneDeleted": "Zone supprimée"
     }
+  },
+  "sidebar": {
+    "closeMenu": "Fermer le menu",
+    "logout": "Déconnexion"
   }
 }

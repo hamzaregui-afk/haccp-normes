@@ -143,7 +143,7 @@ function SidebarContent({ onClose }: SidebarContentProps) {
           <button
             onClick={onClose}
             className="ml-auto rounded p-1 text-blue-200 hover:text-white lg:hidden"
-            aria-label="Fermer le menu"
+            aria-label={t('sidebar.closeMenu')}
           >
             <X className="h-5 w-5" />
           </button>
@@ -209,7 +209,7 @@ function SidebarContent({ onClose }: SidebarContentProps) {
           </div>
           <button
             onClick={handleLogout}
-            title="Déconnexion"
+            title={t('sidebar.logout')}
             className="rounded-lg p-1.5 text-blue-200 hover:bg-brand-medium hover:text-white transition-colors"
           >
             <LogOut className="h-4 w-4" />

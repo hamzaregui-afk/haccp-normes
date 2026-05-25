@@ -1343,7 +1343,10 @@
     "taskAssigned": "New task assigned",
     "tasksOverdue": "Overdue tasks",
     "dlcExpiring": "Use-by dates expiring today",
-    "reportValidated": "Report validated"
+    "reportValidated": "Report validated",
+    "unreadCount": "{{count}} unread notification{{s}}",
+    "unreadBadge": "Unread",
+    "panel": "Notifications panel"
   },
   "documents": {
     "title": "GED — Documents",
@@ -1515,5 +1518,9 @@
       "siteDeleted": "Site deleted",
       "zoneDeleted": "Zone deleted"
     }
+  },
+  "sidebar": {
+    "closeMenu": "Close menu",
+    "logout": "Log out"
   }
 }
