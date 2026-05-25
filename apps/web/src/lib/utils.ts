@@ -9,8 +9,11 @@ export const cn = (...inputs: ClassValue[]): string => twMerge(clsx(inputs));
  * Extract a human-readable message from an API error.
  * Handles Axios errors (single string message, array of messages),
  * generic Error objects, and unknown throws.
+ *
+ * Pass `fallback` (e.g. `t('common.error')`) to override the default
+ * last-resort message with a translated string.
  */
-export function extractApiMessage(error: unknown): string {
+export function extractApiMessage(error: unknown, fallback = 'Une erreur inattendue est survenue'): string {
   if (axios.isAxiosError(error)) {
     const data = error.response?.data as Record<string, unknown> | undefined;
     if (typeof data?.message === 'string') return data.message;
@@ -18,7 +21,7 @@ export function extractApiMessage(error: unknown): string {
     return error.message;
   }
   if (error instanceof Error) return error.message;
-  return 'Une erreur inattendue est survenue';
+  return fallback;
 }
 
 /**

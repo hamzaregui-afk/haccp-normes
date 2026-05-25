@@ -76,7 +76,7 @@ interface TasksOverduePayload {
 
 // ── Helpers — synthesise a Notification from a domain event ──────────────────
 
-type TFn = (key: string) => string;
+type TFn = (key: string, opts?: Record<string, string | number>) => string;
 
 function fromNcCreated(p: NcCreatedPayload, t: TFn): Notification {
   return {
@@ -115,7 +115,7 @@ function fromTaskAssigned(p: TaskAssignedPayload, t: TFn): Notification {
   return {
     id:        p.eventId,
     title:     t('notifications.taskAssigned'),
-    body:      p.templateName ? `${p.templateName}` : `Tâche ${p.taskId ?? ''}`,
+    body:      p.templateName ?? t('notifications.taskFallback', { id: p.taskId ?? '' }),
     type:      'TASK_ASSIGNED',
     isRead:    false,
     createdAt: p.timestamp,
@@ -211,9 +211,9 @@ export function useNotifications(): NotificationsState {
     // Domain event: DLC labels expiring today (tenant-scoped broadcast, daily 07:00 UTC)
     const onDlcExpiring = (payload: DlcExpiringTodayPayload) => {
       const body = payload.labels?.slice(0, 3).map((l) => l.productName).join(', ')
-        ?? `${payload.count} produit(s)`;
+        ?? t('notifications.dlcExpiringProducts', { count: payload.count });
       showToast({
-        title: `⚠️ ${payload.count} DLC expirent aujourd'hui`,
+        title: t('notifications.dlcExpiringTitle', { count: payload.count }),
         body,
         variant: 'warning',
       });
@@ -235,8 +235,8 @@ export function useNotifications(): NotificationsState {
     // Domain event: multiple tasks are overdue (tenant-scoped broadcast)
     const onTasksOverdue = (payload: TasksOverduePayload) => {
       showToast({
-        title: `⚠️ ${payload.count} tâche${payload.count > 1 ? 's' : ''} en retard`,
-        body:  "Des tâches planifiées n'ont pas été démarrées à temps.",
+        title: t('notifications.tasksOverdueTitle', { count: payload.count, s: payload.count > 1 ? 's' : '' }),
+        body:  t('notifications.tasksOverdueBody'),
         variant: 'warning',
       });
       void queryClient.invalidateQueries({ queryKey: ['controls.tasks'] });
