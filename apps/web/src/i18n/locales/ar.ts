@@ -64,6 +64,15 @@ const ar = {
     successSave: 'تم حفظ الإعدادات بنجاح.',
     today:      'اليوم',
     unknown:    'غير معروف',
+    results:    '{{count}} نتيجة',
+    prevPage:   'الصفحة السابقة',
+    nextPage:   'الصفحة التالية',
+    errorBoundary: {
+      title:       'حدث خطأ غير متوقع',
+      description: 'حدث خطأ أثناء عرض هذه الصفحة.',
+      retry:       'إعادة المحاولة',
+      reload:      'إعادة تحميل الصفحة',
+    },
   },
 
   auth: {
@@ -99,6 +108,33 @@ const ar = {
     target:          'الهدف 80%',
     nonConformities: 'حالات عدم المطابقة',
     compliance:      'الامتثال',
+    todayControls:       'مراقبات اليوم',
+    overdueTask:         'المهام المتأخرة',
+    todayPlannedCount:   '{{count}} مجدول',
+    criticalNcCount:     'منها {{count}} حرجة',
+    complianceRateSub:   'خلال آخر 30 يومًا',
+    ncControlsMonth:     'مراقبات NC هذا الشهر',
+    ncControlsMonthSub:  'مراقبات بعدم مطابقة',
+    activeSchedules:     'الجداول النشطة',
+    activeSchedulesSub:  'جداول متكررة نشطة',
+    complianceByMonth:   'تطور الامتثال',
+    ncTooltip:           'حالات NC',
+    complianceTooltip:   'الامتثال',
+    recentNc:            'حالات عدم المطابقة المفتوحة الأخيرة',
+    zone:                'المنطقة',
+    recentNcControls:    'المراقبات غير المطابقة الأخيرة',
+    noNcControls:        'لا توجد مراقبات غير مطابقة ✅',
+    dlcExpiring:         '{{count}} ملصق/ملصقات تنتهي صلاحيتها اليوم',
+    myTasksToday:        'مهامي اليوم',
+    noTasksToday:        'لا توجد مهام مجدولة اليوم',
+    roleDesc: {
+      SUPER_ADMIN:     'وصول كامل لجميع المنشآت والمستأجرين',
+      ADMIN:           'وصول كامل لمنشأتك',
+      MANAGER:         'إدارة المراقبات وحالات NC والتقارير',
+      QUALITY_OFFICER: 'الإشراف على جودة وامتثال HACCP',
+      OPERATOR:        'تنفيذ مراقبات الميدان',
+      VIEWER:          'قراءة فقط',
+    },
   },
 
   controls: {
@@ -112,7 +148,13 @@ const ar = {
     createTemplateTitle: 'نموذج مراقبة جديد',
     templateName: 'اسم النموذج',
     templateNamePlaceholder: 'فحص استقبال اللحم…',
-    frequency:  'التكرار',
+    frequency: {
+      DAILY:        'يومي',
+      WEEKLY:       'أسبوعي',
+      MONTHLY:      'شهري',
+      ON_RECEPTION: 'عند الاستلام',
+      ON_DEMAND:    'عند الطلب',
+    },
     zone:       'المنطقة / الموقع',
     zonePlaceholder: 'منطقة أ، المطبخ البارد…',
     assignee:   'مُسند إلى',
@@ -307,6 +349,27 @@ const ar = {
       TRAITEUR:              'خدمة التقديم',
       AUTRE:                 'أخرى',
     },
+    services: {
+      title:       'حالة الخدمات المصغرة',
+      refreshNote: 'يُحدَّث كل 30 ثانية',
+      names: {
+        auth:            'Auth',
+        users:           'المستخدمون',
+        controls:        'المراقبة',
+        nonconformities: 'حالات عدم المطابقة',
+        assets:          'الأصول / GED',
+        notifications:   'الإشعارات',
+        reports:         'التقارير',
+        dlc:             'DLC',
+        tenants:         'المستأجرون',
+        audit:           'التدقيق',
+      },
+      status: {
+        ok:      'متصل',
+        down:    'غير متصل',
+        loading: 'جارٍ التحقق…',
+      },
+    },
   },
 
   users: {
@@ -333,6 +396,11 @@ const ar = {
       QUALITY_OFFICER: 'ضابط جودة',
       OPERATOR:        'مشغّل',
       VIEWER:          'مشاهد',
+    },
+    status: {
+      ACTIVE:   'نشط',
+      INACTIVE: 'غير نشط',
+      INVITED:  'مدعو',
     },
   },
 
@@ -406,6 +474,15 @@ const ar = {
       name:      'الاسم',
       plan:      'الخطة',
       createdAt: 'تاريخ الإنشاء',
+    },
+  },
+
+  nonconformities: {
+    status: {
+      OPEN:        'مفتوحة',
+      IN_PROGRESS: 'قيد المعالجة',
+      CLOSED:      'مغلقة',
+      REJECTED:    'مرفوضة',
     },
   },
 

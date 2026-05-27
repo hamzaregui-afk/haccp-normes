@@ -72,13 +72,14 @@ describe('Header', () => {
 
   it('renders the icon wrapper when icon prop is provided', () => {
     render(<Header title="Clients" icon={Building2} />);
-    // Lucide renders an <svg>
-    expect(document.querySelector('svg')).toBeInTheDocument();
+    // The icon is wrapped in a fixed-size badge div — check for the wrapper, not the SVG
+    // (the Globe lang-switcher icon always renders an SVG so checking svg is not reliable)
+    expect(document.querySelector('.h-9.w-9')).toBeInTheDocument();
   });
 
   it('does not render an icon wrapper when icon is omitted', () => {
     render(<Header title="Clients" />);
-    expect(document.querySelector('svg')).toBeNull();
+    expect(document.querySelector('.h-9.w-9')).toBeNull();
   });
 
   it('applies custom iconColor class when provided', () => {

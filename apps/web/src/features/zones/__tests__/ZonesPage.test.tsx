@@ -16,7 +16,7 @@
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -40,9 +40,8 @@ jest.mock('@/store/auth.store', () => ({
     selector({ user: { role: 'ADMIN', sub: 'u1', tenantId: 't1', email: 'admin@test.com' } }),
 }));
 
-jest.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (k: string) => k }),
-}));
+// react-i18next is NOT mocked — the real i18n system (with fr.ts translations) is used
+// so assertions on French text work correctly.
 
 // ─── Import under test ────────────────────────────────────────────────────────
 
@@ -102,8 +101,9 @@ describe('ZonesPage', () => {
   });
 
   it('renders site card with name', () => {
+    // Component uses data?.data (ApiResponse<Site[]>)
     mockUseQuery.mockReturnValue({
-      data: [SITE_WITH_ZONES],
+      data: { data: [SITE_WITH_ZONES] },
       isLoading: false,
       isError: false,
     });
@@ -112,12 +112,15 @@ describe('ZonesPage', () => {
   });
 
   it('renders zones under site', () => {
+    // Component uses data?.data (ApiResponse<Site[]>)
     mockUseQuery.mockReturnValue({
-      data: [SITE_WITH_ZONES],
+      data: { data: [SITE_WITH_ZONES] },
       isLoading: false,
       isError: false,
     });
-    renderPage();
+    const { getByText } = renderPage();
+    // Zones are collapsed by default — click the site header expand button first
+    fireEvent.click(getByText('Cuisines centrales'));
     expect(screen.getByText('Réception marchandises')).toBeInTheDocument();
     expect(screen.getByText('Chambre froide positive')).toBeInTheDocument();
   });

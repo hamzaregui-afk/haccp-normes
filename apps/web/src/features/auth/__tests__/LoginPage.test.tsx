@@ -15,7 +15,7 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -96,8 +96,9 @@ describe('LoginPage', () => {
   it('shows a validation error when the form is submitted with empty fields', async () => {
     renderLoginPage();
 
-    const submitButton = screen.getByRole('button', { name: /se connecter/i });
-    await userEvent.click(submitButton);
+    // Use fireEvent.submit to bypass native HTML5 required validation in jsdom
+    const form = document.querySelector('form');
+    if (form) fireEvent.submit(form);
 
     await waitFor(() => {
       expect(
@@ -113,7 +114,9 @@ describe('LoginPage', () => {
     renderLoginPage();
 
     await userEvent.type(screen.getByLabelText(/adresse e-mail/i), 'admin@test.com');
-    await userEvent.click(screen.getByRole('button', { name: /se connecter/i }));
+    // Use fireEvent.submit to bypass native HTML5 required validation in jsdom
+    const form = document.querySelector('form');
+    if (form) fireEvent.submit(form);
 
     await waitFor(() => {
       expect(

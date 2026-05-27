@@ -22,6 +22,12 @@
  * resource = 'system' and action = 'CREATE' as a catch-all so that no event
  * is silently dropped from the audit trail. This is conservative — the audit
  * log records too much rather than too little.
+ *
+ * ARCH-DECISION: Stacked @EventPattern decorators CANNOT be used on a single
+ * method — NestJS SetMetadata overwrites the metadata key, leaving only the
+ * last-applied (outermost) pattern registered. Each event version therefore
+ * has its own handler method that delegates to record(). Both bare patterns
+ * (legacy) and .v1 patterns (outbox worker) are handled and acknowledged.
  */
 
 import { Controller, Logger } from '@nestjs/common';
@@ -70,10 +76,10 @@ const EVENT_MAP: Record<string, AuditMapping> = {
 };
 
 const FALLBACK_MAPPING: AuditMapping = {
-  action:  'CREATE',
+  action:   'CREATE',
   resource: 'system',
-  userKey: null,
-  idKey:   null,
+  userKey:  null,
+  idKey:    null,
 };
 
 function extractString(obj: Record<string, unknown>, key: string | null): string | undefined {
@@ -91,58 +97,72 @@ export class AuditConsumer {
 
   constructor(private readonly auditService: AuditService) {}
 
-  /**
-   * Catch-all handler: subscribes to every event that arrives on
-   * haccp_audit_queue. NestJS RMQ transport delivers `pattern` from the
-   * message's `data.pattern` field; we use a wildcard (#) equivalent by
-   * enumerating all known patterns.
-   *
-   * We register one handler for the known patterns and one for unknowns.
-   * Unrecognised patterns pass through the FALLBACK_MAPPING so nothing is lost.
-   */
-
   // ── nonconformity ────────────────────────────────────────────────────────
 
   @EventPattern('nonconformity.nc.created')
-  @EventPattern('nonconformity.nc.created.v1')
   handleNcCreated(@Payload() data: DomainEventEnvelope): void {
     void this.record('nonconformity.nc.created', data);
+  }
+
+  @EventPattern('nonconformity.nc.created.v1')
+  handleNcCreatedV1(@Payload() data: DomainEventEnvelope): void {
+    void this.record('nonconformity.nc.created.v1', data);
   }
 
   // ── control tasks ────────────────────────────────────────────────────────
 
   @EventPattern('control.task.completed')
-  @EventPattern('control.task.completed.v1')
   handleTaskCompleted(@Payload() data: DomainEventEnvelope): void {
     void this.record('control.task.completed', data);
   }
 
+  @EventPattern('control.task.completed.v1')
+  handleTaskCompletedV1(@Payload() data: DomainEventEnvelope): void {
+    void this.record('control.task.completed.v1', data);
+  }
+
   @EventPattern('control.task.assigned')
-  @EventPattern('control.task.assigned.v1')
   handleTaskAssigned(@Payload() data: DomainEventEnvelope): void {
     void this.record('control.task.assigned', data);
   }
 
+  @EventPattern('control.task.assigned.v1')
+  handleTaskAssignedV1(@Payload() data: DomainEventEnvelope): void {
+    void this.record('control.task.assigned.v1', data);
+  }
+
   @EventPattern('control.tasks.overdue')
-  @EventPattern('control.tasks.overdue.v1')
   handleTasksOverdue(@Payload() data: DomainEventEnvelope): void {
     void this.record('control.tasks.overdue', data);
+  }
+
+  @EventPattern('control.tasks.overdue.v1')
+  handleTasksOverdueV1(@Payload() data: DomainEventEnvelope): void {
+    void this.record('control.tasks.overdue.v1', data);
   }
 
   // ── reports ──────────────────────────────────────────────────────────────
 
   @EventPattern('report.report.validated')
-  @EventPattern('report.report.validated.v1')
   handleReportValidated(@Payload() data: DomainEventEnvelope): void {
     void this.record('report.report.validated', data);
+  }
+
+  @EventPattern('report.report.validated.v1')
+  handleReportValidatedV1(@Payload() data: DomainEventEnvelope): void {
+    void this.record('report.report.validated.v1', data);
   }
 
   // ── DLC ──────────────────────────────────────────────────────────────────
 
   @EventPattern('dlc.labels.expiring-today')
-  @EventPattern('dlc.labels.expiring-today.v1')
   handleDlcExpiring(@Payload() data: DomainEventEnvelope): void {
     void this.record('dlc.labels.expiring-today', data);
+  }
+
+  @EventPattern('dlc.labels.expiring-today.v1')
+  handleDlcExpiringV1(@Payload() data: DomainEventEnvelope): void {
+    void this.record('dlc.labels.expiring-today.v1', data);
   }
 
   // ─── Core record helper ───────────────────────────────────────────────────

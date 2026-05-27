@@ -55,16 +55,18 @@ function makeLog(overrides: Partial<{
   id: string; action: string; resource: string; resourceId: string | null;
   userId: string; ipAddress: string | null; createdAt: string;
 }> = {}) {
+  // Use 'key in overrides' so explicit null overrides are preserved
+  // (the ?? operator would replace null with the default, defeating the purpose)
   return {
-    id:         overrides.id         ?? 'log-001',
-    action:     overrides.action     ?? 'user.login',
-    resource:   overrides.resource   ?? 'users',
-    resourceId: overrides.resourceId ?? 'user-abc-123',
-    userId:     overrides.userId     ?? 'usr-001testidabc1234567',
+    id:         'id'         in overrides ? overrides.id!         : 'log-001',
+    action:     'action'     in overrides ? overrides.action!     : 'user.login',
+    resource:   'resource'   in overrides ? overrides.resource!   : 'users',
+    resourceId: 'resourceId' in overrides ? overrides.resourceId! : 'user-abc-123',
+    userId:     'userId'     in overrides ? overrides.userId!     : 'usr-001testidabc1234567',
     tenantId:   'tenant-001',
     payload:    {},
-    ipAddress:  overrides.ipAddress  ?? '192.168.1.10',
-    createdAt:  overrides.createdAt  ?? '2026-01-15T10:30:00Z',
+    ipAddress:  'ipAddress'  in overrides ? overrides.ipAddress!  : '192.168.1.10',
+    createdAt:  'createdAt'  in overrides ? overrides.createdAt!  : '2026-01-15T10:30:00Z',
   };
 }
 
@@ -218,8 +220,9 @@ describe('AuditPage', () => {
   it('renders a formatted creation date', () => {
     renderPage();
     // '2026-01-15T10:30:00Z' → French locale date-time
-    // Exact format depends on the test runner's locale; just check a date fragment is present
-    expect(screen.getByText(/2026/)).toBeInTheDocument();
+    // All 3 log rows render a date containing "2026" — use getAllByText to handle multiple matches
+    const dateCells = screen.getAllByText(/2026/);
+    expect(dateCells.length).toBeGreaterThanOrEqual(1);
   });
 
   // ── Client-side filter ────────────────────────────────────────────────────────

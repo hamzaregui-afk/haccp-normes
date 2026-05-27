@@ -41,9 +41,8 @@ jest.mock('@/store/auth.store', () => ({
     selector({ user: { role: 'ADMIN', sub: 'u1', tenantId: 't1', email: 'admin@test.com' } }),
 }));
 
-jest.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (k: string) => k }),
-}));
+// react-i18next is NOT mocked — the real i18n system (with fr.ts translations) is used
+// so assertions on French text work correctly.
 
 // ─── Import under test ────────────────────────────────────────────────────────
 
@@ -136,16 +135,17 @@ describe('DocumentsPage', () => {
   });
 
   it('renders request in requests tab', async () => {
-    // First call = documents (library), second = requests tab on click
+    // First call = documents (library tab) → component expects ApiResponse<Document[]>
+    // Subsequent calls = requests tab → useDocRequests returns data.data ?? [] (plain array)
     mockUseQuery
       .mockReturnValueOnce(loaded({ data: [], meta: { total: 0, page: 1, limit: 20, lastPage: 1 } }))
-      .mockReturnValue(loaded({ data: [REQUEST], meta: { total: 1, page: 1, limit: 20, lastPage: 1 } }));
+      .mockReturnValue(loaded([REQUEST]));
 
     const { getByText } = renderPage();
 
-    // Click Demandes tab
+    // Click Demandes tab — use findByText to wait for React to re-render
     getByText('Demandes').click();
 
-    expect(getByText('Besoin recette agneau')).toBeInTheDocument();
+    expect(await screen.findByText('Besoin recette agneau')).toBeInTheDocument();
   });
 });

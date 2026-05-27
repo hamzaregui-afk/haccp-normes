@@ -123,7 +123,7 @@ describe('EquipmentsPage', () => {
 
   it('renders the subtitle', () => {
     renderPage();
-    expect(screen.getByText(/parc matériel/i)).toBeInTheDocument();
+    expect(screen.getByText(/gestion des équipements/i)).toBeInTheDocument();
   });
 
   it('renders the equipment search input', () => {
@@ -179,7 +179,7 @@ describe('EquipmentsPage', () => {
 
   it('renders serial number', () => {
     renderPage();
-    expect(screen.getByText('SN-XYZ-001')).toBeInTheDocument();
+    expect(screen.getAllByText('SN-XYZ-001').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders the temperature range badge', () => {
@@ -199,10 +199,10 @@ describe('EquipmentsPage', () => {
     expect(screen.getByText('Non défini')).toBeInTheDocument();
   });
 
-  it('renders Modifier and Désactiver action links for each card', () => {
+  it('renders Modifier and Supprimer action links for each card', () => {
     renderPage();
     expect(screen.getAllByRole('button', { name: /modifier/i }).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByRole('button', { name: /désactiver/i }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByRole('button', { name: /supprimer/i }).length).toBeGreaterThanOrEqual(1);
   });
 
   // ── Empty state ──────────────────────────────────────────────────────────────
@@ -215,32 +215,34 @@ describe('EquipmentsPage', () => {
     expect(screen.getByText(/aucun équipement/i)).toBeInTheDocument();
   });
 
-  it('shows "Ajouter un équipement" action in the empty state', () => {
+  it('shows "Nouvel équipement" action in the empty state', () => {
     mockUseQuery.mockReturnValue(
       makeQueryResult({ data: { data: [], meta: { total: 0, page: 1, limit: 20, lastPage: 1 } } }),
     );
     renderPage();
-    expect(screen.getByRole('button', { name: /ajouter un équipement/i })).toBeInTheDocument();
+    // Both toolbar and empty state render this button
+    expect(screen.getAllByRole('button', { name: /nouvel équipement/i }).length).toBeGreaterThanOrEqual(1);
   });
 
   // ── Create modal ─────────────────────────────────────────────────────────────
 
   it('opens the create-equipment modal when "Nouvel équipement" is clicked', async () => {
     renderPage();
-    await userEvent.click(screen.getByRole('button', { name: /nouvel équipement/i }));
-    expect(screen.getByText('Nouvel équipement', { selector: '*' })).toBeInTheDocument();
-    expect(screen.getByLabelText(/^code$/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/^nom$/i)).toBeInTheDocument();
+    await userEvent.click(screen.getAllByRole('button', { name: /nouvel équipement/i })[0]);
+    // "Nouvel équipement" appears in both button and modal title — just check modal form fields
+    expect(screen.getByPlaceholderText(/eq-001/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/réfrigérateur cuisine/i)).toBeInTheDocument();
   });
 
   it('renders all equipment form fields', async () => {
     renderPage();
-    await userEvent.click(screen.getByRole('button', { name: /nouvel équipement/i }));
-    expect(screen.getByLabelText(/type/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/marque/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/n° de série/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/temp\. min/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/temp\. max/i)).toBeInTheDocument();
+    await userEvent.click(screen.getAllByRole('button', { name: /nouvel équipement/i })[0]);
+    // "réfrigérateur" appears in both the name input AND a type select option — use getAllByPlaceholderText
+    expect(screen.getAllByPlaceholderText(/réfrigérateur/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByPlaceholderText(/samsung/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/sn-12345/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/^0$/)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/^4$/)).toBeInTheDocument();
   });
 
   it('submits the equipment form with the correct data', async () => {
@@ -248,10 +250,10 @@ describe('EquipmentsPage', () => {
     mockUseMutation.mockReturnValue(makeMutationResult({ mutateAsync: mockCreate }));
 
     renderPage();
-    await userEvent.click(screen.getByRole('button', { name: /nouvel équipement/i }));
+    await userEvent.click(screen.getAllByRole('button', { name: /nouvel équipement/i })[0]);
 
-    await userEvent.type(screen.getByLabelText(/^code$/i), 'BLAST-02');
-    await userEvent.type(screen.getByLabelText(/^nom$/i), 'Cellule froide B');
+    await userEvent.type(screen.getByPlaceholderText(/eq-001/i), 'BLAST-02');
+    await userEvent.type(screen.getByPlaceholderText(/réfrigérateur cuisine/i), 'Cellule froide B');
     await userEvent.click(screen.getByRole('button', { name: /enregistrer/i }));
 
     await waitFor(() => {

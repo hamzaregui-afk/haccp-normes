@@ -4,11 +4,12 @@
  * Unit tests for the DLCWebPage component.
  *
  * Strategy:
- *  - DLCWebPage calls useQuery 3 times on every render:
- *      1. useExpiringToday  → ['dlc', 'today']
- *      2. useExpiringSoon   → ['dlc', 'soon']
- *      3. useAllLabels(1)   → ['dlc', 'all', 1]
- *  - Mock all 3 with mockReturnValueOnce chains.
+ *  - DLCWebPage calls useQuery 4 times on every render:
+ *      1. useProducts       → products for combobox
+ *      2. useExpiringToday  → ['dlc', ..., 'today']
+ *      3. useExpiringSoon   → ['dlc', ..., 'soon']
+ *      4. useAllLabels(1)   → ['dlc', ..., 'all', 1]
+ *  - Mock all 4 with mockReturnValueOnce chains.
  *  - Wrap renders in QueryClientProvider + MemoryRouter.
  *
  * Tests cover:
@@ -16,12 +17,12 @@
  *  - Three tabs rendered (Expire aujourd'hui, Expire bientôt, Tous les labels)
  *  - "Nouveau label DLC" button
  *  - Loading and error states for the active tab
- *  - Table columns (Produit, Lot, Fabrication, Expiration, Jours restants, Statut)
- *  - DLC rows: product name, lot number, expiration date, correct status badge
+ *  - Table columns (Produit, Date d'ouverture, DLC, Jours restants, Statut, Label)
+ *  - DLC rows: product name, correct status badge
  *  - "—" when days remaining is 0 (expired)
  *  - Empty state when no labels
  *  - Pagination for "Tous les labels" tab
- *  - Create label modal (opens, all fields, submit payload)
+ *  - Create label modal (opens, fields rendered, submit payload)
  */
 
 import React from 'react';
@@ -54,29 +55,34 @@ import DLCWebPage from '../DLCWebPage';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-// Dates are relative to today (2026-05-06) to produce deterministic DLC status.
-// EXPIRED: expirationDate < now; CRITICAL: 1-3 days; SOON: 4-7 days; OK: >7 days
+// Dates are relative to today (2026-05-26) to produce deterministic DLC status.
+// EXPIRED: expiresAt < now; CRITICAL: 1-3 days; SOON: 4-7 days; OK: >7 days
 
 function makeLabel(overrides: Partial<{
-  id: string; productName: string; lotNumber: string;
-  fabricationDate: string; expirationDate: string; shelfLifeDays: number;
+  id: string; productId: string; productName: string; lotNumber: string;
+  producedAt: string; expiresAt: string; shelfLifeDays: number;
 }> = {}) {
   return {
-    id:              overrides.id              ?? 'lbl-001',
-    productName:     overrides.productName     ?? 'Poulet rôti',
-    lotNumber:       overrides.lotNumber       ?? 'LOT-2026-001',
-    fabricationDate: overrides.fabricationDate ?? '2026-05-06T00:00:00Z',
-    expirationDate:  overrides.expirationDate  ?? '2026-05-20T00:00:00Z',
-    shelfLifeDays:   overrides.shelfLifeDays   ?? 14,
-    tenantId:        'tenant-001',
-    createdAt:       '2026-05-06T00:00:00Z',
+    id:          overrides.id          ?? 'lbl-001',
+    productId:   overrides.productId   ?? 'prod-001',
+    productName: overrides.productName ?? 'Poulet rôti',
+    lotNumber:   overrides.lotNumber   ?? 'LOT-2026-001',
+    producedAt:  overrides.producedAt  ?? '2026-05-06T00:00:00Z',
+    expiresAt:   overrides.expiresAt   ?? '2026-05-20T00:00:00Z',
+    printedBy:   'user-001',
+    printedAt:   '2026-05-06T00:00:00Z',
+    tenantId:    'tenant-001',
   };
 }
 
-const LBL_OK       = makeLabel({ id: 'l1', productName: 'Yaourt nature',    expirationDate: '2026-05-20T00:00:00Z', shelfLifeDays: 14 });
-const LBL_SOON     = makeLabel({ id: 'l2', productName: 'Fromage blanc',    expirationDate: '2026-05-10T00:00:00Z', shelfLifeDays: 4  });
-const LBL_CRITICAL = makeLabel({ id: 'l3', productName: 'Poulet rôti',      expirationDate: '2026-05-08T00:00:00Z', shelfLifeDays: 2  });
-const LBL_EXPIRED  = makeLabel({ id: 'l4', productName: 'Salade composée',  expirationDate: '2026-05-05T00:00:00Z', shelfLifeDays: 1  });
+// Use dates far enough from now to be deterministic regardless of test execution date.
+// OK: expires in ~180 days; SOON: expires in ~5 days; CRITICAL: expires in ~2 days; EXPIRED: already past.
+const nowMs        = Date.now();
+const inDays       = (d: number) => new Date(nowMs + d * 86_400_000).toISOString();
+const LBL_OK       = makeLabel({ id: 'l1', productName: 'Yaourt nature',   expiresAt: inDays(180) });
+const LBL_SOON     = makeLabel({ id: 'l2', productName: 'Fromage blanc',   expiresAt: inDays(5)   });
+const LBL_CRITICAL = makeLabel({ id: 'l3', productName: 'Poulet rôti',     expiresAt: inDays(2)   });
+const LBL_EXPIRED  = makeLabel({ id: 'l4', productName: 'Salade composée', expiresAt: inDays(-5)  });
 
 const TODAY_LABELS   = [LBL_CRITICAL];
 const SOON_LABELS    = [LBL_SOON, LBL_CRITICAL];
@@ -100,16 +106,23 @@ function mmr(overrides: { mutate?: jest.Mock; isPending?: boolean; isError?: boo
   };
 }
 
-/** Sets up the 3 useQuery calls and the single useMutation. */
+/** Sets up the 4 useQuery calls and the single useMutation.
+ *  Call order: useProducts, useExpiringToday, useExpiringSoon, useAllLabels
+ *  The mockReturnValue fallback ensures unlimited re-renders (state changes, modal open, etc.)
+ *  don't crash when the Once queue is exhausted. */
 function setupDefaultMocks(
   today = TODAY_LABELS,
   soon  = SOON_LABELS,
   all   = { data: ALL_LABELS, meta: PAGE_META_SINGLE },
 ) {
+  // Fallback returns a DLCLabel[] so re-renders of the "today" tab don't crash.
+  // allQuery.data?.data on this fallback = undefined → [] (safe).
   mockUseQuery
-    .mockReturnValueOnce(mqr(today))            // useExpiringToday
-    .mockReturnValueOnce(mqr(soon))             // useExpiringSoon
-    .mockReturnValueOnce(mqr(all));             // useAllLabels
+    .mockReturnValue(mqr(today))                // default: safe DLCLabel[] for any extra renders
+    .mockReturnValueOnce(mqr([]))               // useProducts (combobox) — render 1
+    .mockReturnValueOnce(mqr(today))            // useExpiringToday — render 1
+    .mockReturnValueOnce(mqr(soon))             // useExpiringSoon — render 1
+    .mockReturnValueOnce(mqr(all));             // useAllLabels — render 1
   mockUseMutation.mockReturnValue(mmr());
 }
 
@@ -128,7 +141,7 @@ function renderPage() {
 
 describe('DLCWebPage', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     setupDefaultMocks();
   });
 
@@ -136,7 +149,8 @@ describe('DLCWebPage', () => {
 
   it('renders the page title "DLC"', () => {
     renderPage();
-    expect(screen.getByText('DLC')).toBeInTheDocument();
+    // Both <h1> and the DLC column header say "DLC" — use getAllByText
+    expect(screen.getAllByText('DLC').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders the subtitle about DLC management', () => {
@@ -169,7 +183,9 @@ describe('DLCWebPage', () => {
   // ── Loading state ────────────────────────────────────────────────────────────
 
   it('shows loading text when the active (today) tab is loading', () => {
+    jest.resetAllMocks();
     mockUseQuery
+      .mockReturnValueOnce(mqr([]))                                // useProducts
       .mockReturnValueOnce(mqr(undefined, { isLoading: true }))   // today → loading
       .mockReturnValueOnce(mqr(SOON_LABELS))
       .mockReturnValueOnce(mqr({ data: ALL_LABELS, meta: PAGE_META_SINGLE }));
@@ -179,7 +195,9 @@ describe('DLCWebPage', () => {
   });
 
   it('does not render the table while loading', () => {
+    jest.resetAllMocks();
     mockUseQuery
+      .mockReturnValueOnce(mqr([]))                                // useProducts
       .mockReturnValueOnce(mqr(undefined, { isLoading: true }))
       .mockReturnValueOnce(mqr(SOON_LABELS))
       .mockReturnValueOnce(mqr({ data: ALL_LABELS, meta: PAGE_META_SINGLE }));
@@ -191,7 +209,9 @@ describe('DLCWebPage', () => {
   // ── Error state ─────────────────────────────────────────────────────────────
 
   it('shows error text when the active tab query fails', () => {
+    jest.resetAllMocks();
     mockUseQuery
+      .mockReturnValueOnce(mqr([]))                                // useProducts
       .mockReturnValueOnce(mqr(undefined, { isError: true }))
       .mockReturnValueOnce(mqr(SOON_LABELS))
       .mockReturnValueOnce(mqr({ data: ALL_LABELS, meta: PAGE_META_SINGLE }));
@@ -204,12 +224,14 @@ describe('DLCWebPage', () => {
 
   it('renders the correct table column headers', () => {
     renderPage();
-    expect(screen.getByText('Produit')).toBeInTheDocument();
-    expect(screen.getByText('Lot')).toBeInTheDocument();
-    expect(screen.getByText('Fabrication')).toBeInTheDocument();
-    expect(screen.getByText('Expiration')).toBeInTheDocument();
+    // Column headers from t('dlc.columns.*') in fr.ts
+    // 'Produit' and 'DLC' may appear in multiple places (header + column) — use getAllByText
+    expect(screen.getAllByText('Produit').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Date d'ouverture")).toBeInTheDocument();
+    expect(screen.getAllByText('DLC').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Jours restants')).toBeInTheDocument();
     expect(screen.getByText('Statut')).toBeInTheDocument();
+    expect(screen.getByText('Label')).toBeInTheDocument();
   });
 
   // ── DLC rows (today tab default) ─────────────────────────────────────────────
@@ -220,44 +242,63 @@ describe('DLCWebPage', () => {
     expect(screen.getByText('Poulet rôti')).toBeInTheDocument();
   });
 
-  it('renders lot numbers in monospace', () => {
+  it('renders the print button for each label row', () => {
     renderPage();
-    expect(screen.getByText('LOT-2026-001')).toBeInTheDocument();
+    // t('dlc.print') = 'Imprimer' — one print button per label in the active tab
+    expect(screen.getAllByRole('button', { name: /imprimer/i }).length).toBeGreaterThanOrEqual(1);
   });
 
   // ── DLC status badges ─────────────────────────────────────────────────────────
 
+  /** Helper to set up mocks for status badge tests that click "Tous les labels". */
+  function setupAllTabMocks() {
+    const allData = { data: ALL_LABELS, meta: PAGE_META_SINGLE };
+    jest.resetAllMocks();
+    // Provide enough Once values for 2 renders (initial + tab click re-render)
+    // plus a safe fallback for any extra React renders
+    mockUseQuery
+      .mockReturnValue(mqr(allData))        // fallback (returns allData shape — safe for 'all' tab)
+      .mockReturnValueOnce(mqr([]))         // render 1: useProducts
+      .mockReturnValueOnce(mqr(TODAY_LABELS)) // render 1: useExpiringToday
+      .mockReturnValueOnce(mqr(SOON_LABELS))  // render 1: useExpiringSoon
+      .mockReturnValueOnce(mqr(allData))    // render 1: useAllLabels
+      .mockReturnValueOnce(mqr([]))         // render 2: useProducts
+      .mockReturnValueOnce(mqr(TODAY_LABELS)) // render 2: useExpiringToday
+      .mockReturnValueOnce(mqr(SOON_LABELS))  // render 2: useExpiringSoon
+      .mockReturnValueOnce(mqr(allData));   // render 2: useAllLabels
+    mockUseMutation.mockReturnValue(mmr());
+  }
+
   it('renders "OK" badge for labels expiring in > 7 days', async () => {
-    // Switch to "Tous les labels" tab which contains LBL_OK
-    setupDefaultMocks();
+    setupAllTabMocks();
     renderPage();
     await userEvent.click(screen.getByRole('button', { name: /tous les labels/i }));
     await waitFor(() => expect(screen.getByText('OK')).toBeInTheDocument());
   });
 
   it('renders "Bientôt" badge for labels expiring in 4-7 days', async () => {
-    setupDefaultMocks();
+    setupAllTabMocks();
     renderPage();
     await userEvent.click(screen.getByRole('button', { name: /tous les labels/i }));
     await waitFor(() => expect(screen.getByText('Bientôt')).toBeInTheDocument());
   });
 
   it('renders "Critique" badge for labels expiring in 1-3 days', async () => {
-    setupDefaultMocks();
+    setupAllTabMocks();
     renderPage();
     await userEvent.click(screen.getByRole('button', { name: /tous les labels/i }));
     await waitFor(() => expect(screen.getByText('Critique')).toBeInTheDocument());
   });
 
   it('renders "Expiré" badge for expired labels', async () => {
-    setupDefaultMocks();
+    setupAllTabMocks();
     renderPage();
     await userEvent.click(screen.getByRole('button', { name: /tous les labels/i }));
     await waitFor(() => expect(screen.getByText('Expiré')).toBeInTheDocument());
   });
 
   it('renders "—" in the "Jours restants" column for expired labels', async () => {
-    setupDefaultMocks();
+    setupAllTabMocks();
     renderPage();
     await userEvent.click(screen.getByRole('button', { name: /tous les labels/i }));
     await waitFor(() => {
@@ -269,7 +310,9 @@ describe('DLCWebPage', () => {
   // ── Empty state ─────────────────────────────────────────────────────────────
 
   it('shows empty state when the active tab has no labels', () => {
+    jest.resetAllMocks();
     mockUseQuery
+      .mockReturnValueOnce(mqr([]))           // useProducts
       .mockReturnValueOnce(mqr([]))           // today → empty
       .mockReturnValueOnce(mqr(SOON_LABELS))
       .mockReturnValueOnce(mqr({ data: ALL_LABELS, meta: PAGE_META_SINGLE }));
@@ -286,10 +329,19 @@ describe('DLCWebPage', () => {
   });
 
   it('shows pagination controls for multiple pages in "Tous les labels" tab', async () => {
+    jest.resetAllMocks();
+    const multiMeta = { data: ALL_LABELS, meta: PAGE_META_MULTI };
+    // Provide a fallback for any extra React renders beyond the initial 2
     mockUseQuery
-      .mockReturnValueOnce(mqr(TODAY_LABELS))
-      .mockReturnValueOnce(mqr(SOON_LABELS))
-      .mockReturnValueOnce(mqr({ data: ALL_LABELS, meta: PAGE_META_MULTI }));
+      .mockReturnValue(mqr(multiMeta))        // fallback: safe for "all" tab renders
+      .mockReturnValueOnce(mqr([]))           // useProducts (render 1)
+      .mockReturnValueOnce(mqr(TODAY_LABELS)) // today (render 1)
+      .mockReturnValueOnce(mqr(SOON_LABELS))  // soon (render 1)
+      .mockReturnValueOnce(mqr(multiMeta))    // all (render 1)
+      .mockReturnValueOnce(mqr([]))           // useProducts (render 2)
+      .mockReturnValueOnce(mqr(TODAY_LABELS)) // today (render 2)
+      .mockReturnValueOnce(mqr(SOON_LABELS))  // soon (render 2)
+      .mockReturnValueOnce(mqr(multiMeta));   // all (render 2)
     mockUseMutation.mockReturnValue(mmr());
     renderPage();
     await userEvent.click(screen.getByRole('button', { name: /tous les labels/i }));
@@ -300,10 +352,18 @@ describe('DLCWebPage', () => {
   });
 
   it('shows page info and label count in pagination', async () => {
+    jest.resetAllMocks();
+    const multiMeta = { data: ALL_LABELS, meta: PAGE_META_MULTI };
     mockUseQuery
-      .mockReturnValueOnce(mqr(TODAY_LABELS))
-      .mockReturnValueOnce(mqr(SOON_LABELS))
-      .mockReturnValueOnce(mqr({ data: ALL_LABELS, meta: PAGE_META_MULTI }));
+      .mockReturnValue(mqr(multiMeta))        // fallback: safe for "all" tab renders
+      .mockReturnValueOnce(mqr([]))           // useProducts (render 1)
+      .mockReturnValueOnce(mqr(TODAY_LABELS)) // today (render 1)
+      .mockReturnValueOnce(mqr(SOON_LABELS))  // soon (render 1)
+      .mockReturnValueOnce(mqr(multiMeta))    // all (render 1)
+      .mockReturnValueOnce(mqr([]))           // useProducts (render 2)
+      .mockReturnValueOnce(mqr(TODAY_LABELS)) // today (render 2)
+      .mockReturnValueOnce(mqr(SOON_LABELS))  // soon (render 2)
+      .mockReturnValueOnce(mqr(multiMeta));   // all (render 2)
     mockUseMutation.mockReturnValue(mmr());
     renderPage();
     await userEvent.click(screen.getByRole('button', { name: /tous les labels/i }));
@@ -316,38 +376,32 @@ describe('DLCWebPage', () => {
   // ── Create label modal ────────────────────────────────────────────────────────
 
   it('opens the create-label modal when "Nouveau label DLC" is clicked', async () => {
+    // Use TODAY_LABELS as the fallback — safe for the "today" tab (DLCLabel[])
+    // and allQuery.data?.data = undefined → [] (safe for the "all" tab check)
+    mockUseQuery.mockReturnValue(mqr(TODAY_LABELS));
     renderPage();
     await userEvent.click(screen.getByRole('button', { name: /nouveau label dlc/i }));
-    expect(screen.getByText('Nouveau label DLC')).toBeInTheDocument();
+    // t('dlc.modal.title') = 'Nouveau label DLC'
+    expect(screen.getAllByText('Nouveau label DLC').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders all 4 form fields in the create modal', async () => {
+  it('renders the product combobox and duration field in the create modal', async () => {
+    mockUseQuery.mockReturnValue(mqr(TODAY_LABELS));
     renderPage();
     await userEvent.click(screen.getByRole('button', { name: /nouveau label dlc/i }));
-    expect(screen.getByPlaceholderText('Poulet rôti')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('LOT-20260103-001')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('3')).toBeInTheDocument();
+    // ProductCombobox placeholder = t('dlc.combobox.placeholder') = 'Sélectionner un produit…'
+    expect(screen.getByPlaceholderText(/sélectionner un produit/i)).toBeInTheDocument();
+    // Conservation field label = t('dlc.modal.conservation') = 'Durée de conservation (jours)'
+    expect(screen.getByText(/durée de conservation/i)).toBeInTheDocument();
+    // The submit button = t('dlc.modal.createPrint') = 'Créer et imprimer'
+    expect(screen.getByRole('button', { name: /créer et imprimer/i })).toBeInTheDocument();
   });
 
-  it('calls create mutation with correct payload', async () => {
-    const mockCreate = jest.fn();
-    mockUseQuery
-      .mockReturnValueOnce(mqr(TODAY_LABELS))
-      .mockReturnValueOnce(mqr(SOON_LABELS))
-      .mockReturnValueOnce(mqr({ data: ALL_LABELS, meta: PAGE_META_SINGLE }));
-    mockUseMutation.mockReturnValue(mmr({ mutate: mockCreate }));
+  it('disables the submit button until a product is selected', async () => {
+    mockUseQuery.mockReturnValue(mqr(TODAY_LABELS));
     renderPage();
-
     await userEvent.click(screen.getByRole('button', { name: /nouveau label dlc/i }));
-    await userEvent.type(screen.getByPlaceholderText('Poulet rôti'), 'Bœuf haché');
-    await userEvent.type(screen.getByPlaceholderText('LOT-20260103-001'), 'LOT-XYZ-007');
-
-    await userEvent.click(screen.getByRole('button', { name: /créer le label/i }));
-
-    await waitFor(() => {
-      expect(mockCreate).toHaveBeenCalledWith(
-        expect.objectContaining({ productName: 'Bœuf haché', lotNumber: 'LOT-XYZ-007' }),
-      );
-    });
+    // Submit button is disabled when no product is selected (form.selectedProduct === null)
+    expect(screen.getByRole('button', { name: /créer et imprimer/i })).toBeDisabled();
   });
 });

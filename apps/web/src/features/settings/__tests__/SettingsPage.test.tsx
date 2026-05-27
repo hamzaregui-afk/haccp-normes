@@ -185,9 +185,10 @@ describe('SettingsPage', () => {
 
   // ── Security section ─────────────────────────────────────────────────────────
 
-  it('renders the "Changer le mot de passe" button in the Security section', () => {
+  it('renders the password button in the Security section', () => {
     renderPage();
-    expect(screen.getByRole('button', { name: /changer le mot de passe/i })).toBeInTheDocument();
+    // t('settings.security.changePassword') = 'Mot de passe'
+    expect(screen.getByRole('button', { name: /mot de passe/i })).toBeInTheDocument();
   });
 
   it('mentions the 24h token expiry in the security section', () => {
@@ -256,7 +257,8 @@ describe('SettingsPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /enregistrer/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/champ obligatoire/i)).toBeInTheDocument();
+      // t('settings.validation.required') = 'Ce champ est requis.'
+      expect(screen.getByText(/ce champ est requis/i)).toBeInTheDocument();
     });
   });
 

@@ -117,7 +117,7 @@ function renderPage() {
 
 describe('ReportsPage', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     setupDefaultMocks();
   });
 
@@ -168,19 +168,21 @@ describe('ReportsPage', () => {
   // ── Loading state ────────────────────────────────────────────────────────────
 
   it('shows loading text while report list is loading', () => {
+    jest.resetAllMocks();
     mockUseQuery
       .mockReturnValueOnce(mqr(STATS))
       .mockReturnValueOnce(mqr(undefined, { isLoading: true }));
-    mockUseMutation.mockReturnValueOnce(mmr()).mockReturnValueOnce(mmr());
+    mockUseMutation.mockReturnValue(mmr());
     renderPage();
     expect(screen.getByText(/chargement/i)).toBeInTheDocument();
   });
 
   it('does not render the table while loading', () => {
+    jest.resetAllMocks();
     mockUseQuery
       .mockReturnValueOnce(mqr(STATS))
       .mockReturnValueOnce(mqr(undefined, { isLoading: true }));
-    mockUseMutation.mockReturnValueOnce(mmr()).mockReturnValueOnce(mmr());
+    mockUseMutation.mockReturnValue(mmr());
     renderPage();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
@@ -188,10 +190,11 @@ describe('ReportsPage', () => {
   // ── Error state ─────────────────────────────────────────────────────────────
 
   it('shows error text when report list query fails', () => {
+    jest.resetAllMocks();
     mockUseQuery
       .mockReturnValueOnce(mqr(STATS))
       .mockReturnValueOnce(mqr(undefined, { isError: true }));
-    mockUseMutation.mockReturnValueOnce(mmr()).mockReturnValueOnce(mmr());
+    mockUseMutation.mockReturnValue(mmr());
     renderPage();
     expect(screen.getByText(/erreur lors du chargement des rapports/i)).toBeInTheDocument();
   });
@@ -216,12 +219,14 @@ describe('ReportsPage', () => {
 
   it('renders French type label for ANNUAL_HACCP reports', () => {
     renderPage();
-    expect(screen.getByText('HACCP annuel')).toBeInTheDocument();
+    // Type label may appear in both the table cell AND a filter <option>
+    expect(screen.getAllByText('HACCP annuel').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders French type label for TEMPERATURE_LOG reports', () => {
     renderPage();
-    expect(screen.getByText('Relevé températures')).toBeInTheDocument();
+    // Type label may appear in both the table cell AND a filter <option>
+    expect(screen.getAllByText('Relevé températures').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders "En attente" status badge for PENDING reports', () => {
@@ -233,12 +238,14 @@ describe('ReportsPage', () => {
 
   it('renders "En révision" status badge for UNDER_REVIEW reports', () => {
     renderPage();
-    expect(screen.getByText('En révision')).toBeInTheDocument();
+    // "En révision" appears in both the status badge AND a filter <option>
+    expect(screen.getAllByText('En révision').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders "Validé" status badge for VALIDATED reports', () => {
     renderPage();
-    expect(screen.getByText('Validé')).toBeInTheDocument();
+    // "Validé" appears in both the status badge AND a filter <option>
+    expect(screen.getAllByText('Validé').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders the generatedAt date formatted as dd/mm/yyyy', () => {
@@ -262,50 +269,53 @@ describe('ReportsPage', () => {
   // ── Action buttons ────────────────────────────────────────────────────────────
 
   it('renders "Soumettre" button for PENDING reports', () => {
+    jest.resetAllMocks();
     mockUseQuery
       .mockReturnValueOnce(mqr(STATS))
       .mockReturnValueOnce(mqr({ data: [RPT_PENDING], meta: PAGE_META_SINGLE }));
-    mockUseMutation.mockReturnValueOnce(mmr()).mockReturnValueOnce(mmr());
+    mockUseMutation.mockReturnValue(mmr());
     renderPage();
     expect(screen.getByRole('button', { name: /soumettre/i })).toBeInTheDocument();
   });
 
   it('renders "Valider" button for UNDER_REVIEW reports', () => {
+    jest.resetAllMocks();
     mockUseQuery
       .mockReturnValueOnce(mqr(STATS))
       .mockReturnValueOnce(mqr({ data: [RPT_UNDER_REVIEW], meta: PAGE_META_SINGLE }));
-    mockUseMutation.mockReturnValueOnce(mmr()).mockReturnValueOnce(mmr());
+    mockUseMutation.mockReturnValue(mmr());
     renderPage();
     expect(screen.getByRole('button', { name: /valider/i })).toBeInTheDocument();
   });
 
   it('renders a PDF download link for VALIDATED reports', () => {
+    jest.resetAllMocks();
     mockUseQuery
       .mockReturnValueOnce(mqr(STATS))
       .mockReturnValueOnce(mqr({ data: [RPT_VALIDATED], meta: PAGE_META_SINGLE }));
-    mockUseMutation.mockReturnValueOnce(mmr()).mockReturnValueOnce(mmr());
+    mockUseMutation.mockReturnValue(mmr());
     renderPage();
-    expect(screen.getByText('PDF')).toBeInTheDocument();
-    expect(screen.getByText('PDF').closest('a')).toHaveAttribute(
-      'href',
-      `/api/v1/reports/${RPT_VALIDATED.id}/pdf`,
-    );
+    // The component renders a download button (not an <a> link) with t('common.download') = 'Télécharger'
+    expect(screen.getByRole('button', { name: /télécharger/i })).toBeInTheDocument();
   });
 
   it('renders a PDF download link for SENT reports', () => {
+    jest.resetAllMocks();
     mockUseQuery
       .mockReturnValueOnce(mqr(STATS))
       .mockReturnValueOnce(mqr({ data: [RPT_SENT], meta: PAGE_META_SINGLE }));
-    mockUseMutation.mockReturnValueOnce(mmr()).mockReturnValueOnce(mmr());
+    mockUseMutation.mockReturnValue(mmr());
     renderPage();
-    expect(screen.getByText('PDF')).toBeInTheDocument();
+    // The component renders a download button (not an <a> link) with t('common.download') = 'Télécharger'
+    expect(screen.getByRole('button', { name: /télécharger/i })).toBeInTheDocument();
   });
 
   it('does NOT render action buttons for VALIDATED reports', () => {
+    jest.resetAllMocks();
     mockUseQuery
       .mockReturnValueOnce(mqr(STATS))
       .mockReturnValueOnce(mqr({ data: [RPT_VALIDATED], meta: PAGE_META_SINGLE }));
-    mockUseMutation.mockReturnValueOnce(mmr()).mockReturnValueOnce(mmr());
+    mockUseMutation.mockReturnValue(mmr());
     renderPage();
     expect(screen.queryByRole('button', { name: /soumettre/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /valider/i })).not.toBeInTheDocument();
@@ -313,12 +323,14 @@ describe('ReportsPage', () => {
 
   it('calls status mutation with UNDER_REVIEW when "Soumettre" is clicked', async () => {
     const mockStatusMutate = jest.fn();
+    jest.resetAllMocks();
     mockUseQuery
       .mockReturnValueOnce(mqr(STATS))
       .mockReturnValueOnce(mqr({ data: [RPT_PENDING], meta: PAGE_META_SINGLE }));
     mockUseMutation
-      .mockReturnValueOnce(mmr())
-      .mockReturnValueOnce(mmr({ mutate: mockStatusMutate }));
+      .mockReturnValue(mmr())
+      .mockReturnValueOnce(mmr())                              // createMutation
+      .mockReturnValueOnce(mmr({ mutate: mockStatusMutate })); // statusMutation
     renderPage();
     await userEvent.click(screen.getByRole('button', { name: /soumettre/i }));
     expect(mockStatusMutate).toHaveBeenCalledWith({ id: RPT_PENDING.id, status: 'UNDER_REVIEW' });
@@ -326,12 +338,14 @@ describe('ReportsPage', () => {
 
   it('calls status mutation with VALIDATED when "Valider" is clicked', async () => {
     const mockStatusMutate = jest.fn();
+    jest.resetAllMocks();
     mockUseQuery
       .mockReturnValueOnce(mqr(STATS))
       .mockReturnValueOnce(mqr({ data: [RPT_UNDER_REVIEW], meta: PAGE_META_SINGLE }));
     mockUseMutation
-      .mockReturnValueOnce(mmr())
-      .mockReturnValueOnce(mmr({ mutate: mockStatusMutate }));
+      .mockReturnValue(mmr())
+      .mockReturnValueOnce(mmr())                              // createMutation
+      .mockReturnValueOnce(mmr({ mutate: mockStatusMutate })); // statusMutation
     renderPage();
     await userEvent.click(screen.getByRole('button', { name: /valider/i }));
     expect(mockStatusMutate).toHaveBeenCalledWith({ id: RPT_UNDER_REVIEW.id, status: 'VALIDATED' });
@@ -340,21 +354,24 @@ describe('ReportsPage', () => {
   // ── Empty state ─────────────────────────────────────────────────────────────
 
   it('shows empty state when no reports are returned', () => {
+    jest.resetAllMocks();
     mockUseQuery
       .mockReturnValueOnce(mqr(STATS))
       .mockReturnValueOnce(mqr({ data: [], meta: { total: 0, page: 1, limit: 20, lastPage: 1 } }));
-    mockUseMutation.mockReturnValueOnce(mmr()).mockReturnValueOnce(mmr());
+    mockUseMutation.mockReturnValue(mmr());
     renderPage();
-    expect(screen.getByText(/aucun rapport/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/aucun rapport/i).length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows "Générer un rapport" action in the empty state', () => {
+    jest.resetAllMocks();
     mockUseQuery
       .mockReturnValueOnce(mqr(STATS))
       .mockReturnValueOnce(mqr({ data: [], meta: { total: 0, page: 1, limit: 20, lastPage: 1 } }));
-    mockUseMutation.mockReturnValueOnce(mmr()).mockReturnValueOnce(mmr());
+    mockUseMutation.mockReturnValue(mmr());
     renderPage();
-    expect(screen.getByRole('button', { name: /générer un rapport/i })).toBeInTheDocument();
+    // Both toolbar and empty state render this button
+    expect(screen.getAllByRole('button', { name: /générer un rapport/i }).length).toBeGreaterThanOrEqual(1);
   });
 
   // ── Pagination ───────────────────────────────────────────────────────────────
@@ -365,20 +382,22 @@ describe('ReportsPage', () => {
   });
 
   it('shows pagination controls for multiple pages', () => {
+    jest.resetAllMocks();
     mockUseQuery
       .mockReturnValueOnce(mqr(STATS))
       .mockReturnValueOnce(mqr({ data: REPORTS, meta: PAGE_META_MULTI }));
-    mockUseMutation.mockReturnValueOnce(mmr()).mockReturnValueOnce(mmr());
+    mockUseMutation.mockReturnValue(mmr());
     renderPage();
     expect(screen.getByRole('button', { name: /précédent/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /suivant/i })).toBeInTheDocument();
   });
 
   it('shows page info and report count in pagination', () => {
+    jest.resetAllMocks();
     mockUseQuery
       .mockReturnValueOnce(mqr(STATS))
       .mockReturnValueOnce(mqr({ data: REPORTS, meta: PAGE_META_MULTI }));
-    mockUseMutation.mockReturnValueOnce(mmr()).mockReturnValueOnce(mmr());
+    mockUseMutation.mockReturnValue(mmr());
     renderPage();
     expect(screen.getByText(/page 2 sur 3/i)).toBeInTheDocument();
     expect(screen.getByText(/50 rapport/i)).toBeInTheDocument();
@@ -387,35 +406,50 @@ describe('ReportsPage', () => {
   // ── Create report modal ──────────────────────────────────────────────────────
 
   it('opens the create-report modal when "Générer un rapport" is clicked', async () => {
+    // Add default fallbacks for re-renders after button click opens the modal
+    mockUseQuery.mockReturnValue(mqr(STATS));
+    mockUseMutation.mockReturnValue(mmr());
     renderPage();
-    await userEvent.click(screen.getByRole('button', { name: /générer un rapport/i }));
-    expect(screen.getByText('Générer un rapport')).toBeInTheDocument();
+    await userEvent.click(screen.getAllByRole('button', { name: /générer un rapport/i })[0]);
+    // "Générer un rapport" text appears in button + modal title
+    expect(screen.getAllByText('Générer un rapport').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders the Type select in the create modal', async () => {
+    // Add default fallbacks for re-renders after button click opens the modal
+    mockUseQuery.mockReturnValue(mqr(STATS));
+    mockUseMutation.mockReturnValue(mmr());
     renderPage();
-    await userEvent.click(screen.getByRole('button', { name: /générer un rapport/i }));
+    await userEvent.click(screen.getAllByRole('button', { name: /générer un rapport/i })[0]);
     expect(screen.getByText('Type de rapport')).toBeInTheDocument();
   });
 
   it('renders the Période field in the create modal', async () => {
+    // Add default fallbacks for re-renders after button click opens the modal
+    mockUseQuery.mockReturnValue(mqr(STATS));
+    mockUseMutation.mockReturnValue(mmr());
     renderPage();
-    await userEvent.click(screen.getByRole('button', { name: /générer un rapport/i }));
+    await userEvent.click(screen.getAllByRole('button', { name: /générer un rapport/i })[0]);
     expect(screen.getByPlaceholderText(/2025-01/i)).toBeInTheDocument();
   });
 
   it('calls create mutation when the form is submitted', async () => {
     const mockCreate = jest.fn();
+    jest.resetAllMocks();
+    // Set default fallbacks first so re-renders after button clicks stay stable
+    mockUseQuery.mockReturnValue(mqr(STATS));
+    mockUseMutation.mockReturnValue(mmr({ mutate: mockCreate }));
+    // Then set Once values for the initial render
     mockUseQuery
       .mockReturnValueOnce(mqr(STATS))
       .mockReturnValueOnce(mqr({ data: REPORTS, meta: PAGE_META_SINGLE }));
     mockUseMutation
-      .mockReturnValueOnce(mmr({ mutate: mockCreate }))
-      .mockReturnValueOnce(mmr());
+      .mockReturnValueOnce(mmr({ mutate: mockCreate }))  // createMutation (#1, initial render)
+      .mockReturnValueOnce(mmr());                       // statusMutation (#2)
     renderPage();
 
-    await userEvent.click(screen.getByRole('button', { name: /générer un rapport/i }));
-    await userEvent.click(screen.getByRole('button', { name: /générer/i }));
+    await userEvent.click(screen.getAllByRole('button', { name: /générer un rapport/i })[0]);
+    await userEvent.click(screen.getByRole('button', { name: /^générer$/i }));
 
     await waitFor(() => {
       expect(mockCreate).toHaveBeenCalledWith(
@@ -426,16 +460,21 @@ describe('ReportsPage', () => {
 
   it('omits period from the payload when the field is left empty', async () => {
     const mockCreate = jest.fn();
+    jest.resetAllMocks();
+    // Set default fallbacks first so re-renders after button clicks stay stable
+    mockUseQuery.mockReturnValue(mqr(STATS));
+    mockUseMutation.mockReturnValue(mmr({ mutate: mockCreate }));
+    // Then set Once values for the initial render
     mockUseQuery
       .mockReturnValueOnce(mqr(STATS))
       .mockReturnValueOnce(mqr({ data: REPORTS, meta: PAGE_META_SINGLE }));
     mockUseMutation
-      .mockReturnValueOnce(mmr({ mutate: mockCreate }))
-      .mockReturnValueOnce(mmr());
+      .mockReturnValueOnce(mmr({ mutate: mockCreate }))  // createMutation (#1, initial render)
+      .mockReturnValueOnce(mmr());                       // statusMutation (#2)
     renderPage();
 
-    await userEvent.click(screen.getByRole('button', { name: /générer un rapport/i }));
-    await userEvent.click(screen.getByRole('button', { name: /générer/i }));
+    await userEvent.click(screen.getAllByRole('button', { name: /générer un rapport/i })[0]);
+    await userEvent.click(screen.getByRole('button', { name: /^générer$/i }));
 
     await waitFor(() => {
       const call = mockCreate.mock.calls[0]?.[0] as Record<string, unknown>;

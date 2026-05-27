@@ -16,9 +16,12 @@
  * uses a 10 000-entry in-memory LRU — for multi-replica deployments, swap
  * for a Redis NX check on eventId with a 24 h TTL.
  *
- * Both legacy bare patterns (e.g. `control.task.completed`) and versioned
- * patterns (`control.task.completed.v1`) are subscribed so old and new
- * publishers coexist without a coordinated deploy.
+ * ARCH-DECISION: Stacked @EventPattern decorators CANNOT be used on a single
+ * method — NestJS SetMetadata overwrites the metadata key, leaving only the
+ * last-applied (outermost) pattern registered. Each event version therefore
+ * has its own handler method that delegates to a shared implementation.
+ * This ensures both bare patterns (legacy publishers) and .v1 patterns
+ * (outbox worker) are consumed and acknowledged correctly.
  */
 
 import { Controller, Logger } from '@nestjs/common';
@@ -43,6 +46,14 @@ interface AssignedEnvelope extends DomainEventEnvelope {
   };
 }
 
+interface OverdueEnvelope extends DomainEventEnvelope {
+  payload: DomainEventEnvelope['payload'] & {
+    count?:       number;
+    taskIds?:     unknown;
+    assigneeIds?: string[];
+  };
+}
+
 @Controller()
 export class NotificationConsumer {
   private readonly logger = new Logger(NotificationConsumer.name);
@@ -50,15 +61,12 @@ export class NotificationConsumer {
 
   constructor(private readonly gateway: NotificationGateway) {}
 
-  // ─── Generic dispatch ─────────────────────────────────────────────────────
-  // Deduplicates, logs, and broadcasts to the tenant room in one call.
-  // `logTag` is the short label used in structured log output.
-
+  // ─── Generic dispatch helper ──────────────────────────────────────────────
   private dispatch(
-    data:       DomainEventEnvelope,
-    logTag:     string,
+    data:        DomainEventEnvelope,
+    logTag:      string,
     socketEvent: string,
-    logExtra?:  string,
+    logExtra?:   string,
   ): void {
     if (this.dedup.isDuplicate(data.eventId)) return;
 
@@ -76,8 +84,16 @@ export class NotificationConsumer {
   // ─── nonconformity.nc.created ─────────────────────────────────────────────
 
   @EventPattern('nonconformity.nc.created')
-  @EventPattern('nonconformity.nc.created.v1')
   handleNcCreated(@Payload() data: DomainEventEnvelope): void {
+    this.dispatchNcCreated(data);
+  }
+
+  @EventPattern('nonconformity.nc.created.v1')
+  handleNcCreatedV1(@Payload() data: DomainEventEnvelope): void {
+    this.dispatchNcCreated(data);
+  }
+
+  private dispatchNcCreated(data: DomainEventEnvelope): void {
     this.dispatch(
       data,
       'nc.created',
@@ -89,8 +105,16 @@ export class NotificationConsumer {
   // ─── control.task.completed ───────────────────────────────────────────────
 
   @EventPattern('control.task.completed')
-  @EventPattern('control.task.completed.v1')
   handleTaskCompleted(@Payload() data: DomainEventEnvelope): void {
+    this.dispatchTaskCompleted(data);
+  }
+
+  @EventPattern('control.task.completed.v1')
+  handleTaskCompletedV1(@Payload() data: DomainEventEnvelope): void {
+    this.dispatchTaskCompleted(data);
+  }
+
+  private dispatchTaskCompleted(data: DomainEventEnvelope): void {
     this.dispatch(
       data,
       'task.completed',
@@ -102,8 +126,16 @@ export class NotificationConsumer {
   // ─── control.task.assigned ────────────────────────────────────────────────
 
   @EventPattern('control.task.assigned')
-  @EventPattern('control.task.assigned.v1')
   handleTaskAssigned(@Payload() data: AssignedEnvelope): void {
+    this.dispatchTaskAssigned(data);
+  }
+
+  @EventPattern('control.task.assigned.v1')
+  handleTaskAssignedV1(@Payload() data: AssignedEnvelope): void {
+    this.dispatchTaskAssigned(data);
+  }
+
+  private dispatchTaskAssigned(data: AssignedEnvelope): void {
     if (this.dedup.isDuplicate(data.eventId)) return;
 
     const { assigneeId, groupId, taskId } = data.payload;
@@ -131,8 +163,16 @@ export class NotificationConsumer {
   // ─── control.tasks.overdue ────────────────────────────────────────────────
 
   @EventPattern('control.tasks.overdue')
+  handleTasksOverdue(@Payload() data: OverdueEnvelope): void {
+    this.dispatchTasksOverdue(data);
+  }
+
   @EventPattern('control.tasks.overdue.v1')
-  handleTasksOverdue(@Payload() data: DomainEventEnvelope): void {
+  handleTasksOverdueV1(@Payload() data: OverdueEnvelope): void {
+    this.dispatchTasksOverdue(data);
+  }
+
+  private dispatchTasksOverdue(data: OverdueEnvelope): void {
     if (this.dedup.isDuplicate(data.eventId)) return;
 
     const count       = Number(data.payload['count'] ?? 0);
@@ -152,8 +192,16 @@ export class NotificationConsumer {
   // ─── report.report.validated ──────────────────────────────────────────────
 
   @EventPattern('report.report.validated')
-  @EventPattern('report.report.validated.v1')
   handleReportValidated(@Payload() data: DomainEventEnvelope): void {
+    this.dispatchReportValidated(data);
+  }
+
+  @EventPattern('report.report.validated.v1')
+  handleReportValidatedV1(@Payload() data: DomainEventEnvelope): void {
+    this.dispatchReportValidated(data);
+  }
+
+  private dispatchReportValidated(data: DomainEventEnvelope): void {
     this.dispatch(
       data,
       'report.validated',
@@ -165,8 +213,16 @@ export class NotificationConsumer {
   // ─── dlc.labels.expiring-today ────────────────────────────────────────────
 
   @EventPattern('dlc.labels.expiring-today')
-  @EventPattern('dlc.labels.expiring-today.v1')
   handleDlcExpiringToday(@Payload() data: DomainEventEnvelope): void {
+    this.dispatchDlcExpiringToday(data);
+  }
+
+  @EventPattern('dlc.labels.expiring-today.v1')
+  handleDlcExpiringTodayV1(@Payload() data: DomainEventEnvelope): void {
+    this.dispatchDlcExpiringToday(data);
+  }
+
+  private dispatchDlcExpiringToday(data: DomainEventEnvelope): void {
     if (this.dedup.isDuplicate(data.eventId)) return;
 
     const count = Number(data.payload['count'] ?? 0);

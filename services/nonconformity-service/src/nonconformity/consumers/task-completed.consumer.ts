@@ -1,7 +1,7 @@
 /**
  * task-completed.consumer.ts
  *
- * RabbitMQ consumer for control.task.completed.v1 events.
+ * RabbitMQ consumer for control.task.completed events.
  *
  * ARCH-DECISION: Hybrid NestJS app — HTTP + AMQP consumer.
  * See main.ts for the hybrid setup via app.connectMicroservice().
@@ -14,6 +14,11 @@
  * in Prisma. If the same event is redelivered (RabbitMQ at-least-once), the
  * Prisma P2002 unique constraint violation is caught and swallowed silently —
  * the NC was already created on the first delivery.
+ *
+ * ARCH-DECISION: Stacked @EventPattern decorators CANNOT be used on a single
+ * method — NestJS SetMetadata overwrites the metadata key, leaving only the
+ * last-applied (outermost) pattern registered. Each event version therefore
+ * has its own handler method that delegates to handleImpl().
  */
 
 import { Controller, Logger } from '@nestjs/common';
@@ -44,8 +49,16 @@ export class TaskCompletedConsumer {
   constructor(private readonly ncService: NonconformityService) {}
 
   @EventPattern('control.task.completed.v1')
+  async handleTaskCompletedV1(@Payload() data: DomainEventEnvelope): Promise<void> {
+    await this.handleImpl(data);
+  }
+
   @EventPattern('control.task.completed')
   async handleTaskCompleted(@Payload() data: DomainEventEnvelope): Promise<void> {
+    await this.handleImpl(data);
+  }
+
+  private async handleImpl(data: DomainEventEnvelope): Promise<void> {
     const { tenantId, payload, eventId, correlationId } = data;
 
     // Only react to non-compliant completions — compliant tasks need no NC

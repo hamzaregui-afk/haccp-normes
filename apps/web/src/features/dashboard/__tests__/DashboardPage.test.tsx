@@ -41,6 +41,18 @@ jest.mock('@/lib/api', () => ({
   api: { get: jest.fn() },
 }));
 
+// ─── Mock useAuthStore (currentUser = null → non-operator view) ───────────────
+
+jest.mock('@/store/auth.store', () => ({
+  useAuthStore: (selector: (s: { user: null }) => unknown) => selector({ user: null }),
+}));
+
+// ─── Mock useTenantId ─────────────────────────────────────────────────────────
+
+jest.mock('@/hooks/useTenantId', () => ({
+  useTenantId: () => 'tenant-test',
+}));
+
 // ─── Mock useQueries / useQuery from @tanstack/react-query ────────────────────
 //
 // We do a factory mock so individual tests can override return values via
@@ -107,6 +119,11 @@ const RECENT_NCS = [
   },
 ];
 
+// Default empty result for any useQuery call not explicitly mocked.
+// The component calls useQuery for: ncChart, complianceChart, activeSchedules,
+// zones, DlcAlertWidget, RecentNcControlsWidget — always set a safe fallback.
+const EMPTY_QUERY = makeQueryResult({ data: undefined });
+
 /** Sets up useQueries and useQuery with fully-loaded data. */
 function setupLoadedMocks() {
   mockUseQueries.mockReturnValue([
@@ -114,9 +131,12 @@ function setupLoadedMocks() {
     makeQueryResult({ data: NC_STATS }),
     makeQueryResult({ data: RECENT_NCS }),
   ]);
+  // Set a safe default for every useQuery call, then override the first two.
+  mockUseQuery.mockReturnValue(EMPTY_QUERY);
   mockUseQuery
-    .mockReturnValueOnce(makeQueryResult({ data: [] }))   // ncChartQuery
-    .mockReturnValueOnce(makeQueryResult({ data: [] }));  // complianceChartQuery
+    .mockReturnValueOnce(makeQueryResult({ data: [] }))   // ncChartQuery (1st)
+    .mockReturnValueOnce(makeQueryResult({ data: [] }));  // complianceChartQuery (2nd)
+  // 3rd+: activeSchedulesQuery, zonesQuery, DlcAlertWidget, RecentNcControlsWidget → EMPTY_QUERY
 }
 
 /** Sets up all hooks to be in the loading state. */
@@ -126,9 +146,8 @@ function setupLoadingMocks() {
     makeQueryResult({ isLoading: true }),
     makeQueryResult({ isLoading: true }),
   ]);
-  mockUseQuery
-    .mockReturnValueOnce(makeQueryResult({ isLoading: true }))
-    .mockReturnValueOnce(makeQueryResult({ isLoading: true }));
+  // All useQuery calls return loading state.
+  mockUseQuery.mockReturnValue(makeQueryResult({ isLoading: true }));
 }
 
 function renderDashboard() {
@@ -205,13 +224,13 @@ describe('DashboardPage', () => {
     expect(pulsingElements.length).toBeGreaterThan(0);
   });
 
-  it('renders em-dash placeholders for KPI values while loading', () => {
+  it('renders skeleton placeholders (not values) for KPI cards while loading', () => {
     setupLoadingMocks();
-    renderDashboard();
+    const { container } = renderDashboard();
 
-    // All value slots show "—" during loading
-    const dashes = screen.getAllByText('—');
-    expect(dashes.length).toBeGreaterThanOrEqual(4);
+    // KpiCard shows an animate-pulse skeleton instead of the value when loading=true
+    const skeletons = container.querySelectorAll('.animate-pulse');
+    expect(skeletons.length).toBeGreaterThanOrEqual(4);
   });
 
   // ── 4. Charts render ──────────────────────────────────────────────────────
@@ -258,12 +277,14 @@ describe('DashboardPage', () => {
       makeQueryResult({ data: NC_STATS }),
       makeQueryResult({ data: [] }),   // empty recent NCs
     ]);
+    mockUseQuery.mockReturnValue(EMPTY_QUERY);
     mockUseQuery
       .mockReturnValueOnce(makeQueryResult({ data: [] }))
       .mockReturnValueOnce(makeQueryResult({ data: [] }));
 
     renderDashboard();
 
+    // The noOpenNc key renders the empty-state text (emoji stripped in regex)
     expect(screen.getByText(/aucune non-conformité ouverte/i)).toBeInTheDocument();
   });
 });

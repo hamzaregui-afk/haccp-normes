@@ -25,7 +25,7 @@ describe('RoleBadge', () => {
     SUPER_ADMIN:     'Super Admin',
     ADMIN:           'Admin',
     MANAGER:         'Manager',
-    QUALITY_OFFICER: 'Resp. Qualité',
+    QUALITY_OFFICER: 'Qualité',
     OPERATOR:        'Opérateur',
     VIEWER:          'Lecteur',
   };
@@ -42,9 +42,9 @@ describe('RoleBadge', () => {
     expect(screen.getByText('Super Admin').className).toContain('bg-purple-100');
   });
 
-  it('applies orange classes for MANAGER', () => {
+  it('applies amber classes for MANAGER', () => {
     render(<RoleBadge role="MANAGER" />);
-    expect(screen.getByText('Manager').className).toContain('bg-orange-100');
+    expect(screen.getByText('Manager').className).toContain('bg-amber-50');
   });
 
   it('applies gray classes for OPERATOR', () => {

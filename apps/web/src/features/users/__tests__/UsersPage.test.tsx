@@ -50,6 +50,15 @@ jest.mock('@/lib/api', () => ({
   },
 }));
 
+// ─── Mock auth store ──────────────────────────────────────────────────────────
+// canManageUsers = (currentUser?.role === 'ADMIN') — mock an ADMIN user so the
+// invite/create buttons are visible in the toolbar.
+
+jest.mock('@/store/auth.store', () => ({
+  useAuthStore: (selector: (s: { user: { role: string; tenantId: string } | null }) => unknown) =>
+    selector({ user: { role: 'ADMIN', tenantId: 'ctenant001testidabc1234' } }),
+}));
+
 // ─── Import under test ────────────────────────────────────────────────────────
 
 import UsersPage from '../UsersPage';
@@ -176,21 +185,23 @@ describe('UsersPage', () => {
 
   it('renders user name in the table', () => {
     renderPage();
-    expect(screen.getByText('Alice Martin')).toBeInTheDocument();
-    expect(screen.getByText('Bob Dupont')).toBeInTheDocument();
+    // Both desktop table and mobile cards render the name
+    expect(screen.getAllByText('Alice Martin').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Bob Dupont').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders user email in the table', () => {
     renderPage();
-    expect(screen.getByText('alice@haccp.com')).toBeInTheDocument();
-    expect(screen.getByText('bob@haccp.com')).toBeInTheDocument();
+    // Both desktop table and mobile cards render the email
+    expect(screen.getAllByText('alice@haccp.com').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('bob@haccp.com').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders an avatar initial based on user name', () => {
     renderPage();
     // First letter of "Alice Martin" → "A", "Bob Dupont" → "B"
-    expect(screen.getByText('A')).toBeInTheDocument();
-    expect(screen.getByText('B')).toBeInTheDocument();
+    expect(screen.getAllByText('A').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('B').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders user creation date in French locale', () => {
@@ -206,7 +217,8 @@ describe('UsersPage', () => {
       makeQueryResult({ data: { data: [], meta: { total: 0, page: 1, limit: 20, lastPage: 1 } } }),
     );
     renderPage();
-    expect(screen.getByText(/aucun utilisateur trouvé/i)).toBeInTheDocument();
+    // Both desktop table and mobile card view render the empty text
+    expect(screen.getAllByText(/aucun utilisateur trouvé/i).length).toBeGreaterThanOrEqual(1);
   });
 
   // ── Pagination ───────────────────────────────────────────────────────────────
@@ -265,14 +277,11 @@ describe('UsersPage', () => {
     expect(input).toHaveValue('alice');
   });
 
-  it('submits a new query when the search button is clicked', async () => {
+  it('updates state when the user types in the search input', async () => {
     renderPage();
-    await userEvent.type(
-      screen.getByPlaceholderText(/rechercher par nom ou email/i),
-      'alice',
-    );
-    await userEvent.click(screen.getByRole('button', { name: /rechercher/i }));
-    // useQuery should be called again — just verify it stays mounted
+    const input = screen.getByPlaceholderText(/rechercher par nom ou email/i);
+    await userEvent.type(input, 'alice');
+    // useQuery is called on every render — just verify it stays mounted
     expect(mockUseQuery).toHaveBeenCalled();
   });
 
@@ -291,9 +300,12 @@ describe('UsersPage', () => {
     await userEvent.click(
       screen.getByRole('button', { name: /inviter un utilisateur/i }),
     );
-    expect(screen.getByLabelText(/nom complet/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/adresse e-mail/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/rôle/i)).toBeInTheDocument();
+    // Input uses placeholder from t('users.form.fullNamePlaceholder') = 'Prénom Nom'
+    expect(screen.getByPlaceholderText(/Prénom Nom/i)).toBeInTheDocument();
+    // Input uses placeholder from t('users.form.emailPlaceholder') = 'prenom.nom@exemple.fr'
+    expect(screen.getByPlaceholderText(/prenom\.nom@exemple\.fr/i)).toBeInTheDocument();
+    // Role field — "Rôle" appears in both table header and modal label
+    expect(screen.getAllByText(/^Rôle/i).length).toBeGreaterThanOrEqual(1);
   });
 
   it('calls mutateAsync when the invite form is submitted with valid data', async () => {
@@ -305,8 +317,8 @@ describe('UsersPage', () => {
       screen.getByRole('button', { name: /inviter un utilisateur/i }),
     );
 
-    await userEvent.type(screen.getByLabelText(/nom complet/i), 'Carol Test');
-    await userEvent.type(screen.getByLabelText(/adresse e-mail/i), 'carol@haccp.com');
+    await userEvent.type(screen.getByPlaceholderText(/Prénom Nom/i), 'Carol Test');
+    await userEvent.type(screen.getByPlaceholderText(/prenom\.nom@exemple\.fr/i), 'carol@haccp.com');
     await userEvent.click(screen.getByRole('button', { name: /envoyer l'invitation/i }));
 
     await waitFor(() => {

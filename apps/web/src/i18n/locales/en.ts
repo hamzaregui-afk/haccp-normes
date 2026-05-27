@@ -63,6 +63,15 @@ const en = {
     successSave: 'Settings saved successfully.',
     today:      'Today',
     unknown:    'Unknown',
+    results:    '{{count}} result{{s}}',
+    prevPage:   'Previous page',
+    nextPage:   'Next page',
+    errorBoundary: {
+      title:       'An unexpected error occurred',
+      description: 'Something went wrong while rendering this page.',
+      retry:       'Retry',
+      reload:      'Reload page',
+    },
   },
 
   auth: {
@@ -98,6 +107,33 @@ const en = {
     target:          'Target 80%',
     nonConformities: 'Non-conformities',
     compliance:      'Compliance',
+    todayControls:       'Today\'s controls',
+    overdueTask:         'Overdue tasks',
+    todayPlannedCount:   '{{count}} scheduled',
+    criticalNcCount:     'incl. {{count}} critical',
+    complianceRateSub:   'Over the last 30 days',
+    ncControlsMonth:     'NC controls this month',
+    ncControlsMonthSub:  'Controls with non-conformities',
+    activeSchedules:     'Active schedules',
+    activeSchedulesSub:  'Recurring active schedules',
+    complianceByMonth:   'Compliance trend',
+    ncTooltip:           'NCs',
+    complianceTooltip:   'Compliance',
+    recentNc:            'Recent open non-conformities',
+    zone:                'Zone',
+    recentNcControls:    'Recent non-conforming controls',
+    noNcControls:        'No non-conforming controls ✅',
+    dlcExpiring:         '{{count}} label(s) expiring today',
+    myTasksToday:        'My tasks today',
+    noTasksToday:        'No tasks scheduled today',
+    roleDesc: {
+      SUPER_ADMIN:     'Full access to all establishments and tenants',
+      ADMIN:           'Full access to your establishment',
+      MANAGER:         'Manage controls, NCs and reports',
+      QUALITY_OFFICER: 'Quality and HACCP compliance oversight',
+      OPERATOR:        'Execute field controls',
+      VIEWER:          'Read-only access',
+    },
   },
 
   controls: {
@@ -111,7 +147,13 @@ const en = {
     createTemplateTitle: 'New control template',
     templateName: 'Template name',
     templateNamePlaceholder: 'Meat reception control…',
-    frequency:  'Frequency',
+    frequency: {
+      DAILY:        'Daily',
+      WEEKLY:       'Weekly',
+      MONTHLY:      'Monthly',
+      ON_RECEPTION: 'On reception',
+      ON_DEMAND:    'On demand',
+    },
     zone:       'Zone / Location',
     zonePlaceholder: 'Zone A, Cold kitchen…',
     assignee:   'Assigned to',
@@ -306,6 +348,27 @@ const en = {
       TRAITEUR:              'Catering service',
       AUTRE:                 'Other',
     },
+    services: {
+      title:       'Microservice status',
+      refreshNote: 'Refreshes every 30 s',
+      names: {
+        auth:            'Auth',
+        users:           'Users',
+        controls:        'Controls',
+        nonconformities: 'Non-conformities',
+        assets:          'Assets / GED',
+        notifications:   'Notifications',
+        reports:         'Reports',
+        dlc:             'DLC',
+        tenants:         'Tenants',
+        audit:           'Audit',
+      },
+      status: {
+        ok:      'Online',
+        down:    'Offline',
+        loading: 'Checking…',
+      },
+    },
   },
 
   users: {
@@ -332,6 +395,11 @@ const en = {
       QUALITY_OFFICER: 'Quality',
       OPERATOR:        'Operator',
       VIEWER:          'Viewer',
+    },
+    status: {
+      ACTIVE:   'Active',
+      INACTIVE: 'Inactive',
+      INVITED:  'Invited',
     },
   },
 
@@ -405,6 +473,15 @@ const en = {
       name:      'Name',
       plan:      'Plan',
       createdAt: 'Created',
+    },
+  },
+
+  nonconformities: {
+    status: {
+      OPEN:        'Open',
+      IN_PROGRESS: 'In progress',
+      CLOSED:      'Closed',
+      REJECTED:    'Rejected',
     },
   },
 
