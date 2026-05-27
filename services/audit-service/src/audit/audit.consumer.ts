@@ -31,7 +31,7 @@
  */
 
 import { Controller, Logger } from '@nestjs/common';
-import { EventPattern, Payload } from '@nestjs/microservices';
+import { Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
 import { IdempotencyGuard } from '@haccp/shared-utils';
 import { AuditService } from './audit.service';
 
@@ -100,69 +100,81 @@ export class AuditConsumer {
   // ── nonconformity ────────────────────────────────────────────────────────
 
   @EventPattern('nonconformity.nc.created')
-  handleNcCreated(@Payload() data: DomainEventEnvelope): void {
+  handleNcCreated(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     void this.record('nonconformity.nc.created', data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   @EventPattern('nonconformity.nc.created.v1')
-  handleNcCreatedV1(@Payload() data: DomainEventEnvelope): void {
+  handleNcCreatedV1(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     void this.record('nonconformity.nc.created.v1', data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   // ── control tasks ────────────────────────────────────────────────────────
 
   @EventPattern('control.task.completed')
-  handleTaskCompleted(@Payload() data: DomainEventEnvelope): void {
+  handleTaskCompleted(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     void this.record('control.task.completed', data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   @EventPattern('control.task.completed.v1')
-  handleTaskCompletedV1(@Payload() data: DomainEventEnvelope): void {
+  handleTaskCompletedV1(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     void this.record('control.task.completed.v1', data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   @EventPattern('control.task.assigned')
-  handleTaskAssigned(@Payload() data: DomainEventEnvelope): void {
+  handleTaskAssigned(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     void this.record('control.task.assigned', data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   @EventPattern('control.task.assigned.v1')
-  handleTaskAssignedV1(@Payload() data: DomainEventEnvelope): void {
+  handleTaskAssignedV1(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     void this.record('control.task.assigned.v1', data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   @EventPattern('control.tasks.overdue')
-  handleTasksOverdue(@Payload() data: DomainEventEnvelope): void {
+  handleTasksOverdue(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     void this.record('control.tasks.overdue', data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   @EventPattern('control.tasks.overdue.v1')
-  handleTasksOverdueV1(@Payload() data: DomainEventEnvelope): void {
+  handleTasksOverdueV1(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     void this.record('control.tasks.overdue.v1', data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   // ── reports ──────────────────────────────────────────────────────────────
 
   @EventPattern('report.report.validated')
-  handleReportValidated(@Payload() data: DomainEventEnvelope): void {
+  handleReportValidated(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     void this.record('report.report.validated', data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   @EventPattern('report.report.validated.v1')
-  handleReportValidatedV1(@Payload() data: DomainEventEnvelope): void {
+  handleReportValidatedV1(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     void this.record('report.report.validated.v1', data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   // ── DLC ──────────────────────────────────────────────────────────────────
 
   @EventPattern('dlc.labels.expiring-today')
-  handleDlcExpiring(@Payload() data: DomainEventEnvelope): void {
+  handleDlcExpiring(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     void this.record('dlc.labels.expiring-today', data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   @EventPattern('dlc.labels.expiring-today.v1')
-  handleDlcExpiringV1(@Payload() data: DomainEventEnvelope): void {
+  handleDlcExpiringV1(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     void this.record('dlc.labels.expiring-today.v1', data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   // ─── Core record helper ───────────────────────────────────────────────────

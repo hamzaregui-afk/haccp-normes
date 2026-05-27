@@ -22,7 +22,7 @@
  */
 
 import { Controller, Logger } from '@nestjs/common';
-import { EventPattern, Payload } from '@nestjs/microservices';
+import { Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
 import { NonconformityService } from '../nonconformity.service';
 
 interface TaskCompletedPayload {
@@ -49,13 +49,15 @@ export class TaskCompletedConsumer {
   constructor(private readonly ncService: NonconformityService) {}
 
   @EventPattern('control.task.completed.v1')
-  async handleTaskCompletedV1(@Payload() data: DomainEventEnvelope): Promise<void> {
+  async handleTaskCompletedV1(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): Promise<void> {
     await this.handleImpl(data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   @EventPattern('control.task.completed')
-  async handleTaskCompleted(@Payload() data: DomainEventEnvelope): Promise<void> {
+  async handleTaskCompleted(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): Promise<void> {
     await this.handleImpl(data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   private async handleImpl(data: DomainEventEnvelope): Promise<void> {

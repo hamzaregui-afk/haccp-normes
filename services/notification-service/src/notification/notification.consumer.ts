@@ -22,10 +22,19 @@
  * has its own handler method that delegates to a shared implementation.
  * This ensures both bare patterns (legacy publishers) and .v1 patterns
  * (outbox worker) are consumed and acknowledged correctly.
+ *
+ * ARCH-DECISION: noAck: false requires explicit channel.ack() in each handler.
+ * NestJS 10.x RmqServer only auto-acks @MessagePattern (request-reply) handlers,
+ * NOT @EventPattern (fire-and-forget) handlers. Without an explicit ack,
+ * messages stay UNACKNOWLEDGED and RabbitMQ's consumer_timeout (30 min) kills
+ * the channel, redelivering messages forever. We call ctx.getChannelRef().ack()
+ * at the END of every handler — after processing — to guarantee at-least-once
+ * semantics: if the service crashes mid-handler, the message is re-delivered
+ * on the next startup.
  */
 
 import { Controller, Logger } from '@nestjs/common';
-import { EventPattern, Payload } from '@nestjs/microservices';
+import { Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
 import { IdempotencyGuard } from '@haccp/shared-utils';
 import { NotificationGateway } from './notification.gateway';
 
@@ -84,13 +93,15 @@ export class NotificationConsumer {
   // ─── nonconformity.nc.created ─────────────────────────────────────────────
 
   @EventPattern('nonconformity.nc.created')
-  handleNcCreated(@Payload() data: DomainEventEnvelope): void {
+  handleNcCreated(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     this.dispatchNcCreated(data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   @EventPattern('nonconformity.nc.created.v1')
-  handleNcCreatedV1(@Payload() data: DomainEventEnvelope): void {
+  handleNcCreatedV1(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     this.dispatchNcCreated(data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   private dispatchNcCreated(data: DomainEventEnvelope): void {
@@ -105,13 +116,15 @@ export class NotificationConsumer {
   // ─── control.task.completed ───────────────────────────────────────────────
 
   @EventPattern('control.task.completed')
-  handleTaskCompleted(@Payload() data: DomainEventEnvelope): void {
+  handleTaskCompleted(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     this.dispatchTaskCompleted(data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   @EventPattern('control.task.completed.v1')
-  handleTaskCompletedV1(@Payload() data: DomainEventEnvelope): void {
+  handleTaskCompletedV1(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     this.dispatchTaskCompleted(data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   private dispatchTaskCompleted(data: DomainEventEnvelope): void {
@@ -126,13 +139,15 @@ export class NotificationConsumer {
   // ─── control.task.assigned ────────────────────────────────────────────────
 
   @EventPattern('control.task.assigned')
-  handleTaskAssigned(@Payload() data: AssignedEnvelope): void {
+  handleTaskAssigned(@Payload() data: AssignedEnvelope, @Ctx() ctx: RmqContext): void {
     this.dispatchTaskAssigned(data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   @EventPattern('control.task.assigned.v1')
-  handleTaskAssignedV1(@Payload() data: AssignedEnvelope): void {
+  handleTaskAssignedV1(@Payload() data: AssignedEnvelope, @Ctx() ctx: RmqContext): void {
     this.dispatchTaskAssigned(data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   private dispatchTaskAssigned(data: AssignedEnvelope): void {
@@ -163,13 +178,15 @@ export class NotificationConsumer {
   // ─── control.tasks.overdue ────────────────────────────────────────────────
 
   @EventPattern('control.tasks.overdue')
-  handleTasksOverdue(@Payload() data: OverdueEnvelope): void {
+  handleTasksOverdue(@Payload() data: OverdueEnvelope, @Ctx() ctx: RmqContext): void {
     this.dispatchTasksOverdue(data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   @EventPattern('control.tasks.overdue.v1')
-  handleTasksOverdueV1(@Payload() data: OverdueEnvelope): void {
+  handleTasksOverdueV1(@Payload() data: OverdueEnvelope, @Ctx() ctx: RmqContext): void {
     this.dispatchTasksOverdue(data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   private dispatchTasksOverdue(data: OverdueEnvelope): void {
@@ -192,13 +209,15 @@ export class NotificationConsumer {
   // ─── report.report.validated ──────────────────────────────────────────────
 
   @EventPattern('report.report.validated')
-  handleReportValidated(@Payload() data: DomainEventEnvelope): void {
+  handleReportValidated(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     this.dispatchReportValidated(data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   @EventPattern('report.report.validated.v1')
-  handleReportValidatedV1(@Payload() data: DomainEventEnvelope): void {
+  handleReportValidatedV1(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     this.dispatchReportValidated(data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   private dispatchReportValidated(data: DomainEventEnvelope): void {
@@ -213,13 +232,15 @@ export class NotificationConsumer {
   // ─── dlc.labels.expiring-today ────────────────────────────────────────────
 
   @EventPattern('dlc.labels.expiring-today')
-  handleDlcExpiringToday(@Payload() data: DomainEventEnvelope): void {
+  handleDlcExpiringToday(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     this.dispatchDlcExpiringToday(data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   @EventPattern('dlc.labels.expiring-today.v1')
-  handleDlcExpiringTodayV1(@Payload() data: DomainEventEnvelope): void {
+  handleDlcExpiringTodayV1(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
     this.dispatchDlcExpiringToday(data);
+    ctx.getChannelRef().ack(ctx.getMessage());
   }
 
   private dispatchDlcExpiringToday(data: DomainEventEnvelope): void {
