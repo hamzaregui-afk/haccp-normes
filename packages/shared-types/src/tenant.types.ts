@@ -22,6 +22,7 @@ export const ALL_TENANT_MODULE_KEYS = [
   'HYGIENE',
   'ANALYTICS',
   'MOBILE_ACCESS',
+  'TRACABILITY',
 ] as const;
 
 export const TenantModuleKeySchema = z.enum(ALL_TENANT_MODULE_KEYS);

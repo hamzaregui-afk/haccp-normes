@@ -146,6 +146,7 @@ services:
       report-service:        { condition: service_healthy }
       dlc-service:           { condition: service_healthy }
       audit-service:         { condition: service_healthy }
+      tracability-service:   { condition: service_healthy }
       web:                   { condition: service_healthy }
     networks:
       - haccp-network
@@ -490,6 +491,44 @@ services:
       - haccp-network
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3019/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      # Give the service 60s to run Prisma migrations before counting failures
+      start_period: 60s
+
+  tracability-service:
+    build:
+      context: .
+      dockerfile: services/tracability-service/Dockerfile
+    container_name: haccp-tracability
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3020
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/haccp_tracabilities
+      JWT_SECRET: ${JWT_SECRET}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: haccp-tracability-photos
+      MINIO_USE_SSL: "false"
+      MINIO_PUBLIC_URL: "http://${SERVER_IP:-178.105.126.165}/storage"
+      AUDIT_SERVICE_URL: http://audit-service:3019/api/v1
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-haccp-internal-dev-secret-change-in-prod}
+      OTEL_SERVICE_NAME: tracability-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
+    depends_on:
+      postgres:  { condition: service_healthy }
+      minio:     { condition: service_healthy }
+      rabbitmq:  { condition: service_healthy }
+    networks:
+      - haccp-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3020/health"]
       interval: 30s
       timeout: 10s
       retries: 3

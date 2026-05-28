@@ -1,0 +1,72 @@
+// tracability-service owns: Tracability, TracabilityPhoto
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TracabilityStatus {
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TracabilityType {
+  RECEPTION
+  PRODUCTION
+  EXPEDITION
+  INTERNAL
+  DESTRUCTION
+  OTHER
+}
+
+model Tracability {
+  id            String            @id @default(cuid())
+  // ARCH-DECISION: reference is unique PER TENANT, not globally.
+  // Same pattern as non-conformities to avoid P2002 multi-tenant conflicts.
+  reference     String                                   // TRAC-YYYY-NNNN, per-tenant
+  tenantId      String            @map("tenant_id")
+  type          TracabilityType   @default(RECEPTION)
+  status        TracabilityStatus @default(IN_PROGRESS)
+  lotNumber     String            @map("lot_number")
+  productName   String            @map("product_name")
+  supplierId    String?           @map("supplier_id")   // FK to asset-service (no cross-service join)
+  siteId        String?           @map("site_id")       // FK to tenant-service (no cross-service join)
+  quantity      Float?
+  unit          String?           @db.VarChar(20)
+  receptionDate DateTime?         @map("reception_date")
+  expiryDate    DateTime?         @map("expiry_date")
+  temperature   Float?
+  notes         String?           @db.Text
+  createdById   String            @map("created_by_id") // FK to user-service (no join)
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  photos TracabilityPhoto[]
+
+  @@unique([reference, tenantId])  // per-tenant reference uniqueness
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, type])
+  @@index([createdAt])
+  @@map("tracabilities")
+}
+
+model TracabilityPhoto {
+  id            String      @id @default(cuid())
+  tracabilityId String      @map("tracability_id")
+  objectKey     String      @map("object_key")   // stored key in MinIO (never expose raw)
+  url           String      @db.Text             // presigned URL refreshed on read
+  caption       String?     @db.VarChar(500)
+  uploadedAt    DateTime    @default(now()) @map("uploaded_at")
+
+  tracability Tracability @relation(fields: [tracabilityId], references: [id], onDelete: Cascade)
+
+  @@index([tracabilityId])
+  @@map("tracability_photos")
+}

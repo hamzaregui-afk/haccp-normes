@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   BarChart3, BookOpen, Building2, ChevronRight, ClipboardList, Cog, FileText,
-  FolderOpen, LayoutDashboard, LogOut, MapPin, Package, ScrollText, ShieldAlert, Tag, Truck, Users, UsersRound, X,
+  FolderOpen, LayoutDashboard, LogOut, MapPin, Package, ScrollText, ShieldAlert, Tag, Truck, Users, UsersRound, X, Layers,
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -78,6 +78,7 @@ const NAV_SECTIONS: NavSection[] = [
       { labelKey: 'nav.controls',        to: '/controls',        icon: ClipboardList,   roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'], moduleKey: 'HACCP_CONTROLS'  },
       { labelKey: 'nav.nonconformities', to: '/nonconformities', icon: ShieldAlert,     roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'], moduleKey: 'NONCONFORMITIES' },
       { labelKey: 'nav.dlc',             to: '/dlc',             icon: Tag,             roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'OPERATOR'],                              moduleKey: 'DLC'             },
+      { labelKey: 'nav.tracability',    to: '/tracability',    icon: Layers,          roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'], moduleKey: 'TRACABILITY'     },
     ],
   },
   {

@@ -23,6 +23,7 @@ const fr = {
     audit:           'Journal d\'audit',
     clients:         'Clients',
     dlc:             'DLC',
+    tracability:     'Traçabilité',
     zones:           'Sites & Zones',
     documents:       'Documents',
   },

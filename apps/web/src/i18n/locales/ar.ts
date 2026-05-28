@@ -22,6 +22,7 @@ const ar = {
     audit:           'سجل التدقيق',
     clients:         'العملاء',
     dlc:             'تواريخ الصلاحية',
+    tracability:     'التتبعية',
     zones:           'المواقع والمناطق',
     documents:       'الوثائق',
   },

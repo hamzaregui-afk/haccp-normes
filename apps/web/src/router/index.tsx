@@ -24,6 +24,7 @@ const SettingsPage        = lazy(() => import('@/features/settings/SettingsPage'
 const DLCWebPage          = lazy(() => import('@/features/dlc/DLCWebPage'));
 const AuditPage           = lazy(() => import('@/features/audit/AuditPage'));
 const DocumentsPage       = lazy(() => import('@/features/documents/DocumentsPage'));
+const TracabilityPage     = lazy(() => import('@/features/tracability/TracabilityPage'));
 
 // ─── Fallback spinner ────────────────────────────────────────────────────────
 const PageLoader = () => (
@@ -208,6 +209,16 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
         path: 'documents',
         element: (
           <RequireModule moduleKey="GED">{S(DocumentsPage)}</RequireModule>
+        ),
+      },
+
+      // Tracability — OPERATOR included (field recording)
+      {
+        path: 'tracability',
+        element: (
+          <RequireRole roles={['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR']}>
+            <RequireModule moduleKey="TRACABILITY">{S(TracabilityPage)}</RequireModule>
+          </RequireRole>
         ),
       },
 

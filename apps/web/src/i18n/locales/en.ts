@@ -21,6 +21,7 @@ const en = {
     audit:           'Audit log',
     clients:         'Clients',
     dlc:             'Use-by dates',
+    tracability:     'Traceability',
     zones:           'Sites & Zones',
     documents:       'Documents',
   },

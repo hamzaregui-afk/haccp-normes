@@ -15,6 +15,7 @@ CREATE DATABASE haccp_reports;
 CREATE DATABASE haccp_dlc;
 CREATE DATABASE haccp_audit;
 CREATE DATABASE haccp_notifications;
+CREATE DATABASE haccp_tracabilities;
 
 -- ─── Audit DB: RLS to enforce append-only at the DB level ─────────────────────
 -- Applied after Prisma creates the audit_logs table (via migrate deploy).
