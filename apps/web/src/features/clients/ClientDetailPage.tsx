@@ -90,13 +90,14 @@ const MODULE_ICONS: Record<TenantModuleKey, React.FC<{ className?: string }>> = 
   HYGIENE:         Shield,
   ANALYTICS:       ChevronRight,
   MOBILE_ACCESS:   Users,
+  TRACABILITY:     Package,
 };
 
 const MODULE_KEYS: TenantModuleKey[] = [
   'DASHBOARD', 'HACCP_CONTROLS', 'NONCONFORMITIES', 'DLC', 'REPORTS',
   'EQUIPMENTS', 'PRODUCTS', 'SUPPLIERS', 'GED', 'NOTIFICATIONS',
   'AUDIT', 'PLANNING', 'TEMPERATURES', 'RECEPTIONS', 'HYGIENE',
-  'ANALYTICS', 'MOBILE_ACCESS',
+  'ANALYTICS', 'MOBILE_ACCESS', 'TRACABILITY',
 ];
 
 // ─── Tab IDs ──────────────────────────────────────────────────────────────────
