@@ -1363,6 +1363,7 @@
       "library": "Bibliothèque",
       "requests": "Demandes",
       "ncPhotos": "Photos NC",
+      "tracabilityPhotos": "Photos Traçabilité",
       "reports": "Rapports"
     },
     "library": "Bibliothèque",
@@ -1446,6 +1447,9 @@
       "fulfill": "Satisfaire",
       "reject": "Rejeter",
       "fulfillHint": "Le demandeur pourra accéder au document via la bibliothèque une fois la demande satisfaite.",
+      "commentLabel": "Commentaire",
+      "commentPlaceholderReject": "Raison du rejet (obligatoire)…",
+      "commentPlaceholderFulfill": "Message pour le demandeur (optionnel)…",
       "cancel": "Annuler",
       "error": "Erreur. Réessayez."
     },
@@ -1455,6 +1459,7 @@
       "privateInfo": "Vos demandes sont visibles uniquement par vous et les administrateurs.",
       "requestedOn": "Demandée le {{date}}",
       "treat": "Traiter",
+      "managerComment": "Commentaire manager",
       "emptyTitle": "Aucune demande",
       "emptyDesc": "Sollicitez un document dont vous avez besoin et l'équipe l'hébergera pour vous."
     },
@@ -1468,6 +1473,14 @@
       "emptyTitle": "Aucune photo NC",
       "emptyDesc": "Les photos prises lors du traitement des non-conformités apparaîtront ici.",
       "photoAlt": "Photo NC",
+      "photoCount_one": "{{count}} photo",
+      "photoCount_other": "{{count}} photos"
+    },
+    "tracabilityPhotosTab": {
+      "emptyTitle": "Aucune photo de traçabilité",
+      "emptyDesc": "Les photos des fiches de réception et de traçabilité apparaîtront ici.",
+      "photoAlt": "Photo traçabilité",
+      "lot": "Lot",
       "photoCount_one": "{{count}} photo",
       "photoCount_other": "{{count}} photos"
     },

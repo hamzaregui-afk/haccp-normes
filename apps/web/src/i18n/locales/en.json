@@ -1363,6 +1363,7 @@
       "library": "Library",
       "requests": "Requests",
       "ncPhotos": "NC Photos",
+      "tracabilityPhotos": "Traceability Photos",
       "reports": "Reports"
     },
     "library": "Library",
@@ -1446,6 +1447,9 @@
       "fulfill": "Fulfill",
       "reject": "Reject",
       "fulfillHint": "The requester will be able to access the document via the library once the request is fulfilled.",
+      "commentLabel": "Comment",
+      "commentPlaceholderReject": "Reason for rejection (required)…",
+      "commentPlaceholderFulfill": "Message for the requester (optional)…",
       "cancel": "Cancel",
       "error": "Error. Please try again."
     },
@@ -1455,6 +1459,7 @@
       "privateInfo": "Your requests are only visible to you and administrators.",
       "requestedOn": "Requested on {{date}}",
       "treat": "Process",
+      "managerComment": "Manager comment",
       "emptyTitle": "No requests",
       "emptyDesc": "Request a document you need and the team will upload it for you."
     },
@@ -1468,6 +1473,14 @@
       "emptyTitle": "No NC photos",
       "emptyDesc": "Photos taken during the handling of non-conformities will appear here.",
       "photoAlt": "NC Photo",
+      "photoCount_one": "{{count}} photo",
+      "photoCount_other": "{{count}} photos"
+    },
+    "tracabilityPhotosTab": {
+      "emptyTitle": "No traceability photos",
+      "emptyDesc": "Photos from reception and traceability records will appear here.",
+      "photoAlt": "Traceability photo",
+      "lot": "Lot",
       "photoCount_one": "{{count}} photo",
       "photoCount_other": "{{count}} photos"
     },

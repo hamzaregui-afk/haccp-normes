@@ -10,6 +10,7 @@ export const UpdateDocRequestSchema = z.object({
   status:      z.enum(['FULFILLED', 'REJECTED']),
   fulfillerId: z.string().optional(),
   documentId:  z.string().optional(),
+  comment:     z.string().max(1000).optional(),
 });
 
 export const DocRequestQuerySchema = z.object({

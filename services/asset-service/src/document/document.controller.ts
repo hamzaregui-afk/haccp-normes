@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { JwtPayload } from '@haccp/shared-types';
+import { emitAuditEvent } from '@haccp/shared-utils';
 import { CurrentUser }  from '../auth/decorators/current-user.decorator';
 import { Roles }        from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -34,20 +35,42 @@ export class DocumentController {
   @Post()
   @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 50 * 1024 * 1024 } }))
-  upload(
+  async upload(
     @CurrentUser() user: JwtPayload,
     @UploadedFile() file: Express.Multer.File,
     @Body('name') name: string,
     @Body('category') category: string,
   ) {
     if (!file) throw new BadRequestException('Aucun fichier fourni');
-    const cat = DocumentCategorySchema.catch('OTHER').parse(category);
-    return this.documentService.upload(user.tenantId, file, name || file.originalname, cat);
+    const cat    = DocumentCategorySchema.catch('OTHER').parse(category);
+    const result = await this.documentService.upload(user.tenantId, file, name || file.originalname, cat);
+
+    void emitAuditEvent({
+      tenantId:   user.tenantId,
+      userId:     user.sub,
+      action:     'CREATE',
+      resource:   'documents',
+      resourceId: (result.data as { id: string }).id,
+      payload:    { name: name || file.originalname, category: cat, sizeBytes: file.size },
+    });
+
+    return result;
   }
 
   @Delete(':id')
   @Roles('ADMIN', 'SUPER_ADMIN')
-  remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.documentService.remove(id, user.tenantId);
+  async remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    const result = await this.documentService.remove(id, user.tenantId);
+
+    void emitAuditEvent({
+      tenantId:   user.tenantId,
+      userId:     user.sub,
+      action:     'DELETE',
+      resource:   'documents',
+      resourceId: id,
+      payload:    {},
+    });
+
+    return result;
   }
 }

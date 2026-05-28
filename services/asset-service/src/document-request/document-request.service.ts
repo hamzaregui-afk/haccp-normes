@@ -54,6 +54,7 @@ export class DocumentRequestService {
         status:      dto.status as never,
         fulfillerId,
         ...(dto.documentId ? { documentId: dto.documentId } : {}),
+        ...(dto.comment    ? { comment:    dto.comment }    : {}),
       },
     });
     return toApiResponse(updated, undefined, dto.status === 'FULFILLED' ? 'Demande satisfaite' : 'Demande rejetée');

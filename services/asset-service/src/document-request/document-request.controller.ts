@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import type { JwtPayload } from '@haccp/shared-types';
+import { emitAuditEvent, publishDomainEvent } from '@haccp/shared-utils';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles }       from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -12,7 +13,7 @@ import {
 import { DocumentRequestService } from './document-request.service';
 
 const ADMIN_ROLES = ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] as const;
-const READ_ROLES  = ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'VIEWER'] as const;
+const READ_ROLES  = ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'VIEWER', 'OPERATOR'] as const;
 
 @Controller('document-requests')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -33,19 +34,70 @@ export class DocumentRequestController {
 
   @Post()
   @Roles(...READ_ROLES)
-  create(@CurrentUser() user: JwtPayload, @Body() body: unknown) {
-    const dto = CreateDocRequestSchema.parse(body);
-    return this.service.create(user.tenantId, user.sub, dto);
+  async create(@CurrentUser() user: JwtPayload, @Body() body: unknown) {
+    const dto    = CreateDocRequestSchema.parse(body);
+    const result = await this.service.create(user.tenantId, user.sub, dto);
+
+    void emitAuditEvent({
+      tenantId:   user.tenantId,
+      userId:     user.sub,
+      action:     'CREATE',
+      resource:   'document_requests',
+      resourceId: (result.data as { id: string }).id,
+      payload:    { title: dto.title, category: dto.category },
+    });
+
+    // ARCH-DECISION: Fire-and-forget — notification-service listens on this event
+    // and sends in-app alert to all MANAGER/ADMIN users of the tenant.
+    void publishDomainEvent({
+      eventType: 'ged.request.created.v1',
+      tenantId:  user.tenantId,
+      payload: {
+        requestId:   (result.data as { id: string }).id,
+        requesterId: user.sub,
+        title:       dto.title,
+        category:    dto.category ?? null,
+      },
+    });
+
+    return result;
   }
 
   @Patch(':id')
   @Roles(...ADMIN_ROLES)
-  update(
+  async update(
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
     @Body() body: unknown,
   ) {
-    const dto = UpdateDocRequestSchema.parse(body);
-    return this.service.update(id, user.tenantId, user.sub, dto);
+    const dto    = UpdateDocRequestSchema.parse(body);
+    const result = await this.service.update(id, user.tenantId, user.sub, dto);
+
+    void emitAuditEvent({
+      tenantId:   user.tenantId,
+      userId:     user.sub,
+      action:     'UPDATE',
+      resource:   'document_requests',
+      resourceId: id,
+      payload:    { status: dto.status, comment: dto.comment },
+    });
+
+    // ARCH-DECISION: Fire-and-forget — notification-service listens and
+    // notifies the original requester about the decision (FULFILLED / REJECTED).
+    const eventType = dto.status === 'FULFILLED'
+      ? 'ged.request.fulfilled.v1'
+      : 'ged.request.rejected.v1';
+
+    void publishDomainEvent({
+      eventType,
+      tenantId: user.tenantId,
+      payload: {
+        requestId:   id,
+        fulfillerId: user.sub,
+        comment:     dto.comment ?? null,
+      },
+    });
+
+    return result;
   }
 }

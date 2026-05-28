@@ -106,6 +106,7 @@ model DocumentRequest {
   status      DocRequestStatus @default(PENDING)
   fulfillerId String?          @map("fulfiller_id")
   documentId  String?          @map("document_id")
+  comment     String?          @map("comment")
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
 

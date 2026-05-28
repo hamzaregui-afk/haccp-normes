@@ -25,6 +25,7 @@ import {
   LayoutList,
   Lock,
   MessageSquarePlus,
+  Package,
   ScrollText,
   Search,
   Send,
@@ -51,7 +52,7 @@ import { useTenantId } from '@/hooks/useTenantId';
 type DocumentCategory  = 'PROCEDURE' | 'RECIPE' | 'OTHER';
 type DocRequestStatus  = 'PENDING' | 'FULFILLED' | 'REJECTED';
 type ViewMode          = 'grid' | 'list';
-type GedTab            = 'library' | 'requests' | 'nc_photos' | 'reports';
+type GedTab            = 'library' | 'requests' | 'nc_photos' | 'tracability_photos' | 'reports';
 
 interface GedDocument {
   id:        string;
@@ -72,8 +73,17 @@ interface DocRequest {
   status:      DocRequestStatus;
   fulfillerId?: string;
   documentId?:  string;
+  comment?:    string;
   createdAt:   string;
   updatedAt:   string;
+}
+
+interface TracabilityPhoto { id: string; url: string; caption?: string; uploadedAt: string; }
+interface TracabilityRecord {
+  id: string; reference: string; productName: string; lotNumber: string;
+  type: string; status: string; createdAt: string;
+  _count?: { photos: number };
+  photos?: TracabilityPhoto[];
 }
 
 interface NCPhoto { id: string; url: string; uploadedAt: string }
@@ -211,6 +221,44 @@ function useReports(page: number) {
       const { data } = await api.get<ApiResponse<Report[]>>(`/api/v1/reports?page=${page}&limit=20`);
       return data;
     },
+  });
+}
+
+function usePendingRequestsCount() {
+  const tenantId = useTenantId();
+  return useQuery({
+    queryKey: ['ged.requests.pending.count', tenantId],
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<DocRequest[]>>('/api/v1/document-requests?status=PENDING&limit=1');
+      return data.meta?.total ?? 0;
+    },
+    staleTime: 30 * 1000, // 30s — lightweight badge refresh
+    refetchInterval: 60 * 1000, // poll every 60s for new requests
+  });
+}
+
+function useTracabilityPhotos() {
+  const tenantId = useTenantId();
+  return useQuery({
+    queryKey: ['ged.tracability_photos', tenantId],
+    queryFn: async () => {
+      // Step 1: fetch list to identify records that have photos
+      const listRes = await api.get<ApiResponse<TracabilityRecord[]>>('/api/v1/tracabilities?limit=50');
+      const withPhotos = (listRes.data.data ?? []).filter((t) => (t._count?.photos ?? 0) > 0);
+      if (withPhotos.length === 0) return [] as TracabilityRecord[];
+
+      // Step 2: fetch full detail for each (includes presigned photo URLs) — capped at 20
+      const slice = withPhotos.slice(0, 20);
+      const details = await Promise.all(
+        slice.map((t) =>
+          api.get<ApiResponse<TracabilityRecord>>(`/api/v1/tracabilities/${t.id}`)
+            .then((r) => r.data.data)
+            .catch(() => null),
+        ),
+      );
+      return details.filter((d): d is TracabilityRecord => d !== null && (d.photos?.length ?? 0) > 0);
+    },
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -808,13 +856,19 @@ function FulfillModal({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const tenantId    = useTenantId();
-  const [action, setAction] = useState<'FULFILLED' | 'REJECTED'>('FULFILLED');
+  const [action, setAction]   = useState<'FULFILLED' | 'REJECTED'>('FULFILLED');
+  const [comment, setComment] = useState('');
 
   const updateMutation = useMutation({
     mutationFn: () =>
-      api.patch(`/api/v1/document-requests/${request!.id}`, { status: action }),
+      api.patch(`/api/v1/document-requests/${request!.id}`, {
+        status:  action,
+        comment: comment.trim() || undefined,
+      }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['ged.requests', tenantId] });
+      void queryClient.invalidateQueries({ queryKey: ['ged.requests.pending.count', tenantId] });
+      setComment('');
       onClose();
     },
   });
@@ -828,6 +882,7 @@ function FulfillModal({
 
   return (
     <Modal open={open} onClose={onClose} title={t('documents.fulfillModal.title')} size="sm">
+      {/* Request summary */}
       <div className="mb-4 rounded-lg border border-surface-muted bg-surface-page p-3">
         <p className="text-sm font-semibold text-gray-900">{request.title}</p>
         {request.description && (
@@ -840,6 +895,7 @@ function FulfillModal({
         )}
       </div>
 
+      {/* Decision toggle */}
       <div className="mb-4 grid grid-cols-2 gap-2">
         <button
           type="button"
@@ -857,6 +913,23 @@ function FulfillModal({
           <XCircle className="h-4 w-4" />
           {t('documents.fulfillModal.reject')}
         </button>
+      </div>
+
+      {/* Comment field */}
+      <div className="mb-4 flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-gray-700">
+          {t('documents.fulfillModal.commentLabel')}
+          {action === 'REJECTED' && <span className="ml-1 text-red-500">*</span>}
+        </label>
+        <textarea
+          rows={3}
+          placeholder={action === 'REJECTED'
+            ? t('documents.fulfillModal.commentPlaceholderReject')
+            : t('documents.fulfillModal.commentPlaceholderFulfill')}
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          className="w-full resize-none rounded-lg border border-surface-muted bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-medium"
+        />
       </div>
 
       {action === 'FULFILLED' && (
@@ -878,6 +951,7 @@ function FulfillModal({
         <Button
           size="sm"
           loading={updateMutation.isPending}
+          disabled={action === 'REJECTED' && !comment.trim()}
           onClick={() => void updateMutation.mutate()}
           className={action === 'REJECTED' ? 'bg-red-600 hover:bg-red-700' : ''}
         >
@@ -998,6 +1072,11 @@ function RequestsTab({ isAdmin }: { isAdmin: boolean }) {
                   {req.description && (
                     <p className="mt-1 text-xs text-gray-500 line-clamp-2">{req.description}</p>
                   )}
+                  {req.comment && req.status !== 'PENDING' && (
+                    <p className="mt-1.5 rounded bg-gray-50 px-2 py-1 text-xs text-gray-600 italic">
+                      {t('documents.requestsTab.managerComment')}: {req.comment}
+                    </p>
+                  )}
                   <p className="mt-1 text-[10px] text-gray-400">
                     {t('documents.requestsTab.requestedOn', {
                       date: new Date(req.createdAt).toLocaleDateString(i18n.language),
@@ -1103,6 +1182,87 @@ function NCPhotosTab() {
   );
 }
 
+// ─── Tracability Photos tab ───────────────────────────────────────────────────
+
+function TracabilityPhotosTab() {
+  const { t, i18n } = useTranslation();
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const { data: records, isLoading, isError } = useTracabilityPhotos();
+
+  if (isLoading) return <div className="py-20 text-center text-sm text-gray-400">{t('documents.loading')}</div>;
+  if (isError)   return <div className="py-20 text-center text-sm text-red-500">{t('documents.loadError')}</div>;
+  if (!records?.length) {
+    return (
+      <EmptyState
+        icon={Package}
+        title={t('documents.tracabilityPhotosTab.emptyTitle')}
+        description={t('documents.tracabilityPhotosTab.emptyDesc')}
+      />
+    );
+  }
+
+  return (
+    <>
+      <div className="space-y-6">
+        {records.map((record) => {
+          const photos = record.photos ?? [];
+          const photoCountLabel = t('documents.tracabilityPhotosTab.photoCount', { count: photos.length });
+          return (
+            <div
+              key={record.id}
+              className="rounded-xl border border-surface-muted bg-white p-4 shadow-sm"
+            >
+              <div className="mb-3 flex items-center gap-2 flex-wrap">
+                <Package className="h-4 w-4 text-brand-medium shrink-0" />
+                <code className="rounded bg-surface-page px-1.5 py-0.5 text-xs font-mono text-brand-dark">
+                  {record.reference}
+                </code>
+                <span className="text-xs font-medium text-gray-700">{record.productName}</span>
+                {record.lotNumber && (
+                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500">
+                    {t('documents.tracabilityPhotosTab.lot')} {record.lotNumber}
+                  </span>
+                )}
+                <span className="text-xs text-gray-400">
+                  · {new Date(record.createdAt).toLocaleDateString(i18n.language)}
+                  · {photoCountLabel}
+                </span>
+              </div>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
+                {photos.map((photo) => (
+                  <button
+                    key={photo.id}
+                    type="button"
+                    onClick={() => setLightboxUrl(photo.url)}
+                    className="group relative aspect-square overflow-hidden rounded-lg border border-surface-muted bg-gray-50 hover:border-brand-medium transition-colors"
+                  >
+                    <img
+                      src={photo.url}
+                      alt={photo.caption ?? t('documents.tracabilityPhotosTab.photoAlt')}
+                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">
+                      <Eye className="h-4 w-4 text-white" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {photos.some((p) => p.caption) && (
+                <div className="mt-2 text-[10px] text-gray-400 italic">
+                  {photos.filter((p) => p.caption).map((p) => p.caption).join(' · ')}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {lightboxUrl && <Lightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />}
+    </>
+  );
+}
+
 // ─── Reports tab ──────────────────────────────────────────────────────────────
 
 function ReportsTab() {
@@ -1191,17 +1351,19 @@ function ReportsTab() {
 // ─── Tab config ───────────────────────────────────────────────────────────────
 
 const TAB_KEYS: { key: GedTab; icon: React.ElementType }[] = [
-  { key: 'library',   icon: FolderOpen },
-  { key: 'requests',  icon: MessageSquarePlus },
-  { key: 'nc_photos', icon: Camera },
-  { key: 'reports',   icon: ClipboardCheck },
+  { key: 'library',            icon: FolderOpen },
+  { key: 'requests',           icon: MessageSquarePlus },
+  { key: 'nc_photos',          icon: Camera },
+  { key: 'tracability_photos', icon: Package },
+  { key: 'reports',            icon: ClipboardCheck },
 ];
 
 const TAB_I18N_MAP: Record<GedTab, string> = {
-  library:   'documents.tabs.library',
-  requests:  'documents.tabs.requests',
-  nc_photos: 'documents.tabs.ncPhotos',
-  reports:   'documents.tabs.reports',
+  library:            'documents.tabs.library',
+  requests:           'documents.tabs.requests',
+  nc_photos:          'documents.tabs.ncPhotos',
+  tracability_photos: 'documents.tabs.tracabilityPhotos',
+  reports:            'documents.tabs.reports',
 };
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -1211,6 +1373,9 @@ export default function DocumentsPage() {
   const [activeTab, setActiveTab] = useState<GedTab>('library');
   const user    = useAuthStore((s) => s.user);
   const isAdmin = ADMIN_ROLES.has(user?.role ?? '');
+
+  // Pending requests count — shown as a badge on the Requests tab for admins
+  const { data: pendingCount = 0 } = usePendingRequestsCount();
 
   return (
     <>
@@ -1228,7 +1393,7 @@ export default function DocumentsPage() {
               key={key}
               onClick={() => setActiveTab(key)}
               className={[
-                'flex items-center gap-2 whitespace-nowrap px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors',
+                'relative flex items-center gap-2 whitespace-nowrap px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors',
                 activeTab === key
                   ? 'border-brand-medium text-brand-medium'
                   : 'border-transparent text-gray-500 hover:text-gray-800',
@@ -1236,15 +1401,22 @@ export default function DocumentsPage() {
             >
               <Icon className="h-4 w-4" />
               {t(TAB_I18N_MAP[key] as Parameters<typeof t>[0])}
+              {/* Pending badge — only shown on Requests tab for admins */}
+              {key === 'requests' && isAdmin && pendingCount > 0 && (
+                <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-bold text-white">
+                  {pendingCount > 99 ? '99+' : pendingCount}
+                </span>
+              )}
             </button>
           ))}
         </div>
 
         {/* Tab content */}
-        {activeTab === 'library'   && <LibraryTab  isAdmin={isAdmin} />}
-        {activeTab === 'requests'  && <RequestsTab isAdmin={isAdmin} />}
-        {activeTab === 'nc_photos' && <NCPhotosTab />}
-        {activeTab === 'reports'   && <ReportsTab />}
+        {activeTab === 'library'            && <LibraryTab  isAdmin={isAdmin} />}
+        {activeTab === 'requests'           && <RequestsTab isAdmin={isAdmin} />}
+        {activeTab === 'nc_photos'          && <NCPhotosTab />}
+        {activeTab === 'tracability_photos' && <TracabilityPhotosTab />}
+        {activeTab === 'reports'            && <ReportsTab />}
       </PageWrapper>
     </>
   );
