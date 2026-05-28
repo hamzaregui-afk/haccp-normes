@@ -37,6 +37,7 @@ enum TenantModuleKey {
   HYGIENE
   ANALYTICS
   MOBILE_ACCESS
+  TRACABILITY
 }
 
 enum SubscriptionStatus {

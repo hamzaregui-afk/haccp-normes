@@ -346,6 +346,10 @@ jobs:
             if [ "$ACTION" = "init-tenant-modules" ]; then
               cd /opt/haccp
               git fetch origin && git checkout main-sync 2>/dev/null || true && git reset --hard origin/main-sync
+              PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER)
+              PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD)
+              echo "=== Adding TRACABILITY to TenantModuleKey enum (safe: IF NOT EXISTS) ==="
+              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_tenants -c "ALTER TYPE \"TenantModuleKey\" ADD VALUE IF NOT EXISTS 'TRACABILITY';" 2>&1 || echo "ALTER TYPE skipped (already exists)"
               echo "=== Running seed-tenant-modules.sh ==="
               bash infrastructure/scripts/seed-tenant-modules.sh
               echo "=== init-tenant-modules complete ==="
