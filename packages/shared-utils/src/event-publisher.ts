@@ -24,9 +24,21 @@
 
 import { circuitBreakerRegistry } from './circuit-breaker';
 
-const NOTIFICATION_QUEUE = 'haccp_notification_queue';
-const AUDIT_QUEUE        = 'haccp_audit_queue';
-const DLQ_QUEUE          = 'haccp_notification_dlq';
+const NOTIFICATION_QUEUE    = 'haccp_notification_queue';
+const AUDIT_QUEUE           = 'haccp_audit_queue';
+const NONCONFORMITY_QUEUE   = 'haccp_nonconformity_queue';
+const DLQ_QUEUE             = 'haccp_notification_dlq';
+
+/**
+ * ARCH-DECISION: Events that must also be routed to the nonconformity-service.
+ * Only `control.task.completed` events trigger automatic NC creation.
+ * Routing any other event to haccp_nonconformity_queue would produce
+ * "unsupported event" nacks because the consumer only handles these two patterns.
+ */
+const NONCONFORMITY_EVENT_TYPES = new Set([
+  'control.task.completed',
+  'control.task.completed.v1',
+]);
 
 // ARCH-DECISION: Circuit breaker created once at module load so its failure
 // counter persists across calls. Re-creating it on every publishDomainEvent()
@@ -74,15 +86,20 @@ export interface DomainEvent<
  * });
  */
 export async function publishDomainEvent(event: DomainEvent): Promise<void> {
-  // ARCH-DECISION: Publish to both queues in parallel. The notification-service
-  // and audit-service each consume their own dedicated queue so there is no
-  // message contention. This is simpler than a fan-out exchange for the current
-  // queue count; migrate to an exchange binding if a third consumer is added.
+  // ARCH-DECISION: Publish in parallel to all queues that subscribe to this
+  // event type. notification-service and audit-service receive every event.
+  // nonconformity-service only receives control.task.completed events because
+  // those are the only patterns its consumer handles — routing other events to
+  // its queue would produce unhandled-event nacks.
+  const targets = [
+    doPublish(event, NOTIFICATION_QUEUE),
+    doPublish(event, AUDIT_QUEUE),
+    ...(NONCONFORMITY_EVENT_TYPES.has(event.eventType)
+      ? [doPublish(event, NONCONFORMITY_QUEUE)]
+      : []),
+  ];
   await rabbitCb.execute(
-    () => Promise.all([
-      doPublish(event, NOTIFICATION_QUEUE),
-      doPublish(event, AUDIT_QUEUE),
-    ]).then(() => undefined),
+    () => Promise.all(targets).then(() => undefined),
     () => undefined, // fallback: swallow silently — domain events must not block the API
   );
 }
