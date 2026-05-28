@@ -7,7 +7,6 @@ jobs:
   init:
     name: Create SUPER_ADMIN in production
     runs-on: ubuntu-latest
-    environment: production
 
     steps:
       - name: Write script and run via SSH
