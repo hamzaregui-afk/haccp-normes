@@ -6,11 +6,12 @@ import type { JwtPayload, UserRole } from '@haccp/shared-types';
 // Legacy alias kept for compatibility
 type Role = UserRole;
 
-// All 17 module keys — mirrored from shared-types for SUPER_ADMIN fallback
+// All 18 module keys — mirrored from shared-types for SUPER_ADMIN fallback
 const ALL_MODULES = [
   'DASHBOARD', 'HACCP_CONTROLS', 'NONCONFORMITIES', 'DLC', 'REPORTS',
   'EQUIPMENTS', 'PRODUCTS', 'SUPPLIERS', 'GED', 'NOTIFICATIONS', 'AUDIT',
   'PLANNING', 'TEMPERATURES', 'RECEPTIONS', 'HYGIENE', 'ANALYTICS', 'MOBILE_ACCESS',
+  'TRACABILITY',
 ] as const;
 
 interface AuthState {
