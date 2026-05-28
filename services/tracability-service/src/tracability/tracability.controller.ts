@@ -72,9 +72,9 @@ export class TracabilityController {
 
     void emitAuditEvent({
       tenantId:   user.tenantId,
-      actorId:    user.sub,
+      userId:    user.sub,
       action:     'CREATE',
-      resource:   'TRACABILITY',
+      resource:   'tracabilities',
       resourceId: (result.data as { id: string }).id,
       details:    { lotNumber: dto.lotNumber, productName: dto.productName },
     });
@@ -102,9 +102,9 @@ export class TracabilityController {
 
     void emitAuditEvent({
       tenantId:   user.tenantId,
-      actorId:    user.sub,
+      userId:    user.sub,
       action:     'UPDATE',
-      resource:   'TRACABILITY',
+      resource:   'tracabilities',
       resourceId: id,
       details:    dto,
     });
@@ -121,9 +121,9 @@ export class TracabilityController {
 
     void emitAuditEvent({
       tenantId:   user.tenantId,
-      actorId:    user.sub,
+      userId:    user.sub,
       action:     'DELETE',
-      resource:   'TRACABILITY',
+      resource:   'tracabilities',
       resourceId: id,
     });
 
@@ -146,9 +146,9 @@ export class TracabilityController {
 
     void emitAuditEvent({
       tenantId:   user.tenantId,
-      actorId:    user.sub,
+      userId:    user.sub,
       action:     'CREATE',
-      resource:   'TRACABILITY_PHOTO',
+      resource:   'tracability_photos',
       resourceId: id,
     });
 
@@ -168,9 +168,9 @@ export class TracabilityController {
 
     void emitAuditEvent({
       tenantId:   user.tenantId,
-      actorId:    user.sub,
+      userId:    user.sub,
       action:     'DELETE',
-      resource:   'TRACABILITY_PHOTO',
+      resource:   'tracability_photos',
       resourceId: photoId,
     });
 
