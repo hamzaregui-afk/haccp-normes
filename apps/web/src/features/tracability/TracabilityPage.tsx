@@ -597,7 +597,7 @@ export default function TracabilityPage() {
   });
 
   const stats = statsData;
-  const items = data?.data ?? [];
+  const items = (data?.data ?? []) as Tracability[];
   const meta  = data?.meta;
 
   return (
