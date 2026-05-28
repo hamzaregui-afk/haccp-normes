@@ -27,7 +27,7 @@ run_sql "CREATE TABLE IF NOT EXISTS _prisma_migrations (
   applied_steps_count     INTEGER NOT NULL DEFAULT 0
 );"
 run_sql "INSERT INTO _prisma_migrations (id,checksum,finished_at,migration_name,logs,applied_steps_count)
-  VALUES ('20260529000000_add_doc_request_comment','0000000000000000000000000000000000000000000000000000000000000000',NOW(),'20260529000000_add_doc_request_comment',NULL,1)
+  VALUES ('a0b1c2d3-e4f5-0001-0001-000000000001','0000000000000000000000000000000000000000000000000000000000000000',NOW(),'20260529000000_add_doc_request_comment',NULL,1)
   ON CONFLICT (id) DO NOTHING;"
 
 echo "=== document_requests.comment column applied ==="
