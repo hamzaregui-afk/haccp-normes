@@ -72,22 +72,30 @@ export class TracabilityService {
 
   async create(dto: CreateTracabilityDto, tenantId: string, createdById: string) {
     const reference = await this.generateReference(tenantId);
+    const today     = new Date();
+
+    // ARCH-DECISION: Simple UI sends only date+lot+photos. Legacy UI may still send
+    // productName/type. Both cases handled by defaults here without DB schema change.
+    const productName = dto.productName?.trim() || (dto.lotNumber?.trim()
+      ? `Lot ${dto.lotNumber.trim()}`
+      : reference);
+
     const record = await this.prisma.tracability.create({
       data: {
         tenantId,
         createdById,
         reference,
-        type:          dto.type,
-        lotNumber:     dto.lotNumber,
-        productName:   dto.productName,
-        supplierId:    dto.supplierId ?? null,
-        siteId:        dto.siteId ?? null,
-        quantity:      dto.quantity ?? null,
-        unit:          dto.unit ?? null,
-        receptionDate: dto.receptionDate ?? null,
-        expiryDate:    dto.expiryDate ?? null,
-        temperature:   dto.temperature ?? null,
-        notes:         dto.notes ?? null,
+        type:          dto.type          ?? 'RECEPTION',
+        lotNumber:     dto.lotNumber?.trim()  ?? '',
+        productName,
+        receptionDate: dto.receptionDate ?? today,
+        supplierId:    null,
+        siteId:        null,
+        quantity:      null,
+        unit:          null,
+        expiryDate:    null,
+        temperature:   null,
+        notes:         dto.notes?.trim() ?? null,
       },
     });
     return toApiResponse(record, undefined, 'Fiche de traçabilité créée');

@@ -51,17 +51,13 @@ export type Tracability = z.infer<typeof TracabilitySchema>;
 // ── DTOs ─────────────────────────────────────────────────────────────────────
 
 export const CreateTracabilitySchema = z.object({
-  type:          TracabilityTypeSchema,
-  lotNumber:     z.string().min(1).max(100),
-  productName:   z.string().min(1).max(200),
-  supplierId:    z.string().cuid().nullish(),
-  siteId:        z.string().cuid().nullish(),
-  quantity:      z.coerce.number().positive().nullish(),
-  unit:          z.string().max(20).nullish(),
-  receptionDate: z.coerce.date().nullish(),
-  expiryDate:    z.coerce.date().nullish(),
-  temperature:   z.coerce.number().min(-100).max(200).nullish(),
-  notes:         z.string().max(2000).nullish(),
+  // Simple interface — seuls champs visibles dans la nouvelle UI
+  receptionDate: z.coerce.date().optional(),        // date du jour par défaut dans le service
+  lotNumber:     z.string().max(100).optional(),    // numéro de lot, optionnel
+  notes:         z.string().max(2000).nullish(),    // observations, optionnel
+  // Champs legacy — conservés pour backward-compat API, ont des defaults dans le service
+  type:          TracabilityTypeSchema.optional(),  // défaut: 'RECEPTION'
+  productName:   z.string().max(200).optional(),    // défaut: auto-généré depuis le lot/référence
 });
 export type CreateTracabilityDto = z.infer<typeof CreateTracabilitySchema>;
 

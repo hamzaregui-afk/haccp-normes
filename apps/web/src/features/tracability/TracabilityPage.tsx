@@ -69,7 +69,7 @@ interface Stats {
   totalPhotos: number;
 }
 
-// ─── Style maps (values only — labels are hardcoded FR) ───────────────────────
+// ─── Style maps ───────────────────────────────────────────────────────────────
 
 const STATUS_STYLES: Record<TracabilityStatus, string> = {
   IN_PROGRESS: 'bg-orange-100 text-orange-700 border border-orange-200',
@@ -166,35 +166,22 @@ function StatCard({ label, value, icon: Icon, color }: {
   );
 }
 
-// ─── Create modal ─────────────────────────────────────────────────────────────
+// ─── Create modal (simplifié) ─────────────────────────────────────────────────
 
 function CreateModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const qc = useQueryClient();
-  const [type, setType]         = useState<TracabilityType>('RECEPTION');
-  const [lotNumber, setLot]     = useState('');
-  const [productName, setProduct] = useState('');
-  const [quantity, setQty]      = useState('');
-  const [unit, setUnit]         = useState('');
-  const [receptionDate, setRxDate] = useState('');
-  const [expiryDate, setExpDate]   = useState('');
-  const [temperature, setTemp]     = useState('');
-  const [notes, setNotes]          = useState('');
-  const [files, setFiles]          = useState<File[]>([]);
-  const [previews, setPreviews]    = useState<string[]>([]);
+  const today = new Date().toISOString().slice(0, 10);
+  const [dateValue, setDateValue] = useState(today);
+  const [lotValue, setLotValue]   = useState('');
+  const [files, setFiles]         = useState<File[]>([]);
+  const [previews, setPreviews]   = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const mutation = useMutation({
     mutationFn: async () => {
       const result = await tracabilityApi.create({
-        type,
-        lotNumber:     lotNumber.trim(),
-        productName:   productName.trim(),
-        quantity:      quantity ? parseFloat(quantity) : undefined,
-        unit:          unit.trim() || undefined,
-        receptionDate: receptionDate ? new Date(receptionDate) : undefined,
-        expiryDate:    expiryDate    ? new Date(expiryDate)    : undefined,
-        temperature:   temperature ? parseFloat(temperature) : undefined,
-        notes:         notes.trim() || undefined,
+        receptionDate: new Date(dateValue),
+        lotNumber:     lotValue.trim() || undefined,
       });
       const id = (result.data as { id: string }).id;
       if (files.length > 0) {
@@ -225,95 +212,28 @@ function CreateModal({ open, onClose }: { open: boolean; onClose: () => void }) 
     setPreviews((p) => p.filter((_, i) => i !== idx));
   };
 
-  const valid = lotNumber.trim().length > 0 && productName.trim().length > 0;
-
   return (
-    <Modal open={open} onClose={onClose} title="Nouvelle fiche de traçabilité" size="lg">
+    <Modal open={open} onClose={onClose} title="Nouvelle fiche de traçabilité" size="md">
       <div className="space-y-4">
-        {/* Type */}
+        {/* Date */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
-          <Select
-            value={type}
-            options={Object.entries(TYPE_LABEL).map(([k, v]) => ({ value: k, label: v }))}
-            onChange={(e) => setType((e as React.ChangeEvent<HTMLSelectElement>).target.value as TracabilityType)}
+          <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+          <input
+            type="date"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
+            value={dateValue}
+            onChange={(e) => setDateValue(e.target.value)}
           />
         </div>
 
-        {/* Lot / Product */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">N° de lot *</label>
-            <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
-              placeholder="ex: LOT-2026-001"
-              value={lotNumber}
-              onChange={(e) => setLot(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Produit *</label>
-            <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
-              placeholder="Nom du produit"
-              value={productName}
-              onChange={(e) => setProduct(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Qty / Unit / Temp */}
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Quantité</label>
-            <input
-              type="number" step="0.01"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
-              placeholder="0" value={quantity} onChange={(e) => setQty(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
-            <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
-              placeholder="kg, L…" value={unit} onChange={(e) => setUnit(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Température (°C)</label>
-            <input
-              type="number" step="0.1"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
-              placeholder="4" value={temperature} onChange={(e) => setTemp(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Dates */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date réception</label>
-            <input type="date"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
-              value={receptionDate} onChange={(e) => setRxDate(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date expiration (DLC)</label>
-            <input type="date"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
-              value={expiryDate} onChange={(e) => setExpDate(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Notes */}
+        {/* Numéro de lot */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Observations</label>
-          <textarea rows={2}
-            className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
-            placeholder="Observations, anomalies…"
-            value={notes} onChange={(e) => setNotes(e.target.value)}
+          <label className="block text-sm font-medium text-gray-700 mb-1">Numéro de lot</label>
+          <input
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
+            placeholder="ex: LOT-2026-001"
+            value={lotValue}
+            onChange={(e) => setLotValue(e.target.value)}
           />
         </div>
 
@@ -331,7 +251,10 @@ function CreateModal({ open, onClose }: { open: boolean; onClose: () => void }) 
             onDrop={(e) => { e.preventDefault(); void addFiles(e.dataTransfer.files); }}
             className="flex min-h-[88px] cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 p-4 text-center transition-colors hover:border-brand-medium hover:bg-brand-medium/5"
           >
-            <Upload className="h-5 w-5 text-gray-400" />
+            <div className="flex items-center gap-3">
+              <Upload className="h-5 w-5 text-gray-400" />
+              <Camera className="h-5 w-5 text-gray-400" />
+            </div>
             <p className="text-sm text-gray-500">
               Glisser-déposer ou <span className="font-medium text-brand-medium">parcourir</span>
             </p>
@@ -363,7 +286,7 @@ function CreateModal({ open, onClose }: { open: boolean; onClose: () => void }) 
 
         <div className="flex justify-end gap-3 pt-1">
           <Button variant="ghost" onClick={onClose}>Annuler</Button>
-          <Button onClick={() => mutation.mutate()} disabled={!valid || mutation.isPending} loading={mutation.isPending}>
+          <Button onClick={() => mutation.mutate()} loading={mutation.isPending}>
             Créer la fiche
           </Button>
         </div>
@@ -444,7 +367,7 @@ function DetailModal({ record: initial, open, onClose }: {
 
           {/* Info grid */}
           <div className="grid grid-cols-2 gap-x-6 gap-y-2 rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm">
-            <div><span className="font-medium text-gray-500">N° de lot :</span> <span className="ml-1 text-gray-900">{rec.lotNumber}</span></div>
+            <div><span className="font-medium text-gray-500">N° de lot :</span> <span className="ml-1 text-gray-900">{rec.lotNumber || '—'}</span></div>
             <div><span className="font-medium text-gray-500">Produit :</span> <span className="ml-1 text-gray-900">{rec.productName}</span></div>
             {rec.quantity != null && (
               <div><span className="font-medium text-gray-500">Quantité :</span> <span className="ml-1 text-gray-900">{rec.quantity} {rec.unit ?? ''}</span></div>
@@ -561,7 +484,6 @@ export default function TracabilityPage() {
   const canDelete = role === 'ADMIN' || role === 'MANAGER' || role === 'SUPER_ADMIN';
 
   const [search, setSearch]         = useState('');
-  const [typeFilter, setTypeFlt]    = useState('');
   const [statusFilter, setStatFlt]  = useState('');
   const [page, setPage]             = useState(1);
   const [showCreate, setShowCreate] = useState(false);
@@ -575,12 +497,11 @@ export default function TracabilityPage() {
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ['tracabilities', page, debouncedSearch, typeFilter, statusFilter],
+    queryKey: ['tracabilities', page, debouncedSearch, statusFilter],
     queryFn:  () => tracabilityApi.list({
       page,
       limit:  20,
       search: debouncedSearch || undefined,
-      type:   (typeFilter   as never) || undefined,
       status: (statusFilter as never) || undefined,
     }).then((r: { data: Tracability[]; meta: { total: number; lastPage: number } }) => r),
     placeholderData: (prev) => prev,
@@ -631,19 +552,11 @@ export default function TracabilityPage() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
-            placeholder="Rechercher lot, produit, référence…"
+            placeholder="Rechercher lot, référence…"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
         </div>
-        <Select
-          value={typeFilter}
-          onChange={(e) => { setTypeFlt((e as React.ChangeEvent<HTMLSelectElement>).target.value); setPage(1); }}
-          options={[
-            { value: '', label: 'Tous les types' },
-            ...Object.entries(TYPE_LABEL).map(([k, v]) => ({ value: k, label: v })),
-          ]}
-        />
         <Select
           value={statusFilter}
           onChange={(e) => { setStatFlt((e as React.ChangeEvent<HTMLSelectElement>).target.value); setPage(1); }}
@@ -680,10 +593,10 @@ export default function TracabilityPage() {
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                 <th className="px-4 py-3">Référence</th>
-                <th className="px-4 py-3">Produit / Lot</th>
-                <th className="px-4 py-3">Type</th>
+                <th className="px-4 py-3">N° de lot</th>
+                <th className="px-4 py-3">Photos</th>
                 <th className="px-4 py-3">Statut</th>
-                <th className="px-4 py-3">Dates</th>
+                <th className="px-4 py-3">Date</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -695,19 +608,18 @@ export default function TracabilityPage() {
                     <td className="px-4 py-3">
                       <span className="font-mono text-xs font-semibold text-gray-700">{item.reference}</span>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">{item.productName}</div>
-                      <div className="text-xs text-gray-500">Lot: {item.lotNumber}</div>
-                      {item._count?.photos ? (
-                        <div className="mt-0.5 flex items-center gap-1 text-xs text-gray-400">
-                          <Camera className="h-3 w-3" />{item._count.photos}
-                        </div>
-                      ) : null}
+                    <td className="px-4 py-3 text-gray-700">
+                      {item.lotNumber || '—'}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={cn('inline-flex rounded-full px-2 py-0.5 text-xs font-semibold', TYPE_STYLE[item.type])}>
-                        {TYPE_LABEL[item.type]}
-                      </span>
+                      {item._count?.photos ? (
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <Camera className="h-3.5 w-3.5" />
+                          <span>{item._count.photos}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold', STATUS_STYLES[item.status])}>
@@ -715,8 +627,7 @@ export default function TracabilityPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">
-                      <div>Réception: {fmtDate(item.receptionDate)}</div>
-                      <div>Expiration: {fmtDate(item.expiryDate)}</div>
+                      {fmtDateTime(item.createdAt)}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
