@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # seed-tenant-modules.sh
-# Idempotent seed: inserts TenantModule rows (all 17) and TenantSubscription
+# Idempotent seed: inserts TenantModule rows (all 18) and TenantSubscription
 # for every tenant that doesn't have them yet.
 # Uses plain INSERT...SELECT with CROSS JOIN VALUES — no PL/pgSQL needed.
 # Safe to run multiple times — ON CONFLICT DO NOTHING.
@@ -13,7 +13,7 @@ echo "=== Diagnosing tenant table ==="
 docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_tenants -c \
   "SELECT id, name, plan, status FROM tenants ORDER BY name;"
 
-echo "=== Inserting TenantModule rows (all 17 per tenant) ==="
+echo "=== Inserting TenantModule rows (all 18 per tenant) ==="
 docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_tenants -v ON_ERROR_STOP=1 -c "
 INSERT INTO tenant_modules (id, tenant_id, module_key, enabled, created_at, updated_at)
 SELECT
@@ -22,7 +22,7 @@ SELECT
   m.key::\"TenantModuleKey\",
   m.key IN (
     'DASHBOARD','HACCP_CONTROLS','NONCONFORMITIES','DLC','REPORTS',
-    'EQUIPMENTS','PRODUCTS','SUPPLIERS','GED','NOTIFICATIONS','AUDIT'
+    'EQUIPMENTS','PRODUCTS','SUPPLIERS','GED','NOTIFICATIONS','AUDIT','TRACABILITY'
   ),
   NOW(),
   NOW()
@@ -30,7 +30,8 @@ FROM tenants t
 CROSS JOIN (VALUES
   ('DASHBOARD'),('HACCP_CONTROLS'),('NONCONFORMITIES'),('DLC'),('REPORTS'),
   ('EQUIPMENTS'),('PRODUCTS'),('SUPPLIERS'),('GED'),('NOTIFICATIONS'),('AUDIT'),
-  ('PLANNING'),('TEMPERATURES'),('RECEPTIONS'),('HYGIENE'),('ANALYTICS'),('MOBILE_ACCESS')
+  ('PLANNING'),('TEMPERATURES'),('RECEPTIONS'),('HYGIENE'),('ANALYTICS'),('MOBILE_ACCESS'),
+  ('TRACABILITY')
 ) AS m(key)
 ON CONFLICT (tenant_id, module_key) DO NOTHING;
 "
