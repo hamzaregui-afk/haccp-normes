@@ -46,8 +46,10 @@ export class DocumentRequestService {
     const existing = await this.prisma.documentRequest.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException(`Demande ${id} introuvable`);
 
+    // ARCH-DECISION: Double-scoped where for defense-in-depth — tenantId closes
+    // the TOCTOU window between the findFirst ownership check above and this update.
     const updated = await this.prisma.documentRequest.update({
-      where: { id },
+      where: { id, tenantId },
       data: {
         status:      dto.status as never,
         fulfillerId,

@@ -72,7 +72,10 @@ export class DocumentService {
     if (!doc) throw new NotFoundException(`Document ${id} introuvable`);
 
     await this.minio.deleteObject(doc.objectKey);
-    await this.prisma.document.delete({ where: { id } });
+    // ARCH-DECISION: Double-scoped where for defense-in-depth — tenantId ensures
+    // a race between the findFirst ownership check and the delete cannot be
+    // exploited to delete a document belonging to a different tenant.
+    await this.prisma.document.delete({ where: { id, tenantId } });
 
     return toApiResponse(null, undefined, 'Document supprimé');
   }

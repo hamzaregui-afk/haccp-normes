@@ -66,9 +66,9 @@ export class SupplierService {
   async remove(id: string, tenantId: string) {
     const { data: supplier } = await this.findOne(id, tenantId);
 
-    // Soft delete — check no active products linked
+    // Soft delete — check no active products linked within this tenant only
     const linked = await this.prisma.product.count({
-      where: { supplierId: id, isActive: true },
+      where: { supplierId: id, isActive: true, tenantId },
     });
     if (linked > 0) {
       // Soft-delete instead of hard delete when products are linked
