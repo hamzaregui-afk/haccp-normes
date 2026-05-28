@@ -76,7 +76,7 @@ export class TracabilityController {
       action:     'CREATE',
       resource:   'tracabilities',
       resourceId: (result.data as { id: string }).id,
-      details:    { lotNumber: dto.lotNumber, productName: dto.productName },
+      payload:    { lotNumber: dto.lotNumber, productName: dto.productName },
     });
 
     void publishDomainEvent({
@@ -106,7 +106,7 @@ export class TracabilityController {
       action:     'UPDATE',
       resource:   'tracabilities',
       resourceId: id,
-      details:    dto,
+      payload:    dto as Record<string, unknown>,
     });
 
     return result;
