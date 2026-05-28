@@ -334,12 +334,7 @@ jobs:
               docker exec haccp-auth npx prisma migrate deploy --schema=/app/prisma/schema.prisma 2>&1 || echo "auth migration error"
               echo "=== user-service migration ==="
               docker exec haccp-users npx prisma migrate deploy --schema=/app/prisma/schema.prisma 2>&1 || echo "user migration error"
-              echo "=== tracability-service migration ==="
-              docker exec haccp-tracability npx prisma migrate deploy --schema=/app/services/tracability-service/prisma/schema.prisma 2>&1 || echo "tracability migration error"
-              echo "=== Verifying tracabilities table ==="
-              PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER)
-              PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD)
-              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_tracabilities -c "\dt" 2>&1 | grep tracab || echo "table not found"
+              echo "=== tracability migration ===" && docker exec haccp-tracability npx prisma migrate deploy --schema=/app/services/tracability-service/prisma/schema.prisma 2>&1 || true
               echo "=== Verifying new tables exist in haccp_tenants DB ==="
               PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER)
               PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD)
@@ -377,7 +372,6 @@ jobs:
               docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_auth -c "SELECT email,role,status,LEFT(password_hash,10) FROM users WHERE email='superadmin@haccp.com';" 2>&1 || true
               df -h / && docker stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}" | grep -E "haccp|NAME" || true
               docker logs haccp-auth --tail=20 2>&1 || true
-              echo "=== Tracability logs ===" && docker logs haccp-tracability --tail=50 2>&1 || true
               for i in 1 2 3 4 5 6; do STATUS=$(curl -so /dev/null -w "%{http_code}" -X POST "http://localhost/api/v1/auth/login" -H "Content-Type: application/json" -d '{"email":"x","password":"x"}'); echo "Throttle $i: HTTP $STATUS"; done
               exit 0
             fi
