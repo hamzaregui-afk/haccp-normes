@@ -229,6 +229,49 @@ export class NotificationConsumer {
     );
   }
 
+  // ─── ged.request.created ─────────────────────────────────────────────────
+  // Broadcast to the whole tenant room — all managers/admins connected will
+  // receive this and can update their pending-count badge or show a toast.
+
+  @EventPattern('ged.request.created.v1')
+  handleGedRequestCreated(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
+    this.dispatch(
+      data,
+      'ged.request.created',
+      'notification:ged-request-created',
+      `requestId=${String(data.payload['requestId'] ?? '?')} title="${String(data.payload['title'] ?? '')}"`,
+    );
+    ctx.getChannelRef().ack(ctx.getMessage());
+  }
+
+  // ─── ged.request.fulfilled ────────────────────────────────────────────────
+  // Broadcast to tenant room. The requester is also in the room and will see
+  // their request status change in real-time.
+
+  @EventPattern('ged.request.fulfilled.v1')
+  handleGedRequestFulfilled(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
+    this.dispatch(
+      data,
+      'ged.request.fulfilled',
+      'notification:ged-request-fulfilled',
+      `requestId=${String(data.payload['requestId'] ?? '?')}`,
+    );
+    ctx.getChannelRef().ack(ctx.getMessage());
+  }
+
+  // ─── ged.request.rejected ─────────────────────────────────────────────────
+
+  @EventPattern('ged.request.rejected.v1')
+  handleGedRequestRejected(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
+    this.dispatch(
+      data,
+      'ged.request.rejected',
+      'notification:ged-request-rejected',
+      `requestId=${String(data.payload['requestId'] ?? '?')} comment="${String(data.payload['comment'] ?? '')}"`,
+    );
+    ctx.getChannelRef().ack(ctx.getMessage());
+  }
+
   // ─── dlc.labels.expiring-today ────────────────────────────────────────────
 
   @EventPattern('dlc.labels.expiring-today')

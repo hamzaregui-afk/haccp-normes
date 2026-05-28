@@ -1352,6 +1352,9 @@
     "dlcExpiringProducts": "{{count}} produit(s)",
     "taskFallback": "Tâche {{id}}",
     "reportValidated": "Rapport validé",
+    "gedRequestCreated": "📄 Nouvelle demande de document",
+    "gedRequestFulfilled": "✅ Demande satisfaite",
+    "gedRequestRejected": "❌ Demande rejetée",
     "unreadCount": "{{count}} notification{{s}} non lue{{s}}",
     "unreadBadge": "Non lu",
     "panel": "Panneau de notifications"

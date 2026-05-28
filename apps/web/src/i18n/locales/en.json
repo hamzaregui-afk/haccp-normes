@@ -1352,6 +1352,9 @@
     "dlcExpiringProducts": "{{count}} product(s)",
     "taskFallback": "Task {{id}}",
     "reportValidated": "Report validated",
+    "gedRequestCreated": "📄 New document request",
+    "gedRequestFulfilled": "✅ Request fulfilled",
+    "gedRequestRejected": "❌ Request rejected",
     "unreadCount": "{{count}} unread notification{{s}}",
     "unreadBadge": "Unread",
     "panel": "Notifications panel"

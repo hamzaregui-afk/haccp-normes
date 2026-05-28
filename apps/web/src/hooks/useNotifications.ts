@@ -74,6 +74,22 @@ interface TasksOverduePayload {
   taskIds?:  string[];
 }
 
+interface GedRequestCreatedPayload {
+  eventId:     string;
+  timestamp:   string;
+  requestId?:  string;
+  requesterId?: string;
+  title?:      string;
+  category?:   string | null;
+}
+
+interface GedRequestDecidedPayload {
+  eventId:    string;
+  timestamp:  string;
+  requestId?: string;
+  comment?:   string | null;
+}
+
 // ── Helpers — synthesise a Notification from a domain event ──────────────────
 
 type TFn = (key: string, opts?: Record<string, string | number>) => string;
@@ -243,6 +259,40 @@ export function useNotifications(): NotificationsState {
       void queryClient.invalidateQueries({ queryKey: ['controls.stats'] });
     };
 
+    // Domain event: a user requested a document (broadcast to tenant → managers see badge update)
+    const onGedRequestCreated = (payload: GedRequestCreatedPayload) => {
+      showToast({
+        title: t('notifications.gedRequestCreated'),
+        body:  payload.title ?? '',
+        variant: 'info',
+      });
+      // Invalidate so the pending count badge and requests list refresh instantly
+      void queryClient.invalidateQueries({ queryKey: ['ged.requests'] });
+      void queryClient.invalidateQueries({ queryKey: ['ged.requests.pending.count'] });
+    };
+
+    // Domain event: request was fulfilled (broadcast to tenant → requester sees status change)
+    const onGedRequestFulfilled = (payload: GedRequestDecidedPayload) => {
+      showToast({
+        title: t('notifications.gedRequestFulfilled'),
+        body:  payload.comment ?? '',
+        variant: 'success',
+      });
+      void queryClient.invalidateQueries({ queryKey: ['ged.requests'] });
+      void queryClient.invalidateQueries({ queryKey: ['ged.requests.pending.count'] });
+    };
+
+    // Domain event: request was rejected (broadcast to tenant → requester sees status change)
+    const onGedRequestRejected = (payload: GedRequestDecidedPayload) => {
+      showToast({
+        title: t('notifications.gedRequestRejected'),
+        body:  payload.comment ?? '',
+        variant: 'error',
+      });
+      void queryClient.invalidateQueries({ queryKey: ['ged.requests'] });
+      void queryClient.invalidateQueries({ queryKey: ['ged.requests.pending.count'] });
+    };
+
     socket.on('notification:new',              onNew);
     socket.on('notification:nc-created',       onNcCreated);
     socket.on('notification:task-completed',   onTaskCompleted);
@@ -250,6 +300,9 @@ export function useNotifications(): NotificationsState {
     socket.on('notification:dlc-expiring-today', onDlcExpiring);
     socket.on('notification:task-assigned',    onTaskAssigned);
     socket.on('notification:tasks-overdue',    onTasksOverdue);
+    socket.on('notification:ged-request-created',   onGedRequestCreated);
+    socket.on('notification:ged-request-fulfilled', onGedRequestFulfilled);
+    socket.on('notification:ged-request-rejected',  onGedRequestRejected);
 
     return () => {
       socket.off('notification:new',              onNew);
@@ -259,6 +312,9 @@ export function useNotifications(): NotificationsState {
       socket.off('notification:dlc-expiring-today', onDlcExpiring);
       socket.off('notification:task-assigned',    onTaskAssigned);
       socket.off('notification:tasks-overdue',    onTasksOverdue);
+      socket.off('notification:ged-request-created',   onGedRequestCreated);
+      socket.off('notification:ged-request-fulfilled', onGedRequestFulfilled);
+      socket.off('notification:ged-request-rejected',  onGedRequestRejected);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, t, queryClient]);
