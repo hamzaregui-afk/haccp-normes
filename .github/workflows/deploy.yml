@@ -334,6 +334,12 @@ jobs:
               docker exec haccp-auth npx prisma migrate deploy --schema=/app/prisma/schema.prisma 2>&1 || echo "auth migration error"
               echo "=== user-service migration ==="
               docker exec haccp-users npx prisma migrate deploy --schema=/app/prisma/schema.prisma 2>&1 || echo "user migration error"
+              echo "=== tracability-service migration ==="
+              docker exec haccp-tracability npx prisma migrate deploy --schema=/app/services/tracability-service/prisma/schema.prisma 2>&1 || echo "tracability migration error"
+              echo "=== Verifying tracabilities table ==="
+              PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER)
+              PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD)
+              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_tracabilities -c "\dt" 2>&1 | grep tracab || echo "table not found"
               echo "=== Verifying new tables exist in haccp_tenants DB ==="
               PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER)
               PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD)
