@@ -26,6 +26,10 @@ on:
           - free-space-and-recover
           - reset-password
 
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false  # Never cancel an in-flight deploy
+
 jobs:
   # ── External connectivity probe (runs on GitHub Actions runner, NOT on server)
   # ── Only runs for the 'diagnose' action — provides an external-IP perspective
