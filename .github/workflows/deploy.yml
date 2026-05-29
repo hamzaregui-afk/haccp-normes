@@ -123,6 +123,7 @@ jobs:
           envs: SUPERADMIN_HASH,SUPERADMIN_EMAIL,SUPERADMIN_PASSWORD
           script_stop: true
           timeout: 60m
+          command_timeout: 60m
           script: |
             set -e
             ACTION="${{ github.event.inputs.action || 'full-deploy' }}"
