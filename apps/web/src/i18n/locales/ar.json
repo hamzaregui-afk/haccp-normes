@@ -1352,6 +1352,9 @@
     "dlcExpiringProducts": "{{count}} منتج",
     "taskFallback": "مهمة {{id}}",
     "reportValidated": "تم التحقق من التقرير",
+    "gedRequestCreated": "📄 طلب وثيقة جديد",
+    "gedRequestFulfilled": "✅ تم تنفيذ الطلب",
+    "gedRequestRejected": "❌ تم رفض الطلب",
     "unreadCount": "{{count}} إشعار غير مقروء",
     "unreadBadge": "غير مقروء",
     "panel": "لوحة الإشعارات"
@@ -1363,7 +1366,8 @@
       "library": "المكتبة",
       "requests": "الطلبات",
       "ncPhotos": "صور عدم المطابقة",
-      "reports": "التقارير"
+      "reports": "التقارير",
+      "tracabilityPhotos": "صور التتبع"
     },
     "library": "المكتبة",
     "requests": "الطلبات",
@@ -1446,6 +1450,9 @@
       "fulfill": "تنفيذ",
       "reject": "رفض",
       "fulfillHint": "سيتمكن مقدم الطلب من الوصول إلى الوثيقة عبر المكتبة بعد تنفيذ الطلب.",
+      "commentLabel": "تعليق",
+      "commentPlaceholderReject": "سبب الرفض (مطلوب)…",
+      "commentPlaceholderFulfill": "رسالة للمستفيد (اختياري)…",
       "cancel": "إلغاء",
       "error": "خطأ. حاول مجدداً."
     },
@@ -1455,6 +1462,7 @@
       "privateInfo": "طلباتك مرئية فقط لك وللمدراء.",
       "requestedOn": "تم الطلب في {{date}}",
       "treat": "معالجة",
+      "managerComment": "تعليق المدير",
       "emptyTitle": "لا توجد طلبات",
       "emptyDesc": "اطلب وثيقة تحتاجها وسيرفعها الفريق لك."
     },
@@ -1468,6 +1476,14 @@
       "emptyTitle": "لا توجد صور عدم مطابقة",
       "emptyDesc": "ستظهر هنا الصور الملتقطة أثناء معالجة حالات عدم المطابقة.",
       "photoAlt": "صورة عدم المطابقة",
+      "photoCount_one": "{{count}} صورة",
+      "photoCount_other": "{{count}} صور"
+    },
+    "tracabilityPhotosTab": {
+      "emptyTitle": "لا توجد صور تتبع",
+      "emptyDesc": "ستظهر هنا الصور الملتقطة أثناء عمليات التتبع.",
+      "photoAlt": "صورة التتبع",
+      "lot": "دفعة {{lot}}",
       "photoCount_one": "{{count}} صورة",
       "photoCount_other": "{{count}} صور"
     },
