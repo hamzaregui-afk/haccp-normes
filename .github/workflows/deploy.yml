@@ -443,6 +443,11 @@ jobs:
             echo "=== Port bindings (3001 must point to haccp-gateway) ==="
             ss -tlnp | grep -E "3001|:80 " || true
 
+            # ── Printing-service: create DB + schema (idempotent) ────────────────
+            PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER)
+            PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD)
+            echo "=== printing-service migration ===" && bash infrastructure/scripts/migrate-printing.sh || echo "printing migration non-fatal"
+
             # ── Seed superadmin in BOTH databases ────────────────────────────────
             ADMIN_ID="clx_superadmin_platform_01"
             ADMIN_HASH="$SUPERADMIN_HASH"
