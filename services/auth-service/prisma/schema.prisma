@@ -28,6 +28,10 @@ enum UserStatus {
 
 model User {
   id           String     @id @default(cuid())
+  // ARCH-DECISION: email is globally unique across ALL tenants (not per-tenant).
+  // Login uses email+password only — no tenant context provided at login time.
+  // Changing to @@unique([email, tenantId]) would require adding a tenant
+  // subdomain/slug to the login form — intentionally not done for UX simplicity.
   email        String     @unique
   name         String
   passwordHash String     @map("password_hash")
