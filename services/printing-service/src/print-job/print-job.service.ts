@@ -7,6 +7,7 @@ import { TemplateService } from '../template/template.service';
 import { generateDlcZpl, renderTemplate } from '../printer/zpl.generator';
 import { sendZplOverTcp } from '../printer/tcp.printer';
 import type { CreatePrintJobDto, PrintJobQuery } from './dto/print-job.dto';
+import { Prisma } from '@prisma/client';
 import type { Printer } from '@prisma/client';
 
 @Injectable()
@@ -72,7 +73,7 @@ export class PrintJobService {
         printerId:  printer?.id ?? null,
         templateId: dto.templateId ?? null,
         labelType:  dto.labelType,
-        payload:    dto.payload,
+        payload:    dto.payload as Prisma.InputJsonValue,
         status:     'PENDING',
         copies:     dto.copies,
       },
