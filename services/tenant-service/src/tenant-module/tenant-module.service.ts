@@ -12,8 +12,8 @@ import {
 export class TenantModuleService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // ── Read all 17 modules for a tenant ─────────────────────────────────────────
-  // Always returns all 17 module keys — disabled ones have enabled=false.
+  // ── Read all 18 modules for a tenant ─────────────────────────────────────────
+  // Always returns all 18 module keys — disabled ones have enabled=false.
   async getModules(tenantId: string) {
     const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
     if (!tenant) throw new NotFoundException(`Tenant ${tenantId} not found`);

@@ -885,7 +885,7 @@
       },
       "modules": {
         "title": "Active modules",
-        "count": "{{count}} / 17 active modules",
+        "count": "{{count}} / 18 active modules",
         "save": "Save changes",
         "toast": "Modules updated"
       },
@@ -1019,6 +1019,10 @@
         "MOBILE_ACCESS": {
           "label": "Mobile access",
           "description": "Operator mobile application"
+        },
+        "TRACABILITY": {
+          "label": "Traceability",
+          "description": "Batch and product traceability tracking"
         }
       },
       "genericError": "An error occurred. Please try again.",

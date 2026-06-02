@@ -885,7 +885,7 @@
       },
       "modules": {
         "title": "Modules activés",
-        "count": "{{count}} / 17 modules actifs",
+        "count": "{{count}} / 18 modules actifs",
         "save": "Enregistrer les modifications",
         "toast": "Modules mis à jour"
       },
@@ -1019,6 +1019,10 @@
         "MOBILE_ACCESS": {
           "label": "Accès mobile",
           "description": "Application mobile opérateurs"
+        },
+        "TRACABILITY": {
+          "label": "Traçabilité",
+          "description": "Suivi de traçabilité des lots et produits"
         }
       },
       "genericError": "Une erreur est survenue. Veuillez réessayer.",
