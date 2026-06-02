@@ -1,5 +1,5 @@
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Calendar, CheckCircle2, Clock, Repeat, ShieldAlert, ShieldCheck, Tag, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Calendar, CheckCircle2, Clock, Printer, Repeat, ShieldAlert, ShieldCheck, Tag, TrendingUp, XCircle } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -524,6 +524,25 @@ export default function DashboardPage() {
     {},
   );
 
+  // ── Print jobs stats (today) ───────────────────────────────────────────────
+  const printStatsQuery = useQuery({
+    queryKey: ['print-jobs.today.stats', tenantId],
+    queryFn: async () => {
+      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const { data } = await api.get<{ data: Array<{ status: string; createdAt: string }> }>(
+        `/api/v1/print-jobs?limit=200`,
+      );
+      const jobs      = (data.data ?? []).filter((j) => j.createdAt.startsWith(today));
+      const total     = jobs.length;
+      const failed    = jobs.filter((j) => j.status === 'FAILED').length;
+      const completed = jobs.filter((j) => j.status === 'COMPLETED').length;
+      const rate      = total > 0 ? Math.round((completed / total) * 100) : 0;
+      return { total, failed, rate };
+    },
+    refetchInterval: 5 * 60 * 1000,
+    enabled: !isOperator,
+  });
+
   // ── Pre-compute chart data ─────────────────────────────────────────────────
   // monthKeys never changes (static 6-month window); monthLabels re-runs when
   // the user switches language so chart axis labels update immediately.
@@ -658,6 +677,46 @@ export default function DashboardPage() {
 
         {/* ── DLC expiry alert widget ── */}
         <DlcAlertWidget />
+
+        {/* ── Thermal printing KPIs ── */}
+        <div className="mt-6">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-600">
+            <Printer className="h-4 w-4 text-gray-400" />
+            {t('dashboard.printingSection')}
+          </h3>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <KpiCard
+              label={t('dashboard.printJobsToday')}
+              value={printStatsQuery.data?.total ?? '—'}
+              icon={Printer}
+              color="text-brand-dark"
+              bg="bg-brand-lighter"
+              loading={printStatsQuery.isLoading}
+            />
+            <KpiCard
+              label={t('dashboard.printJobsFailed')}
+              value={printStatsQuery.data?.failed ?? '—'}
+              icon={XCircle}
+              color={printStatsQuery.data?.failed ? 'text-red-600' : 'text-gray-400'}
+              bg={printStatsQuery.data?.failed ? 'bg-red-50' : 'bg-surface-page'}
+              loading={printStatsQuery.isLoading}
+            />
+            <KpiCard
+              label={t('dashboard.printSuccessRate')}
+              value={printStatsQuery.data != null ? `${printStatsQuery.data.rate}%` : '—'}
+              icon={CheckCircle2}
+              color={
+                printStatsQuery.data?.rate != null && printStatsQuery.data.rate >= 90
+                  ? 'text-green-600'
+                  : printStatsQuery.data?.rate != null && printStatsQuery.data.rate >= 70
+                    ? 'text-gold'
+                    : 'text-gray-400'
+              }
+              bg="bg-surface-page"
+              loading={printStatsQuery.isLoading}
+            />
+          </div>
+        </div>
 
         {/* ── Recharts row ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">

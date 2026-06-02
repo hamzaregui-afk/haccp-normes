@@ -146,6 +146,8 @@ export const en: Translations = {
       invalidDays:    'Shelf life must be a positive integer.',
       invalidDate:    'Manufacturing date must be in YYYY-MM-DD format.',
     },
+    printNetwork:        'Print via Zebra',
+    printNetworkSuccess: 'Print job sent to network printer',
     errorTitle:  'Error',
     errorMsg:    'Unable to calculate use-by date.',
     serverError: 'Unable to connect to the server.',

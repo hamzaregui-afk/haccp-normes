@@ -145,6 +145,8 @@ export const fr = {
       invalidDays:    'La durée de conservation doit être un entier positif.',
       invalidDate:    'La date de fabrication doit être au format YYYY-MM-DD.',
     },
+    printNetwork:        'Imprimer via Zebra',
+    printNetworkSuccess: "Tâche d'impression envoyée à l'imprimante réseau",
     errorTitle:  'Erreur',
     errorMsg:    'Impossible de calculer la DLC.',
     serverError: 'Impossible de se connecter au serveur.',

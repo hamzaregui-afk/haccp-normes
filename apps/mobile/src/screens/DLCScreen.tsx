@@ -201,8 +201,9 @@ export function DLCScreen(_props: Props) {
   const [lotNumber, setLotNumber]   = useState('');
   const [fabDate, setFabDate]       = useState('');
   const [shelfLife, setShelfLife]   = useState('3');
-  const [calculating, setCalculating] = useState(false);
-  const [lastResult, setLastResult]   = useState<DLCResult | null>(null);
+  const [calculating, setCalculating]     = useState(false);
+  const [networkPrinting, setNetworkPrinting] = useState(false);
+  const [lastResult, setLastResult]       = useState<DLCResult | null>(null);
 
   const handleCalculateAndPrint = async () => {
     // Basic validation
@@ -266,6 +267,53 @@ export function DLCScreen(_props: Props) {
       Alert.alert(t('dlc.errorTitle'), msg);
     } finally {
       setCalculating(false);
+    }
+  };
+
+  const handleNetworkPrint = async () => {
+    if (!productName.trim() || !lotNumber.trim() || !fabDate.trim()) {
+      Alert.alert(t('dlc.errorTitle'), t('dlc.validation.requiredFields'));
+      return;
+    }
+    const days = parseInt(shelfLife, 10);
+    if (isNaN(days) || days <= 0) {
+      Alert.alert(t('dlc.errorTitle'), t('dlc.validation.invalidDays'));
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fabDate.trim())) {
+      Alert.alert(t('dlc.errorTitle'), t('dlc.validation.invalidDate'));
+      return;
+    }
+
+    setNetworkPrinting(true);
+    try {
+      const calcRes = await dlcClient.post<DLCResponse>('/api/v1/dlc/calculate', {
+        productId:   productName.trim(),
+        productName: productName.trim(),
+        dlcDays:     days,
+        producedAt:  fabDate.trim(),
+      });
+      const result = calcRes.data.data;
+      setLastResult(result);
+
+      await dlcClient.post('/api/v1/print-jobs', {
+        labelType: 'DLC',
+        copies: 1,
+        payload: {
+          productName: result.productName,
+          lotNumber:   lotNumber.trim(),
+          producedAt:  result.producedAt,
+          expiresAt:   result.expiresAt,
+        },
+      });
+      Alert.alert('✅', t('dlc.printNetworkSuccess'));
+    } catch (err: unknown) {
+      const msg = isApiError(err)
+        ? String(err.response?.data?.message ?? t('dlc.errorMsg'))
+        : t('dlc.serverError');
+      Alert.alert(t('dlc.errorTitle'), msg);
+    } finally {
+      setNetworkPrinting(false);
     }
   };
 
@@ -350,6 +398,22 @@ export function DLCScreen(_props: Props) {
           <>
             <Text style={styles.printBtnIcon}>🖨️</Text>
             <Text style={styles.printBtnText}>{t('dlc.calculatePrint')}</Text>
+          </>
+        )}
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.networkPrintBtn, networkPrinting && styles.printBtnDisabled]}
+        onPress={handleNetworkPrint}
+        disabled={networkPrinting}
+        activeOpacity={0.85}
+      >
+        {networkPrinting ? (
+          <ActivityIndicator color="#1A3D2B" />
+        ) : (
+          <>
+            <Text style={styles.networkPrintBtnIcon}>🔌</Text>
+            <Text style={styles.networkPrintBtnText}>{t('dlc.printNetwork')}</Text>
           </>
         )}
       </TouchableOpacity>
@@ -445,5 +509,25 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     textAlign: 'center',
     lineHeight: 18,
+  },
+  networkPrintBtn: {
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#1A3D2B',
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  networkPrintBtnIcon: {
+    fontSize: 18,
+  },
+  networkPrintBtnText: {
+    color: '#1A3D2B',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

@@ -148,6 +148,8 @@ export const ar: Translations = {
       invalidDays:    'يجب أن تكون مدة الصلاحية عددًا صحيحًا موجبًا.',
       invalidDate:    'يجب أن يكون تاريخ التصنيع بصيغة YYYY-MM-DD.',
     },
+    printNetwork:        'طباعة عبر Zebra',
+    printNetworkSuccess: 'تم إرسال مهمة الطباعة إلى الطابعة الشبكية',
     errorTitle:  'خطأ',
     errorMsg:    'تعذّر حساب تاريخ الصلاحية.',
     serverError: 'تعذّر الاتصال بالخادم.',
