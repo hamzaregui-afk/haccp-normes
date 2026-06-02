@@ -535,6 +535,37 @@ services:
       # Give the service 60s to run Prisma migrations before counting failures
       start_period: 60s
 
+  # ── PRINTING SERVICE ─────────────────────────────────────────────────────────
+
+  printing-service:
+    build:
+      context: .
+      dockerfile: services/printing-service/Dockerfile
+    container_name: haccp-printing
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3021
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/haccp_printing
+      JWT_SECRET: ${JWT_SECRET}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      AUDIT_SERVICE_URL: http://audit-service:3019/api/v1
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-haccp-internal-dev-secret-change-in-prod}
+      OTEL_SERVICE_NAME: printing-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
+    depends_on:
+      postgres:  { condition: service_healthy }
+      rabbitmq:  { condition: service_healthy }
+    networks:
+      - haccp-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3021/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   # ── FRONTEND ──────────────────────────────────────────────────────────────────
 
   web:

@@ -340,6 +340,8 @@ jobs:
               docker restart haccp-tracability && sleep 15
               echo "=== asset GED comment migration ===" && bash infrastructure/scripts/migrate-asset-ged-comment.sh
               docker restart haccp-assets && sleep 10
+              echo "=== printing-service migration ===" && bash infrastructure/scripts/migrate-printing.sh
+              docker restart haccp-printing && sleep 15
               echo "=== Verifying new tables exist in haccp_tenants DB ==="
               docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_tenants \
                 -c "\dt" 2>&1 | grep -E "tenant_modules|tenant_subscriptions|sites|zones" || echo "Tables not found yet"

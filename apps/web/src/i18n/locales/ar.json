@@ -19,7 +19,8 @@
     "assets": "إدارة الأصول",
     "team": "الفريق",
     "administration": "الإدارة",
-    "documents": "الوثائق"
+    "documents": "الوثائق",
+    "printers": "الطابعات"
   },
   "common": {
     "save": "حفظ",
@@ -627,6 +628,16 @@
     "error": "خطأ في تحميل بطاقات الصلاحية",
     "pagination": {
       "info": "صفحة {{page}} من {{lastPage}} — {{total}} بطاقة"
+    },
+    "printModal": {
+      "title": "طباعة الملصق",
+      "selectPrinter": "اختر طابعة",
+      "noPrinters": "لا توجد طابعات متاحة",
+      "copies": "عدد النسخ",
+      "print": "طباعة",
+      "cancel": "إلغاء",
+      "success": "بدأت مهمة الطباعة",
+      "error": "خطأ في الطباعة"
     }
   },
   "audit": {
@@ -1355,6 +1366,8 @@
     "gedRequestCreated": "📄 طلب وثيقة جديد",
     "gedRequestFulfilled": "✅ تم تنفيذ الطلب",
     "gedRequestRejected": "❌ تم رفض الطلب",
+    "printJobFailed": "🖨️ فشل مهمة الطباعة",
+    "printerOffline": "🔴 الطابعة غير متصلة",
     "unreadCount": "{{count}} إشعار غير مقروء",
     "unreadBadge": "غير مقروء",
     "panel": "لوحة الإشعارات"
@@ -1546,5 +1559,56 @@
   "sidebar": {
     "closeMenu": "إغلاق القائمة",
     "logout": "تسجيل الخروج"
+  },
+  "printers": {
+    "title": "الطابعات",
+    "subtitle": "إدارة طابعاتك الحرارية",
+    "addPrinter": "إضافة طابعة",
+    "editPrinter": "تعديل الطابعة",
+    "deletePrinter": "حذف الطابعة",
+    "deleteConfirm": "حذف «{{name}}»؟",
+    "noPrinters": "لا توجد طابعات مضبوطة",
+    "noPrintersDesc": "أضف طابعة لتفعيل طباعة الملصقات.",
+    "setDefault": "تعيين كطابعة افتراضية",
+    "default": "افتراضي",
+    "active": "نشطة",
+    "inactive": "غير نشطة",
+    "connectionType": {
+      "NETWORK": "شبكة",
+      "BLUETOOTH": "بلوتوث",
+      "USB": "USB"
+    },
+    "form": {
+      "name": "الاسم",
+      "model": "الطراز",
+      "connectionType": "نوع الاتصال",
+      "ipAddress": "عنوان IP",
+      "port": "المنفذ",
+      "bluetoothIdentifier": "معرّف بلوتوث",
+      "isDefault": "طابعة افتراضية",
+      "cancel": "إلغاء",
+      "save": "حفظ",
+      "add": "إضافة"
+    },
+    "printJobs": {
+      "title": "سجل الطباعة",
+      "subtitle": "جميع مهام الطباعة",
+      "noJobs": "لا توجد مهام طباعة",
+      "retry": "إعادة المحاولة",
+      "status": {
+        "PENDING": "قيد الانتظار",
+        "PROCESSING": "جاري المعالجة",
+        "COMPLETED": "تمت الطباعة",
+        "FAILED": "فشل"
+      },
+      "cols": {
+        "date": "التاريخ",
+        "type": "النوع",
+        "printer": "الطابعة",
+        "copies": "النسخ",
+        "status": "الحالة",
+        "error": "خطأ"
+      }
+    }
   }
 }

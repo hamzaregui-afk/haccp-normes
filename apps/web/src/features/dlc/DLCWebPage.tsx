@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/Modal';
 import { api } from '@/lib/api';
 import { fmtDate } from '@/lib/utils';
 import { useTenantId } from '@/hooks/useTenantId';
+import { PrintDlcModal, type DlcLabelPayload } from './components/PrintDlcModal';
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
@@ -276,7 +277,12 @@ function addDays(dateStr: string, days: number): Date {
 
 // ─── DLC table ────────────────────────────────────────────────────────────────
 
-function DLCTable({ labels }: { labels: DLCLabel[] }) {
+interface DLCTableProps {
+  labels:     DLCLabel[];
+  onPrint:    (label: DLCLabel) => void;
+}
+
+function DLCTable({ labels, onPrint }: DLCTableProps) {
   const { t, i18n } = useTranslation();
 
   if (labels.length === 0) {
@@ -327,13 +333,26 @@ function DLCTable({ labels }: { labels: DLCLabel[] }) {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-center">
-                  <button
-                    onClick={() => handleReprint(label)}
-                    className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 shadow-sm transition-colors hover:border-brand-medium hover:text-brand-dark"
-                  >
-                    <Printer className="h-3 w-3" />
-                    {t('dlc.print')}
-                  </button>
+                  <div className="flex items-center justify-center gap-1">
+                    {/* ZPL direct print (Zebra Browser Print) */}
+                    <button
+                      onClick={() => handleReprint(label)}
+                      className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:text-gray-800"
+                      title="Impression ZPL directe"
+                    >
+                      <Printer className="h-3 w-3" />
+                      ZPL
+                    </button>
+                    {/* Network printer via API */}
+                    <button
+                      onClick={() => onPrint(label)}
+                      className="inline-flex items-center gap-1 rounded-md border border-brand-medium/40 bg-brand-medium/5 px-2.5 py-1 text-xs font-medium text-brand-dark shadow-sm transition-colors hover:border-brand-medium hover:bg-brand-medium/10"
+                      title={t('dlc.print')}
+                    >
+                      <Printer className="h-3 w-3" />
+                      {t('dlc.print')}
+                    </button>
+                  </div>
                 </td>
               </tr>
             );
@@ -418,12 +437,13 @@ type Tab = 'today' | 'soon' | 'all';
 
 export default function DLCWebPage() {
   const { t, i18n } = useTranslation();
-  const [activeTab, setActiveTab] = useState<Tab>('today');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm]           = useState<FormState>(INITIAL);
-  const [allPage, setAllPage]     = useState(1);
-  const queryClient               = useQueryClient();
-  const tenantId                  = useTenantId();
+  const [activeTab, setActiveTab]   = useState<Tab>('today');
+  const [modalOpen, setModalOpen]   = useState(false);
+  const [form, setForm]             = useState<FormState>(INITIAL);
+  const [allPage, setAllPage]       = useState(1);
+  const queryClient                 = useQueryClient();
+  const tenantId                    = useTenantId();
+  const [printLabel, setPrintLabel] = useState<DlcLabelPayload | null>(null);
 
   const tabs = useMemo(() => [
     { id: 'today' as Tab, label: t('dlc.tabs.today') },
@@ -522,7 +542,16 @@ export default function DLCWebPage() {
           <div className="py-20 text-center text-sm text-red-500">{t('dlc.error')}</div>
         ) : (
           <>
-            <DLCTable labels={labels} />
+            <DLCTable
+              labels={labels}
+              onPrint={(label) => setPrintLabel({
+                id:          label.id,
+                productName: label.productName,
+                lotNumber:   label.lotNumber,
+                producedAt:  label.producedAt,
+                expiresAt:   label.expiresAt,
+              })}
+            />
             {allMeta && allMeta.lastPage > 1 && (
               <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
                 <span>{t('dlc.pagination.info', { page: allMeta.page, lastPage: allMeta.lastPage, total: allMeta.total })}</span>
@@ -535,7 +564,15 @@ export default function DLCWebPage() {
           </>
         )}
 
-        {/* Modal */}
+        {/* Print via network printer modal */}
+        {printLabel && (
+          <PrintDlcModal
+            dlcLabel={printLabel}
+            onClose={() => setPrintLabel(null)}
+          />
+        )}
+
+        {/* New label modal */}
         <Modal
           open={modalOpen}
           onClose={closeModal}

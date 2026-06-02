@@ -293,6 +293,26 @@ export function useNotifications(): NotificationsState {
       void queryClient.invalidateQueries({ queryKey: ['ged.requests.pending.count'] });
     };
 
+    // Print job failed — invalidate print-jobs list for history refresh
+    const onPrintJobFailed = (payload: { jobId?: string; errorMessage?: string; eventId: string; timestamp: string }) => {
+      showToast({
+        title: t('notifications.printJobFailed'),
+        body:  payload.errorMessage ?? '',
+        variant: 'error',
+      });
+      void queryClient.invalidateQueries({ queryKey: ['print-jobs'] });
+    };
+
+    // Printer went offline — invalidate printers list
+    const onPrinterOffline = (payload: { printerId?: string; printerName?: string; eventId: string; timestamp: string }) => {
+      showToast({
+        title: t('notifications.printerOffline'),
+        body:  payload.printerName ?? '',
+        variant: 'warning',
+      });
+      void queryClient.invalidateQueries({ queryKey: ['printers'] });
+    };
+
     socket.on('notification:new',              onNew);
     socket.on('notification:nc-created',       onNcCreated);
     socket.on('notification:task-completed',   onTaskCompleted);
@@ -303,6 +323,8 @@ export function useNotifications(): NotificationsState {
     socket.on('notification:ged-request-created',   onGedRequestCreated);
     socket.on('notification:ged-request-fulfilled', onGedRequestFulfilled);
     socket.on('notification:ged-request-rejected',  onGedRequestRejected);
+    socket.on('notification:print-job-failed', onPrintJobFailed);
+    socket.on('notification:printer-offline',  onPrinterOffline);
 
     return () => {
       socket.off('notification:new',              onNew);
@@ -315,6 +337,8 @@ export function useNotifications(): NotificationsState {
       socket.off('notification:ged-request-created',   onGedRequestCreated);
       socket.off('notification:ged-request-fulfilled', onGedRequestFulfilled);
       socket.off('notification:ged-request-rejected',  onGedRequestRejected);
+      socket.off('notification:print-job-failed', onPrintJobFailed);
+      socket.off('notification:printer-offline',  onPrinterOffline);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, t, queryClient]);

@@ -19,7 +19,8 @@
     "assets": "Asset management",
     "team": "Team",
     "administration": "Administration",
-    "documents": "Documents"
+    "documents": "Documents",
+    "printers": "Printers"
   },
   "common": {
     "save": "Save",
@@ -627,6 +628,16 @@
     "error": "Error loading DLC labels",
     "pagination": {
       "info": "Page {{page}} of {{lastPage}} — {{total}} label(s)"
+    },
+    "printModal": {
+      "title": "Print Label",
+      "selectPrinter": "Select a printer",
+      "noPrinters": "No printer available",
+      "copies": "Number of copies",
+      "print": "Print",
+      "cancel": "Cancel",
+      "success": "Print job started",
+      "error": "Print error"
     }
   },
   "audit": {
@@ -1355,6 +1366,8 @@
     "gedRequestCreated": "📄 New document request",
     "gedRequestFulfilled": "✅ Request fulfilled",
     "gedRequestRejected": "❌ Request rejected",
+    "printJobFailed": "🖨️ Print job failed",
+    "printerOffline": "🔴 Printer offline",
     "unreadCount": "{{count}} unread notification{{s}}",
     "unreadBadge": "Unread",
     "panel": "Notifications panel"
@@ -1546,5 +1559,56 @@
   "sidebar": {
     "closeMenu": "Close menu",
     "logout": "Log out"
+  },
+  "printers": {
+    "title": "Printers",
+    "subtitle": "Manage your thermal printers",
+    "addPrinter": "Add printer",
+    "editPrinter": "Edit printer",
+    "deletePrinter": "Delete printer",
+    "deleteConfirm": "Delete “{{name}}”?",
+    "noPrinters": "No printers configured",
+    "noPrintersDesc": "Add a printer to enable label printing.",
+    "setDefault": "Set as default",
+    "default": "Default",
+    "active": "Active",
+    "inactive": "Inactive",
+    "connectionType": {
+      "NETWORK": "Network",
+      "BLUETOOTH": "Bluetooth",
+      "USB": "USB"
+    },
+    "form": {
+      "name": "Name",
+      "model": "Model",
+      "connectionType": "Connection type",
+      "ipAddress": "IP Address",
+      "port": "Port",
+      "bluetoothIdentifier": "Bluetooth identifier",
+      "isDefault": "Default printer",
+      "cancel": "Cancel",
+      "save": "Save",
+      "add": "Add"
+    },
+    "printJobs": {
+      "title": "Print history",
+      "subtitle": "All print jobs",
+      "noJobs": "No print jobs",
+      "retry": "Retry",
+      "status": {
+        "PENDING": "Pending",
+        "PROCESSING": "Processing",
+        "COMPLETED": "Printed",
+        "FAILED": "Failed"
+      },
+      "cols": {
+        "date": "Date",
+        "type": "Type",
+        "printer": "Printer",
+        "copies": "Copies",
+        "status": "Status",
+        "error": "Error"
+      }
+    }
   }
 }

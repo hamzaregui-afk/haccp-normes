@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
+import { ChevronRight, History, Printer } from 'lucide-react';
 
 import { PageWrapper } from '@/components/layout/AppLayout';
 import { Header } from '@/components/layout/Header';
@@ -342,6 +344,39 @@ export default function SettingsPage() {
             setTimeout(() => setToast(null), 3500);
           }}
         />
+      )}
+
+      {/* Printers section — ADMIN/SUPER_ADMIN only */}
+      {isSuperAdmin && (
+        <PageWrapper>
+          <div className="max-w-2xl">
+            <SectionCard title={t('printers.title')}>
+              <p className="mb-4 text-sm text-gray-500">{t('printers.subtitle')}</p>
+              <div className="flex flex-col gap-2">
+                <Link
+                  to="/settings/printers"
+                  className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:border-brand-medium hover:text-brand-dark"
+                >
+                  <span className="flex items-center gap-2">
+                    <Printer className="h-4 w-4 text-brand-medium" />
+                    {t('printers.title')}
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-gray-400" />
+                </Link>
+                <Link
+                  to="/settings/print-jobs"
+                  className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:border-brand-medium hover:text-brand-dark"
+                >
+                  <span className="flex items-center gap-2">
+                    <History className="h-4 w-4 text-brand-medium" />
+                    {t('printers.printJobs.title')}
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-gray-400" />
+                </Link>
+              </div>
+            </SectionCard>
+          </div>
+        </PageWrapper>
       )}
 
       {/* Services health widget — ADMIN/SUPER_ADMIN only */}

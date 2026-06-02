@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   BarChart3, BookOpen, Building2, ChevronRight, ClipboardList, Cog, FileText,
-  FolderOpen, LayoutDashboard, LogOut, MapPin, Package, ScrollText, ShieldAlert, Tag, Truck, Users, UsersRound, X, Layers,
+  FolderOpen, LayoutDashboard, LogOut, MapPin, Package, Printer, ScrollText, ShieldAlert, Tag, Truck, Users, UsersRound, X, Layers,
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -105,11 +105,12 @@ const NAV_SECTIONS: NavSection[] = [
   {
     titleKey: 'nav.administration',
     items: [
-      { labelKey: 'nav.reports',  to: '/reports',  icon: BarChart3,  roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN'], moduleKey: 'REPORTS' },
-      { labelKey: 'nav.audit',    to: '/audit',    icon: ScrollText, roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'],                               moduleKey: 'AUDIT'   },
-      { labelKey: 'nav.settings', to: '/settings', icon: Cog,        roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
+      { labelKey: 'nav.reports',   to: '/reports',           icon: BarChart3,  roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN'], moduleKey: 'REPORTS' },
+      { labelKey: 'nav.audit',     to: '/audit',             icon: ScrollText, roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'],                               moduleKey: 'AUDIT'   },
+      { labelKey: 'nav.settings',  to: '/settings',          icon: Cog,        roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] },
+      { labelKey: 'nav.printers',  to: '/settings/printers', icon: Printer,    roles: ['ADMIN', 'SUPER_ADMIN'] },
       // Clients: SUPER_ADMIN only — platform-level tenant management
-      { labelKey: 'nav.clients',  to: '/clients',  icon: Building2,  roles: ['SUPER_ADMIN'] },
+      { labelKey: 'nav.clients',   to: '/clients',           icon: Building2,  roles: ['SUPER_ADMIN'] },
     ],
   },
 ];

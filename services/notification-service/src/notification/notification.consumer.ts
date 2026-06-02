@@ -299,4 +299,31 @@ export class NotificationConsumer {
       timestamp: data.timestamp,
     });
   }
+
+  // ─── printing.job.failed ──────────────────────────────────────────────────
+  // Broadcast to tenant so admins see failed print jobs in real-time.
+
+  @EventPattern('printing.job.failed.v1')
+  handlePrintJobFailed(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
+    this.dispatch(
+      data,
+      'printing.job.failed',
+      'notification:print-job-failed',
+      `jobId=${String(data.payload['jobId'] ?? '?')} error="${String(data.payload['errorMessage'] ?? '')}"`,
+    );
+    ctx.getChannelRef().ack(ctx.getMessage());
+  }
+
+  // ─── printing.printer.offline ─────────────────────────────────────────────
+
+  @EventPattern('printing.printer.offline.v1')
+  handlePrinterOffline(@Payload() data: DomainEventEnvelope, @Ctx() ctx: RmqContext): void {
+    this.dispatch(
+      data,
+      'printing.printer.offline',
+      'notification:printer-offline',
+      `printerId=${String(data.payload['printerId'] ?? '?')} name="${String(data.payload['printerName'] ?? '')}"`,
+    );
+    ctx.getChannelRef().ack(ctx.getMessage());
+  }
 }

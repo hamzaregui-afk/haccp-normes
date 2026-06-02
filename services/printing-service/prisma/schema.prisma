@@ -1,0 +1,85 @@
+// printing-service owns: Printer, PrinterTemplate, PrintJob
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ConnectionType {
+  NETWORK
+  BLUETOOTH
+  USB
+}
+
+enum PrintJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model Printer {
+  id                  String         @id @default(cuid())
+  tenantId            String         @map("tenant_id")
+  name                String
+  model               String?
+  connectionType      ConnectionType @default(NETWORK) @map("connection_type")
+  ipAddress           String?        @map("ip_address")
+  port                Int            @default(9100)
+  bluetoothIdentifier String?        @map("bluetooth_identifier")
+  isDefault           Boolean        @default(false) @map("is_default")
+  isActive            Boolean        @default(true) @map("is_active")
+  siteId              String?        @map("site_id")
+  zoneId              String?        @map("zone_id")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+
+  jobs PrintJob[]
+
+  @@index([tenantId])
+  @@map("printers")
+}
+
+model PrinterTemplate {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  labelType   String   @map("label_type") // DLC, TRACABILITY, NC, etc.
+  widthMm     Int      @default(100) @map("width_mm")
+  heightMm    Int      @default(50) @map("height_mm")
+  zplTemplate String   @map("zpl_template") // Raw ZPL with {{variable}} placeholders
+  isDefault   Boolean  @default(false) @map("is_default")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId, labelType])
+  @@map("printer_templates")
+}
+
+model PrintJob {
+  id           String         @id @default(cuid())
+  tenantId     String         @map("tenant_id")
+  userId       String         @map("user_id")
+  printerId    String?        @map("printer_id")
+  templateId   String?        @map("template_id")
+  labelType    String         @map("label_type")
+  payload      Json           // data used to render the template
+  zpl          String?        // generated ZPL (stored for retry/audit)
+  status       PrintJobStatus @default(PENDING)
+  errorMessage String?        @map("error_message")
+  copies       Int            @default(1)
+  createdAt    DateTime       @default(now()) @map("created_at")
+  printedAt    DateTime?      @map("printed_at")
+
+  printer Printer? @relation(fields: [printerId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("print_jobs")
+}

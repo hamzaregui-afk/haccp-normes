@@ -19,7 +19,8 @@
     "assets": "Gestion actifs",
     "team": "Équipe",
     "administration": "Administration",
-    "documents": "Documents"
+    "documents": "Documents",
+    "printers": "Imprimantes"
   },
   "common": {
     "save": "Enregistrer",
@@ -627,6 +628,16 @@
     "error": "Erreur lors du chargement des labels DLC",
     "pagination": {
       "info": "Page {{page}} sur {{lastPage}} — {{total}} label(s)"
+    },
+    "printModal": {
+      "title": "Imprimer l’étiquette",
+      "selectPrinter": "Sélectionner une imprimante",
+      "noPrinters": "Aucune imprimante disponible",
+      "copies": "Nombre de copies",
+      "print": "Imprimer",
+      "cancel": "Annuler",
+      "success": "Impression lancée",
+      "error": "Erreur d’impression"
     }
   },
   "audit": {
@@ -1355,6 +1366,8 @@
     "gedRequestCreated": "📄 Nouvelle demande de document",
     "gedRequestFulfilled": "✅ Demande satisfaite",
     "gedRequestRejected": "❌ Demande rejetée",
+    "printJobFailed": "🖨️ Échec d'impression",
+    "printerOffline": "🔴 Imprimante hors ligne",
     "unreadCount": "{{count}} notification{{s}} non lue{{s}}",
     "unreadBadge": "Non lu",
     "panel": "Panneau de notifications"
@@ -1546,5 +1559,56 @@
   "sidebar": {
     "closeMenu": "Fermer le menu",
     "logout": "Déconnexion"
+  },
+  "printers": {
+    "title": "Imprimantes",
+    "subtitle": "Gérez vos imprimantes thermiques",
+    "addPrinter": "Ajouter une imprimante",
+    "editPrinter": "Modifier l’imprimante",
+    "deletePrinter": "Supprimer l’imprimante",
+    "deleteConfirm": "Supprimer « {{name}} » ?",
+    "noPrinters": "Aucune imprimante configurée",
+    "noPrintersDesc": "Ajoutez une imprimante pour activer l’impression des étiquettes.",
+    "setDefault": "Définir par défaut",
+    "default": "Par défaut",
+    "active": "Active",
+    "inactive": "Inactive",
+    "connectionType": {
+      "NETWORK": "Réseau",
+      "BLUETOOTH": "Bluetooth",
+      "USB": "USB"
+    },
+    "form": {
+      "name": "Nom",
+      "model": "Modèle",
+      "connectionType": "Type de connexion",
+      "ipAddress": "Adresse IP",
+      "port": "Port",
+      "bluetoothIdentifier": "Identifiant Bluetooth",
+      "isDefault": "Imprimante par défaut",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "add": "Ajouter"
+    },
+    "printJobs": {
+      "title": "Historique d’impression",
+      "subtitle": "Tous les travaux d’impression",
+      "noJobs": "Aucun travail d’impression",
+      "retry": "Réessayer",
+      "status": {
+        "PENDING": "En attente",
+        "PROCESSING": "En cours",
+        "COMPLETED": "Imprimé",
+        "FAILED": "Échec"
+      },
+      "cols": {
+        "date": "Date",
+        "type": "Type",
+        "printer": "Imprimante",
+        "copies": "Copies",
+        "status": "Statut",
+        "error": "Erreur"
+      }
+    }
   }
 }

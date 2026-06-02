@@ -21,6 +21,8 @@ const GroupsPage          = lazy(() => import('@/features/groups/GroupsPage'));
 const ZonesPage           = lazy(() => import('@/features/zones/ZonesPage'));
 const ReportsPage         = lazy(() => import('@/features/reports/ReportsPage'));
 const SettingsPage        = lazy(() => import('@/features/settings/SettingsPage'));
+const PrintersPage        = lazy(() => import('@/features/settings/printers/PrintersPage'));
+const PrintJobsPage       = lazy(() => import('@/features/settings/printers/PrintJobsPage'));
 const DLCWebPage          = lazy(() => import('@/features/dlc/DLCWebPage'));
 const AuditPage           = lazy(() => import('@/features/audit/AuditPage'));
 const DocumentsPage       = lazy(() => import('@/features/documents/DocumentsPage'));
@@ -238,6 +240,22 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
         element: (
           <RequireRole roles={['ADMIN', 'MANAGER', 'SUPER_ADMIN']}>
             {S(SettingsPage)}
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'settings/printers',
+        element: (
+          <RequireRole roles={['ADMIN', 'SUPER_ADMIN']}>
+            {S(PrintersPage)}
+          </RequireRole>
+        ),
+      },
+      {
+        path: 'settings/print-jobs',
+        element: (
+          <RequireRole roles={['ADMIN', 'SUPER_ADMIN']}>
+            {S(PrintJobsPage)}
           </RequireRole>
         ),
       },
