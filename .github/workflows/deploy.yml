@@ -448,6 +448,23 @@ jobs:
             PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD)
             echo "=== printing-service migration ===" && bash infrastructure/scripts/migrate-printing.sh || echo "printing migration non-fatal"
 
+            # ── Activate TRACABILITY module for all existing tenants (idempotent) ──
+            # ARCH-DECISION: TRACABILITY was added to ALL_MODULE_KEYS after initial
+            # tenant creation, so existing tenants lack the module row. This upsert
+            # enables TRACABILITY for all tenants that don't have it yet. Tenants
+            # that already have it explicitly disabled (enabled=false) are NOT
+            # updated (ON CONFLICT DO NOTHING) — only new rows are inserted.
+            echo "=== Activating TRACABILITY module for all tenants ==="
+            docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_tenants -c "
+              ALTER TYPE \"TenantModuleKey\" ADD VALUE IF NOT EXISTS 'TRACABILITY';
+            " 2>&1 || echo "ALTER TYPE already exists"
+            docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_tenants -c "
+              INSERT INTO tenant_modules (id, tenant_id, module_key, enabled, created_at, updated_at)
+              SELECT gen_random_uuid()::TEXT, t.id, 'TRACABILITY', true, NOW(), NOW()
+              FROM tenants t
+              ON CONFLICT (tenant_id, module_key) DO NOTHING;
+            " 2>&1 && echo "TRACABILITY module activated for all tenants" || echo "tenant_modules upsert skipped"
+
             # ── Seed superadmin in BOTH databases ────────────────────────────────
             ADMIN_ID="clx_superadmin_platform_01"
             ADMIN_HASH="$SUPERADMIN_HASH"

@@ -8,7 +8,7 @@ import { UnauthorizedError } from '@haccp/shared-errors';
 import { env } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
 
-// ── All 17 module keys — granted to SUPER_ADMIN unconditionally ────────────────
+// ── All 18 module keys — granted to SUPER_ADMIN unconditionally ────────────────
 // ARCH-DECISION: Kept here as a constant (not imported from shared-types) to
 // avoid a cross-package dependency in the hot path. Must stay in sync with
 // ALL_TENANT_MODULE_KEYS in packages/shared-types/src/tenant.types.ts.
@@ -16,6 +16,7 @@ const ALL_MODULE_KEYS: string[] = [
   'DASHBOARD', 'HACCP_CONTROLS', 'NONCONFORMITIES', 'DLC', 'REPORTS',
   'EQUIPMENTS', 'PRODUCTS', 'SUPPLIERS', 'GED', 'NOTIFICATIONS', 'AUDIT',
   'PLANNING', 'TEMPERATURES', 'RECEPTIONS', 'HYGIENE', 'ANALYTICS', 'MOBILE_ACCESS',
+  'TRACABILITY',
 ];
 
 interface TenantJwtContext {

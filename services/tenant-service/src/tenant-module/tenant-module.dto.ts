@@ -18,6 +18,7 @@ export const ALL_MODULE_KEYS = [
   'HYGIENE',
   'ANALYTICS',
   'MOBILE_ACCESS',
+  'TRACABILITY',
 ] as const;
 
 export type TenantModuleKey = (typeof ALL_MODULE_KEYS)[number];
@@ -56,6 +57,7 @@ export const PLAN_DEFAULT_MODULES: Record<string, TenantModuleKey[]> = {
     'GED',
     'NOTIFICATIONS',
     'AUDIT',
+    'TRACABILITY',
   ],
   premium: [...ALL_MODULE_KEYS],
 };
