@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -15,11 +16,18 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { PrintJobService } from './print-job.service';
-import { CreatePrintJobSchema, PrintJobQuerySchema } from './dto/print-job.dto';
+import { CreatePrintJobSchema, PrintJobQuerySchema, PrintJobStatusSchema } from './dto/print-job.dto';
+import { z } from 'zod';
+
+const UpdateJobStatusSchema = z.object({
+  status:       PrintJobStatusSchema,
+  errorMessage: z.string().max(500).optional(),
+});
 
 // All roles that can initiate a print (OPERATOR needs DLC printing on mobile)
 const PRINT_ROLES = ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'OPERATOR', 'QUALITY_OFFICER'] as const;
-const READ_ROLES  = ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER'] as const;
+// OPERATOR included so the local print agent (running as operator) can read its jobs
+const READ_ROLES  = ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'OPERATOR'] as const;
 
 @ApiTags('print-jobs')
 @ApiBearerAuth()
@@ -63,6 +71,19 @@ export class PrintJobController {
     });
 
     return result;
+  }
+
+  // PATCH /print-jobs/:id — used by Local Print Agent to update job status
+  @Patch(':id')
+  @Roles(...PRINT_ROLES)
+  @ApiOperation({ summary: 'Update print job status (used by Local Print Agent)' })
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() rawBody: unknown,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    const dto = UpdateJobStatusSchema.parse(rawBody);
+    return this.printJobService.updateStatus(id, user.tenantId, dto.status, dto.errorMessage);
   }
 
   // POST /print-jobs/:id/retry

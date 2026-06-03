@@ -6,6 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -193,17 +195,99 @@ const alertStyles = StyleSheet.create({
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Printer types ─────────────────────────────────────────────────────────────
+
+interface PrinterOption { id: string; name: string; isDefault: boolean; isActive: boolean; }
+interface PrintersResponse { data: PrinterOption[]; }
+
+// ── Printer picker modal ──────────────────────────────────────────────────────
+
+interface PrinterPickerProps {
+  visible:    boolean;
+  printers:   PrinterOption[];
+  selected:   string;
+  onSelect:   (id: string) => void;
+  onClose:    () => void;
+}
+
+function PrinterPickerModal({ visible, printers, selected, onSelect, onClose }: PrinterPickerProps) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={pickerStyles.overlay} onPress={onClose}>
+        <View style={pickerStyles.sheet}>
+          <Text style={pickerStyles.title}>Choisir une imprimante</Text>
+          {printers.length === 0 ? (
+            <Text style={pickerStyles.empty}>Aucune imprimante disponible</Text>
+          ) : (
+            printers.map((p) => (
+              <TouchableOpacity
+                key={p.id}
+                style={[pickerStyles.item, p.id === selected && pickerStyles.itemSelected]}
+                onPress={() => { onSelect(p.id); onClose(); }}
+              >
+                <Text style={[pickerStyles.itemText, p.id === selected && pickerStyles.itemTextSelected]}>
+                  {p.name}{p.isDefault ? '  ⭐' : ''}
+                </Text>
+              </TouchableOpacity>
+            ))
+          )}
+          <TouchableOpacity style={pickerStyles.cancel} onPress={onClose}>
+            <Text style={pickerStyles.cancelText}>Annuler</Text>
+          </TouchableOpacity>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const pickerStyles = StyleSheet.create({
+  overlay:          { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheet:            { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, paddingBottom: 36 },
+  title:            { fontSize: 16, fontWeight: '700', color: '#1A3D2B', marginBottom: 12 },
+  empty:            { fontSize: 14, color: '#6B7280', textAlign: 'center', paddingVertical: 12 },
+  item:             { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 8, marginBottom: 4 },
+  itemSelected:     { backgroundColor: '#E8F5EE' },
+  itemText:         { fontSize: 15, color: '#374151' },
+  itemTextSelected: { fontWeight: '700', color: '#1A3D2B' },
+  cancel:           { marginTop: 12, alignItems: 'center', paddingVertical: 12 },
+  cancelText:       { fontSize: 15, color: '#6B7280' },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 type Props = BottomTabScreenProps<MainTabParamList, 'DLC'>;
+
+// Return today as YYYY-MM-DD in local time
+function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 export function DLCScreen(_props: Props) {
   const { t, lang } = useTranslation();
   const [productName, setProductName] = useState('');
   const [lotNumber, setLotNumber]   = useState('');
-  const [fabDate, setFabDate]       = useState('');
+  const [fabDate, setFabDate]       = useState(todayISO());
   const [shelfLife, setShelfLife]   = useState('3');
   const [calculating, setCalculating]     = useState(false);
   const [networkPrinting, setNetworkPrinting] = useState(false);
   const [lastResult, setLastResult]       = useState<DLCResult | null>(null);
+  const [showPrinterPicker, setShowPrinterPicker] = useState(false);
+  const [selectedPrinterId, setSelectedPrinterId] = useState('');
+
+  // Fetch active printers for this tenant
+  const { data: printersData } = useQuery<PrinterOption[]>({
+    queryKey: ['printers', 'mobile', 'active'],
+    queryFn: async () => {
+      const res = await dlcClient.get<PrintersResponse>('/api/v1/printers?isActive=true');
+      return (res.data.data ?? []).filter((p) => p.isActive);
+    },
+    staleTime: 120_000,
+  });
+  const printers       = printersData ?? [];
+  const defaultPrinter = printers.find((p) => p.isDefault) ?? printers[0];
+  const effectivePrinterId = selectedPrinterId || defaultPrinter?.id || '';
+  const selectedPrinterName = printers.find((p) => p.id === effectivePrinterId)?.name ?? 'Aucune imprimante';
 
   const handleCalculateAndPrint = async () => {
     // Basic validation
@@ -296,7 +380,13 @@ export function DLCScreen(_props: Props) {
       const result = calcRes.data.data;
       setLastResult(result);
 
+      if (!effectivePrinterId) {
+        Alert.alert(t('dlc.errorTitle'), 'Aucune imprimante sélectionnée. Veuillez configurer une imprimante dans les paramètres.');
+        return;
+      }
+
       await dlcClient.post('/api/v1/print-jobs', {
+        printerId: effectivePrinterId,
         labelType: 'DLC',
         copies: 1,
         payload: {
@@ -402,10 +492,24 @@ export function DLCScreen(_props: Props) {
         )}
       </TouchableOpacity>
 
+      {/* Printer selector */}
+      <Text style={styles.label}>Imprimante réseau</Text>
       <TouchableOpacity
-        style={[styles.networkPrintBtn, networkPrinting && styles.printBtnDisabled]}
+        style={styles.printerSelector}
+        onPress={() => setShowPrinterPicker(true)}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.printerSelectorIcon}>🖨️</Text>
+        <Text style={styles.printerSelectorText} numberOfLines={1}>
+          {effectivePrinterId ? selectedPrinterName : 'Appuyer pour sélectionner…'}
+        </Text>
+        <Text style={styles.printerSelectorChevron}>›</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.networkPrintBtn, (networkPrinting || !effectivePrinterId) && styles.printBtnDisabled]}
         onPress={handleNetworkPrint}
-        disabled={networkPrinting}
+        disabled={networkPrinting || !effectivePrinterId}
         activeOpacity={0.85}
       >
         {networkPrinting ? (
@@ -419,6 +523,14 @@ export function DLCScreen(_props: Props) {
       </TouchableOpacity>
 
       <Text style={styles.hint}>{t('dlc.shareHint')}</Text>
+
+      <PrinterPickerModal
+        visible={showPrinterPicker}
+        printers={printers}
+        selected={effectivePrinterId}
+        onSelect={setSelectedPrinterId}
+        onClose={() => setShowPrinterPicker(false)}
+      />
     </ScrollView>
   );
 }
@@ -463,6 +575,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     marginBottom: 16,
   },
+  printerSelector: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    borderWidth:     1,
+    borderColor:     '#D1D5DB',
+    borderRadius:    8,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    backgroundColor: '#fff',
+    marginBottom:    16,
+  },
+  printerSelectorIcon:    { fontSize: 18, marginRight: 8 },
+  printerSelectorText:    { flex: 1, fontSize: 14, color: '#374151' },
+  printerSelectorChevron: { fontSize: 18, color: '#9CA3AF', marginLeft: 8 },
   resultCard: {
     backgroundColor: '#fff',
     borderRadius: 12,

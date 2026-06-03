@@ -30,6 +30,8 @@ export const PrintJobQuerySchema = z.object({
   limit:     z.coerce.number().int().min(1).max(100).default(20),
   status:    PrintJobStatusSchema.optional(),
   labelType: z.string().optional(),
+  // Used by Local Print Agent to poll its own jobs
+  printerId: z.string().optional(),
 });
 
 export type PrintJobQuery = z.infer<typeof PrintJobQuerySchema>;

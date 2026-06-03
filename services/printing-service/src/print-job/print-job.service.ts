@@ -23,12 +23,13 @@ export class PrintJobService {
   // ── Public API ────────────────────────────────────────────────────────────────
 
   async findAll(tenantId: string, query: PrintJobQuery) {
-    const { page, limit, status, labelType } = query;
+    const { page, limit, status, labelType, printerId } = query;
 
     const where = {
       tenantId,
       ...(status    !== undefined ? { status }    : {}),
       ...(labelType !== undefined ? { labelType } : {}),
+      ...(printerId !== undefined ? { printerId } : {}),
     };
 
     const [items, total] = await Promise.all([
@@ -130,6 +131,40 @@ export class PrintJobService {
     });
 
     return toApiResponse(null, undefined, 'Tâche relancée');
+  }
+
+  /**
+   * Called by the Local Print Agent via PATCH /print-jobs/:id to report
+   * PROCESSING, COMPLETED, or FAILED status after physical printing.
+   */
+  async updateStatus(
+    id:           string,
+    tenantId:     string,
+    status:       'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED',
+    errorMessage?: string,
+  ) {
+    const existing = await this.prisma.printJob.findFirst({ where: { id, tenantId } });
+    if (!existing) throw new NotFoundException(`Tâche d'impression ${id} introuvable`);
+
+    await this.prisma.printJob.update({
+      where: { id, tenantId },
+      data: {
+        status,
+        ...(status === 'COMPLETED' ? { printedAt: new Date() } : {}),
+        ...(errorMessage           ? { errorMessage }           : {}),
+        ...(status === 'COMPLETED' ? { errorMessage: null }     : {}),
+      },
+    });
+
+    if (status === 'COMPLETED') {
+      void publishDomainEvent({
+        eventType: 'printing.job.completed.v1',
+        tenantId,
+        payload:   { jobId: id, printedBy: 'local-agent' },
+      });
+    }
+
+    return toApiResponse(null, undefined, `Statut mis à jour: ${status}`);
   }
 
   // ── Private execution pipeline ────────────────────────────────────────────────

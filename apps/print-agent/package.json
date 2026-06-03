@@ -1,0 +1,21 @@
+{
+  "name": "@haccp/print-agent",
+  "version": "1.0.0",
+  "description": "NORMES HACCP — Local Print Agent for USB/Network thermal printers (Windows/Linux/macOS)",
+  "main": "dist/agent.js",
+  "scripts": {
+    "dev":   "ts-node src/agent.ts",
+    "build": "tsc --project tsconfig.json",
+    "start": "node dist/agent.js",
+    "pkg:win": "pkg dist/agent.js --targets node18-win-x64 --output dist/haccp-print-agent.exe --compress GZip"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "pkg":         "^5.8.1",
+    "ts-node":     "^10.9.1",
+    "typescript":  "^5.4.5"
+  }
+}
