@@ -136,7 +136,10 @@ function PrinterModal({ open, onClose, printer }: PrinterModalProps) {
       showToast({ title: isEdit ? t('printers.editPrinter') : t('printers.addPrinter'), variant: 'success' });
       onClose();
     },
-    onError: () => showToast({ title: t('common.error'), variant: 'error' }),
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      showToast({ title: msg ?? t('common.error'), variant: 'error' });
+    },
   });
 
   function handleSubmit(e: React.FormEvent) {

@@ -19,8 +19,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { PrinterService } from './printer.service';
 import { CreatePrinterSchema, UpdatePrinterSchema, PrinterQuerySchema } from './dto/printer.dto';
 
-const ADMIN_ROLES  = ['ADMIN', 'SUPER_ADMIN'] as const;
-const READ_ROLES   = ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER'] as const;
+const ADMIN_ROLES  = ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] as const;
+const READ_ROLES   = ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'OPERATOR', 'VIEWER'] as const;
 
 @ApiTags('printers')
 @ApiBearerAuth()
