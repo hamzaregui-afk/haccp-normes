@@ -32,6 +32,13 @@ PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD)
 echo "=== printing-service migration ==="
 bash infrastructure/scripts/migrate-printing.sh || echo "printing migration non-fatal"
 
+echo "=== Adding optional performance indexes (idempotent, non-fatal) ==="
+docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_controls -c "
+  CREATE INDEX IF NOT EXISTS outbox_events_tenant_id_idx ON outbox_events (tenant_id);
+  CREATE INDEX IF NOT EXISTS outbox_events_tenant_id_status_idx ON outbox_events (tenant_id, status);
+  CREATE INDEX IF NOT EXISTS control_schedules_tenant_id_is_active_idx ON control_schedules (tenant_id, is_active);
+" 2>&1 && echo "Indexes OK" || echo "Index creation skipped (non-fatal)"
+
 echo "=== Activating TRACABILITY module for all tenants ==="
 docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_tenants \
   -c "ALTER TYPE \"TenantModuleKey\" ADD VALUE IF NOT EXISTS 'TRACABILITY';" 2>&1 || echo "ALTER TYPE already exists"

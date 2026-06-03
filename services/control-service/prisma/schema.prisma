@@ -34,8 +34,6 @@ model OutboxEvent {
   processedAt   DateTime?         @map("processed_at")
 
   @@index([status, createdAt])
-  @@index([tenantId])
-  @@index([tenantId, status])
   @@map("outbox_events")
 }
 
@@ -86,7 +84,6 @@ model ControlSchedule {
 
   @@index([tenantId])
   @@index([isActive, nextRunAt])
-  @@index([tenantId, isActive])
   @@map("control_schedules")
 }
 
