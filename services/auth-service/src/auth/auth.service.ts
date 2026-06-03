@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 
 import type { JwtPayload, TokenPair } from '@haccp/shared-types';
 import { UnauthorizedError } from '@haccp/shared-errors';
