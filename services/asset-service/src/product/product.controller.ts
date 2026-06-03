@@ -14,19 +14,19 @@ export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
   @Get()
-  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'OPERATOR', 'VIEWER')
   findAll(@CurrentUser() user: JwtPayload, @Query() query: unknown) {
     return this.productService.findAll(user.tenantId, ProductQuerySchema.parse(query));
   }
 
   @Get('categories')
-  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'OPERATOR', 'VIEWER')
   findCategories(@CurrentUser() user: JwtPayload) {
     return this.productService.findCategories(user.tenantId);
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'OPERATOR', 'VIEWER')
   findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.productService.findOne(id, user.tenantId);
   }

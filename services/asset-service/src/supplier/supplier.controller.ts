@@ -14,13 +14,13 @@ export class SupplierController {
   constructor(private readonly supplierService: SupplierService) {}
 
   @Get()
-  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'OPERATOR', 'VIEWER')
   findAll(@CurrentUser() user: JwtPayload, @Query() query: unknown) {
     return this.supplierService.findAll(user.tenantId, SupplierQuerySchema.parse(query));
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'OPERATOR', 'VIEWER')
   findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.supplierService.findOne(id, user.tenantId);
   }

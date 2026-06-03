@@ -20,13 +20,13 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Get()
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
   findAll(@CurrentUser() user: JwtPayload, @Query() query: Record<string, unknown>) {
     return this.userService.findAll(user.tenantId, query);
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
   findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.userService.findOne(id, user.tenantId);
   }

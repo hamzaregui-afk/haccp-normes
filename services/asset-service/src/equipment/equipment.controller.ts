@@ -14,13 +14,13 @@ export class EquipmentController {
   constructor(private readonly equipmentService: EquipmentService) {}
 
   @Get()
-  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'OPERATOR', 'VIEWER')
   findAll(@CurrentUser() user: JwtPayload, @Query() query: unknown) {
     return this.equipmentService.findAll(user.tenantId, EquipmentQuerySchema.parse(query));
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'OPERATOR', 'VIEWER')
   findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.equipmentService.findOne(id, user.tenantId);
   }
