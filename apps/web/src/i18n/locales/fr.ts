@@ -1429,6 +1429,59 @@ const fr = {
     },
   },
 
+  // ── Imprimantes ────────────────────────────────────────────────────────────────
+  printers: {
+    title:         'Imprimantes',
+    subtitle:      'Gérez vos imprimantes thermiques par site et par zone.',
+    addPrinter:    'Ajouter une imprimante',
+    editPrinter:   'Modifier l\'imprimante',
+    deletePrinter: 'Supprimer l\'imprimante',
+    deleteConfirm: 'Supprimer « {{name}} » ?',
+    noPrinters:    'Aucune imprimante configurée',
+    noPrintersDesc:'Ajoutez une imprimante pour activer l\'impression des étiquettes.',
+    setDefault:    'Définir par défaut',
+    default:       'Par défaut',
+    active:        'Active',
+    inactive:      'Inactive',
+    connectionType: {
+      NETWORK:   'Réseau (TCP/IP)',
+      BLUETOOTH: 'Bluetooth',
+      USB:       'USB (agent local)',
+    },
+    form: {
+      name:                'Nom',
+      model:               'Modèle',
+      connectionType:      'Type de connexion',
+      ipAddress:           'Adresse IP',
+      port:                'Port',
+      bluetoothIdentifier: 'Identifiant Bluetooth',
+      isDefault:           'Imprimante par défaut',
+      cancel:              'Annuler',
+      save:                'Enregistrer',
+      add:                 'Ajouter',
+    },
+    printJobs: {
+      title:    'Historique d\'impression',
+      subtitle: 'Tous les travaux d\'impression',
+      noJobs:   'Aucun travail d\'impression',
+      retry:    'Réessayer',
+      status: {
+        PENDING:    'En attente',
+        PROCESSING: 'En cours',
+        COMPLETED:  'Imprimé',
+        FAILED:     'Échec',
+      },
+      cols: {
+        date:    'Date',
+        type:    'Type',
+        printer: 'Imprimante',
+        copies:  'Copies',
+        status:  'Statut',
+        error:   'Erreur',
+      },
+    },
+  },
+
   // ── Notifications ──────────────────────────────────────────────────────────────
   notifications: {
     title:       'Notifications',

@@ -52,4 +52,4 @@ EXPOSE 3012
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
   CMD wget -qO- http://localhost:3012/health || exit 1
 
-CMD ["sh", "-c", "cd /app/services/control-service && /app/node_modules/.pnpm/node_modules/.bin/prisma migrate deploy && exec node /app/services/control-service/dist/services/control-service/src/main"]
+CMD ["sh", "-c", "cd /app/services/control-service && (/app/node_modules/.pnpm/node_modules/.bin/prisma migrate resolve --rolled-back 20260602000000_add_tenant_indexes 2>/dev/null || true) && /app/node_modules/.pnpm/node_modules/.bin/prisma migrate deploy && exec node /app/services/control-service/dist/services/control-service/src/main"]
