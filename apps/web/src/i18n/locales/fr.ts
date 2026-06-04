@@ -68,6 +68,10 @@ const fr = {
     successSave: 'Paramètres enregistrés avec succès.',
     today:      'Aujourd\'hui',
     unknown:    'Inconnu',
+    select:     '— Sélectionner —',
+    none:       '— Aucun —',
+    from:       'Du',
+    to:         'Au',
     // Pagination
     results:    '{{count}} résultat{{s}}',
     prevPage:   'Page précédente',
@@ -1530,6 +1534,8 @@ const fr = {
       cancel:      'Annuler',
       save:        'Enregistrer',
       add:         'Créer',
+      allZones:    '— Toutes les zones —',
+      noGroup:     '— Aucun groupe —',
     },
   },
 

@@ -70,7 +70,9 @@ export function NCFormScreen(_props: Props) {
   const { t } = useTranslation();
   const hasToken = !!useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
-  const canSubmit = user?.role !== 'VIEWER';
+  // ARCH-DECISION: Explicit whitelist is safer than blacklist (role !== VIEWER).
+  // SUPER_ADMIN can also create NCs in any tenant via cross-tenant JWT.
+  const canSubmit = ['OPERATOR', 'ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'SUPER_ADMIN'].includes(user?.role ?? '');
 
   const [description,      setDescription]      = useState('');
   const [correctiveAction, setCorrectiveAction] = useState('');

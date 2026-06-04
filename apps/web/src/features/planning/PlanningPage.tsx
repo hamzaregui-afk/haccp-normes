@@ -339,7 +339,7 @@ function CreateTaskModal({ open, onClose, tenantId }: CreateTaskModalProps) {
             value={templateId}
             onChange={(e) => setTemplateId((e as React.ChangeEvent<HTMLSelectElement>).target.value)}
             options={[
-              { value: '', label: '— Sélectionner —' },
+              { value: '', label: t('common.select') },
               ...templates.map((tpl) => ({ value: tpl.id, label: tpl.name })),
             ]}
           />
@@ -354,7 +354,7 @@ function CreateTaskModal({ open, onClose, tenantId }: CreateTaskModalProps) {
             value={zoneId}
             onChange={(e) => setZoneId((e as React.ChangeEvent<HTMLSelectElement>).target.value)}
             options={[
-              { value: '', label: '— Toutes les zones —' },
+              { value: '', label: t('planning.form.allZones') },
               ...zones.map((z) => ({ value: z.id, label: z.name })),
             ]}
           />
@@ -372,7 +372,7 @@ function CreateTaskModal({ open, onClose, tenantId }: CreateTaskModalProps) {
               setGroupId('');
             }}
             options={[
-              { value: '', label: '— Aucun —' },
+              { value: '', label: t('common.none') },
               ...users.map((u) => ({ value: u.id, label: u.name || u.email })),
             ]}
           />
@@ -390,7 +390,7 @@ function CreateTaskModal({ open, onClose, tenantId }: CreateTaskModalProps) {
               setAssigneeId('');
             }}
             options={[
-              { value: '', label: '— Aucun groupe —' },
+              { value: '', label: t('planning.form.noGroup') },
               ...groups.map((g) => ({ value: g.id, label: g.name })),
             ]}
           />
@@ -511,7 +511,7 @@ function CreateScheduleModal({ open, onClose, tenantId }: CreateScheduleModalPro
             value={templateId}
             onChange={(e) => setTemplateId((e as React.ChangeEvent<HTMLSelectElement>).target.value)}
             options={[
-              { value: '', label: '— Sélectionner —' },
+              { value: '', label: t('common.select') },
               ...templates.map((tpl) => ({ value: tpl.id, label: tpl.name })),
             ]}
           />
@@ -526,7 +526,7 @@ function CreateScheduleModal({ open, onClose, tenantId }: CreateScheduleModalPro
             value={zoneId}
             onChange={(e) => setZoneId((e as React.ChangeEvent<HTMLSelectElement>).target.value)}
             options={[
-              { value: '', label: '— Toutes les zones —' },
+              { value: '', label: t('planning.form.allZones') },
               ...zones.map((z) => ({ value: z.id, label: z.name })),
             ]}
           />
@@ -544,7 +544,7 @@ function CreateScheduleModal({ open, onClose, tenantId }: CreateScheduleModalPro
               setGroupId('');
             }}
             options={[
-              { value: '', label: '— Aucun —' },
+              { value: '', label: t('common.none') },
               ...users.map((u) => ({ value: u.id, label: u.name || u.email })),
             ]}
           />
@@ -562,7 +562,7 @@ function CreateScheduleModal({ open, onClose, tenantId }: CreateScheduleModalPro
               setAssigneeId('');
             }}
             options={[
-              { value: '', label: '— Aucun groupe —' },
+              { value: '', label: t('planning.form.noGroup') },
               ...groups.map((g) => ({ value: g.id, label: g.name })),
             ]}
           />
@@ -872,7 +872,7 @@ export default function PlanningPage() {
       {showFilters && (
         <div className="mb-4 flex flex-wrap gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-600">Du</label>
+            <label className="text-sm font-medium text-gray-600">{t('common.from')}</label>
             <input
               type="date"
               className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
@@ -881,7 +881,7 @@ export default function PlanningPage() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-600">Au</label>
+            <label className="text-sm font-medium text-gray-600">{t('common.to')}</label>
             <input
               type="date"
               className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-medium"
