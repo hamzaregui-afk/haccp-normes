@@ -12,9 +12,6 @@
     "test": "jest --passWithNoTests"
   },
   "dependencies": {
-    "@haccp/shared-types": "workspace:*",
-    "@haccp/shared-utils": "workspace:*",
-    "@haccp/shared-validators": "workspace:*",
     "@react-navigation/bottom-tabs": "^6.5.20",
     "@react-navigation/native": "^6.1.17",
     "@react-navigation/native-stack": "^6.9.26",
@@ -36,6 +33,7 @@
     "zustand": "^4.5.2"
   },
   "devDependencies": {
+    "babel-plugin-module-resolver": "^5.0.0",
     "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react-native": "^12.4.3",
     "@types/jest": "^29.5.12",
@@ -48,7 +46,6 @@
   },
   "jest": {
     "preset": "jest-expo",
-    "setupFilesAfterFramework": [],
     "setupFilesAfterEnv": [
       "<rootDir>/src/test-setup.ts"
     ],
@@ -56,10 +53,7 @@
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|@tanstack)"
     ],
     "moduleNameMapper": {
-      "^@/(.*)$":             "<rootDir>/src/$1",
-      "^@haccp/shared-types$": "<rootDir>/../../packages/shared-types/src",
-      "^@haccp/shared-utils$": "<rootDir>/../../packages/shared-utils/src",
-      "^@haccp/shared-validators$": "<rootDir>/../../packages/shared-validators/src"
+      "^@/(.*)$": "<rootDir>/src/$1"
     }
   }
 }

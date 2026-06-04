@@ -5,9 +5,7 @@
     "module": "ESNext",
     "baseUrl": ".",
     "paths": {
-      "@/*":                 ["src/*"],
-      "@haccp/shared-types": ["../../packages/shared-types/src/index.ts"],
-      "@haccp/shared-utils": ["../../packages/shared-utils/src/index.ts"]
+      "@/*": ["src/*"]
     }
   },
   "include": ["src/**/*", "*.ts", "*.tsx"],
