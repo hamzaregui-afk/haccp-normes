@@ -14,8 +14,13 @@ import { useAuthStore } from '../store/authStore';
 // environment plugin — we only need the shape, not the full Node.js `process`.
 declare const process: { env: Record<string, string | undefined> };
 
+// ARCH-DECISION: Default to the production HTTPS URL (not the Android emulator
+// loopback 10.0.2.2 which only works in dev). Development builds set
+// EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:80 via eas.json or .env.local.
+// Production builds set EXPO_PUBLIC_API_BASE_URL=https://178.105.126.165 (or
+// https://api.normes-haccp.com once the domain is configured).
 const GATEWAY_BASE =
-  process.env['EXPO_PUBLIC_API_BASE_URL'] ?? 'http://10.0.2.2:80';
+  process.env['EXPO_PUBLIC_API_BASE_URL'] ?? 'https://178.105.126.165';
 
 // ── Authenticated gateway client ────────────────────────────────────────────
 // Use this for all API calls — all services are routed through nginx.
