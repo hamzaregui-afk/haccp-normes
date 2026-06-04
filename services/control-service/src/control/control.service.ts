@@ -159,11 +159,13 @@ export class ControlService {
 
     const targetId = dto.assigneeId ?? dto.groupId;
 
-    // ARCH-DECISION: $transaction guarantees that the task row and the outbox_event
-    // row are either both committed or both rolled back. This eliminates the dual-write
-    // race condition where the service crashes after saving the task but before publishing.
-    const [task] = await this.prisma.$transaction([
-      this.prisma.controlTask.create({
+    // ARCH-DECISION: Callback-form $transaction used here (instead of array form)
+    // so that the task.id is available when building the outbox event payload.
+    // The array form executes operations concurrently inside a single transaction,
+    // making the task.id unavailable at payload construction time.
+    // The callback form executes operations sequentially — same atomicity guarantee.
+    const task = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.controlTask.create({
         data: {
           templateId:        dto.templateId,
           zoneId:            dto.zoneId,
@@ -179,26 +181,31 @@ export class ControlService {
         include: {
           template: { select: { id: true, name: true } },
         },
-      }),
+      });
+
       // Outbox event — published to RabbitMQ by OutboxWorker (every 5 s)
-      ...(targetId
-        ? [
-            this.prisma.outboxEvent.create({
-              data: {
-                eventType:     'control.task.assigned.v1',
-                tenantId,
-                correlationId: correlationId ?? null,
-                payload: {
-                  assigneeId:   dto.assigneeId ?? null,
-                  groupId:      dto.groupId    ?? null,
-                  templateName: template.name,
-                  scheduledAt:  dto.scheduledAt.toISOString(),
-                },
-              },
-            }),
-          ]
-        : []),
-    ]);
+      if (targetId) {
+        await tx.outboxEvent.create({
+          data: {
+            eventType:     'control.task.assigned.v1',
+            tenantId,
+            correlationId: correlationId ?? null,
+            payload: {
+              taskId:       created.id,            // now available (task created first)
+              templateId:   dto.templateId,
+              templateName: template.name,
+              zoneId:       dto.zoneId,
+              assigneeId:   dto.assigneeId ?? null,
+              groupId:      dto.groupId    ?? null,
+              scheduledAt:  dto.scheduledAt.toISOString(),
+              frequency:    null,                  // null = one-off task (not from a schedule)
+            },
+          },
+        });
+      }
+
+      return created;
+    });
 
     return toApiResponse(task, undefined, 'Tâche planifiée');
   }

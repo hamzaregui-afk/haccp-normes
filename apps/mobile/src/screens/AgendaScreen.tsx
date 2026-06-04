@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { controlClient } from '../api/client';
+import { useAuthStore } from '../store/authStore';
 import { useTranslation } from '@/i18n';
 import type { MainTabParamList } from '../navigation/MainNavigator';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -148,6 +149,12 @@ export function AgendaScreen({ navigation }: Props) {
   const [startingId, setStartingId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
+  const user = useAuthStore((s) => s.user);
+  // ARCH-DECISION: OPERATOR role sees only their own assigned tasks.
+  // Other roles (MANAGER, ADMIN) see all tenant tasks.
+  // Mirrors the web ControlsPage behaviour (line 941 in ControlsPage.tsx).
+  const operatorId = user?.role === 'OPERATOR' ? (user?.sub ?? null) : null;
+
   const goToPrev = () => setSelectedDate((d) => addDays(d, -1));
   const goToNext = () => setSelectedDate((d) => addDays(d, +1));
   const goToToday = () => setSelectedDate(new Date());
@@ -160,7 +167,7 @@ export function AgendaScreen({ navigation }: Props) {
     isError,
     refetch,
   } = useQuery<ControlTask[]>({
-    queryKey: ['tasks', dateISO(selectedDate)],
+    queryKey: ['tasks', dateISO(selectedDate), operatorId ?? 'all'],
     queryFn: async () => {
       // ARCH-DECISION: The backend `status` param is a single string — it does
       // not support multi-value filtering in one request. We fire two parallel
@@ -168,10 +175,12 @@ export function AgendaScreen({ navigation }: Props) {
       // AND tasks they were interrupted mid-way through. Results are merged and
       // sorted by scheduledAt ascending.
       const day = dateISO(selectedDate);
-      const baseParams = {
+      const baseParams: Record<string, string | number> = {
         from:  `${day}T00:00:00.000Z`,
         to:    `${day}T23:59:59.999Z`,
         limit: 100,
+        // Filter to own tasks for OPERATOR role (others see all tenant tasks)
+        ...(operatorId ? { assigneeId: operatorId } : {}),
       };
       // ARCH-DECISION: Three parallel requests so operators see:
       //   IN_PROGRESS — tasks they started but didn't finish

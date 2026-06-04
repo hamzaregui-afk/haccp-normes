@@ -37,6 +37,7 @@ import { Controller, Logger } from '@nestjs/common';
 import { Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
 import { IdempotencyGuard } from '@haccp/shared-utils';
 import { NotificationGateway } from './notification.gateway';
+import { NotificationService } from './notification.service';
 
 interface DomainEventEnvelope {
   tenantId:      string;
@@ -68,7 +69,10 @@ export class NotificationConsumer {
   private readonly logger = new Logger(NotificationConsumer.name);
   private readonly dedup  = new IdempotencyGuard(10_000);
 
-  constructor(private readonly gateway: NotificationGateway) {}
+  constructor(
+    private readonly gateway:  NotificationGateway,
+    private readonly service:  NotificationService,
+  ) {}
 
   // ─── Generic dispatch helper ──────────────────────────────────────────────
   private dispatch(
@@ -153,26 +157,41 @@ export class NotificationConsumer {
   private dispatchTaskAssigned(data: AssignedEnvelope): void {
     if (this.dedup.isDuplicate(data.eventId)) return;
 
-    const { assigneeId, groupId, taskId } = data.payload;
+    const { assigneeId, groupId, taskId, templateName, scheduledAt } = data.payload as {
+      assigneeId?:   string | null;
+      groupId?:      string | null;
+      taskId?:       string | null;
+      templateName?: string;
+      scheduledAt?:  string;
+    };
+
     this.logger.log(
-      `[task.assigned] cid=${data.correlationId ?? '-'} tenant=${data.tenantId} taskId=${String(taskId ?? '?')} assignee=${String(assigneeId ?? groupId ?? '?')}`,
+      `[task.assigned] cid=${data.correlationId ?? '-'} tenant=${data.tenantId} taskId=${taskId ?? '?'} assignee=${assigneeId ?? groupId ?? '?'}`,
     );
+
+    const socketPayload = { ...data.payload, eventId: data.eventId, timestamp: data.timestamp };
 
     // Personal notification to the operator (if individually assigned)
     if (assigneeId) {
-      this.gateway.emitToUser(assigneeId, 'notification:task-assigned', {
-        ...data.payload,
-        eventId:   data.eventId,
-        timestamp: data.timestamp,
-      });
+      this.gateway.emitToUser(assigneeId, 'notification:task-assigned', socketPayload);
+
+      // ARCH-DECISION: Persist to DB so operators can retrieve notifications
+      // after reconnecting (GET /notifications endpoint). WebSocket alone loses
+      // events for users who were offline when the message was dispatched.
+      void this.service.create({
+        userId: assigneeId,
+        type:   'TASK_ASSIGNED',
+        title:  `Nouvelle tâche : ${templateName ?? 'Contrôle HACCP'}`,
+        body:   `Planifiée le ${scheduledAt
+          ? new Date(scheduledAt).toLocaleDateString('fr-FR')
+          : '—'}${taskId ? ` • Tâche ${taskId.slice(-6)}` : ''}`,
+      }, data.tenantId).catch((err: unknown) =>
+        this.logger.warn(`[task.assigned] DB persist failed: ${String(err)}`),
+      );
     }
 
     // Broadcast to tenant managers
-    this.gateway.emitToTenant(data.tenantId, 'notification:task-assigned', {
-      ...data.payload,
-      eventId:   data.eventId,
-      timestamp: data.timestamp,
-    });
+    this.gateway.emitToTenant(data.tenantId, 'notification:task-assigned', socketPayload);
   }
 
   // ─── control.tasks.overdue ────────────────────────────────────────────────
