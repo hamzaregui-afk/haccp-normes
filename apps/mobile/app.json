@@ -7,13 +7,11 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "normeshaccp",
-
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#1A3D2B"
     },
-
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.normeshaccp.app",
@@ -32,7 +30,6 @@
         "NSPrivacyAccessedAPITypes": []
       }
     },
-
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -47,10 +44,10 @@
         "android.permission.INTERNET",
         "android.permission.BLUETOOTH",
         "android.permission.BLUETOOTH_CONNECT",
-        "android.permission.BLUETOOTH_SCAN"
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.RECORD_AUDIO"
       ]
     },
-
     "plugins": [
       [
         "expo-camera",
@@ -76,13 +73,11 @@
         }
       ]
     ],
-
+    "owner": "hamzare",
     "extra": {
       "eas": {
-        "projectId": "normes-haccp-app"
+        "projectId": "86958c9b-32bc-4429-a8a3-1d78d85b8a6d"
       }
-    },
-
-    "owner": "normeshaccp"
+    }
   }
 }
