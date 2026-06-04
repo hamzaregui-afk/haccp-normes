@@ -28,7 +28,7 @@
         "simulator": false
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://api.normes-haccp.com"
+        "EXPO_PUBLIC_API_BASE_URL": "https://178.105.126.165"
       }
     }
   },
