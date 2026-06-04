@@ -49,14 +49,6 @@
       ]
     },
     "plugins": [
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Autoriser NORMES HACCP à accéder à votre caméra pour les contrôles qualité et de sécurité alimentaire.",
-          "microphonePermission": false,
-          "recordAudioAndroid": false
-        }
-      ],
       "expo-secure-store",
       [
         "expo-build-properties",
