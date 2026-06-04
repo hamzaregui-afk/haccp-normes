@@ -220,7 +220,7 @@ export class NonconformityService {
     const url = await this.minio.presignedGetUrl(objectKey);
 
     const photo = await this.prisma.nCPhoto.create({
-      data: { nonConformityId: id, url },
+      data: { nonConformityId: id, objectKey, url },
     });
 
     return toApiResponse(photo, undefined, 'Photo uploaded successfully');

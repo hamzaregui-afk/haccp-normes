@@ -622,7 +622,7 @@ function CreateScheduleModal({ open, onClose, tenantId }: CreateScheduleModalPro
               { value: 'Africa/Casablanca', label: 'Africa/Casablanca (WET)' },
               { value: 'Africa/Tunis',    label: 'Africa/Tunis (CET)' },
               { value: 'Europe/London',   label: 'Europe/London (GMT/BST)' },
-              { value: 'America/New_York','label': 'America/New_York (ET)' },
+              { value: 'America/New_York', label: 'America/New_York (ET)' },
             ]}
           />
         </div>

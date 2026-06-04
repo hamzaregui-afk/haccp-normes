@@ -75,10 +75,12 @@ model NonConformity {
 model NCPhoto {
   id              String        @id @default(cuid())
   nonConformityId String        @map("non_conformity_id")
-  url             String        // MinIO presigned URL
+  objectKey       String        @map("object_key") // MinIO permanent object key (for deletion)
+  url             String        // MinIO presigned URL (short-lived)
   uploadedAt      DateTime      @default(now()) @map("uploaded_at")
 
-  nonConformity NonConformity @relation(fields: [nonConformityId], references: [id])
+  nonConformity NonConformity @relation(fields: [nonConformityId], references: [id], onDelete: Cascade)
 
+  @@index([nonConformityId])
   @@map("nc_photos")
 }

@@ -4,6 +4,14 @@
 # Required env vars: SUPERADMIN_HASH, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD
 set -e
 
+echo "=== Disk space check (need >= 5GB free) ==="
+AVAIL_KB=$(df / | tail -1 | awk '{print $4}')
+if [ "${AVAIL_KB:-0}" -lt 5242880 ]; then
+  echo "ERROR: Less than 5GB free on / (available: ${AVAIL_KB}KB). Run free-space-and-recover first."
+  exit 1
+fi
+echo "Disk OK: ${AVAIL_KB}KB available"
+
 echo "=== Git commit on server after pull ==="
 git log --oneline -3
 

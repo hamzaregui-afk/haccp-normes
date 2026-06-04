@@ -5,6 +5,12 @@ version: '3.9'
 # mounts are relative to this file (the monorepo root), unlike the older copy
 # at infrastructure/docker/docker-compose.yml which used ../ paths.
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "100m"
+    max-file: "5"
+
 networks:
   haccp-network:
     driver: bridge
@@ -28,6 +34,7 @@ services:
 
   postgres:
     image: postgres:15-alpine
+    logging: *default-logging
     container_name: haccp-postgres
     restart: unless-stopped
     environment:
@@ -630,6 +637,11 @@ services:
     image: prom/prometheus:latest
     container_name: haccp-prometheus
     restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=90d'
+      - '--web.enable-lifecycle'
     volumes:
       - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
@@ -637,6 +649,11 @@ services:
       - "127.0.0.1:9090:9090"
     networks:
       - haccp-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   grafana:
     image: grafana/grafana:10.4.0
