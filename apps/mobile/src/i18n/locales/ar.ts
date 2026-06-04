@@ -80,6 +80,7 @@ export const ar: Translations = {
     loadError:       'خطأ في تحميل بيانات المراقبة',
     loadErrorMsg:    'تعذّر تحميل بيانات المراقبة.',
     submitting:      'جارٍ الإرسال…',
+    viewerReadOnly:  'وصول للقراءة فقط — غير مصرح لك بإرسال هذه المراقبة.',
   },
   ncForm: {
     title:             'الإبلاغ عن حالة',
@@ -102,6 +103,7 @@ export const ar: Translations = {
     requiredDesc:      'يرجى إدخال وصف.',
     requiredSite:      'الموقع مطلوب',
     noSiteMsg:         'لا يوجد موقع متاح. اتصل بمسؤولك.',
+    viewerReadOnly:    'وصول للقراءة فقط — غير مصرح لك بإرسال هذا البلاغ.',
     severity_values: {
       LOW:      'منخفض',
       MEDIUM:   'متوسط',
@@ -150,6 +152,10 @@ export const ar: Translations = {
     },
     printNetwork:        'طباعة عبر Zebra',
     printNetworkSuccess: 'تم إرسال مهمة الطباعة إلى الطابعة الشبكية',
+    noPrinterSelected:   'لم يتم اختيار طابعة. قم بتهيئة طابعة في الإعدادات.',
+    choosePrinter:       'اختر طابعة',
+    noPrinterAvailable:  'لا توجد طابعات متاحة',
+    cancel:              'إلغاء',
     errorTitle:  'خطأ',
     errorMsg:    'تعذّر حساب تاريخ الصلاحية.',
     serverError: 'تعذّر الاتصال بالخادم.',

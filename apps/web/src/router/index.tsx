@@ -27,6 +27,7 @@ const DLCWebPage          = lazy(() => import('@/features/dlc/DLCWebPage'));
 const AuditPage           = lazy(() => import('@/features/audit/AuditPage'));
 const DocumentsPage       = lazy(() => import('@/features/documents/DocumentsPage'));
 const TracabilityPage     = lazy(() => import('@/features/tracability/TracabilityPage'));
+const PlanningPage        = lazy(() => import('@/features/planning/PlanningPage'));
 
 // ─── Fallback spinner ────────────────────────────────────────────────────────
 const PageLoader = () => (
@@ -211,6 +212,16 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
         path: 'documents',
         element: (
           <RequireModule moduleKey="GED">{S(DocumentsPage)}</RequireModule>
+        ),
+      },
+
+      // Planning — OPERATOR included (view own tasks)
+      {
+        path: 'planning',
+        element: (
+          <RequireRole roles={['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR']}>
+            <RequireModule moduleKey="HACCP_CONTROLS">{S(PlanningPage)}</RequireModule>
+          </RequireRole>
         ),
       },
 

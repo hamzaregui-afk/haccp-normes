@@ -1,13 +1,15 @@
 import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 
-const SECURE_TOKEN_KEY = 'haccp_jwt_token';
+const SECURE_TOKEN_KEY         = 'haccp_jwt_token';
+const SECURE_REFRESH_TOKEN_KEY = 'haccp_jwt_refresh_token';
 
-// ARCH-DECISION: The mobile app only stores the access token (not the refresh
-// token). The access token is short-lived (15 min) and is kept in secure
-// storage. When it expires, the user is redirected to the login screen.
-// This keeps the mobile auth model simple and avoids silent token refresh
-// complexity on a device that can be offline for extended periods.
+// ARCH-DECISION: The mobile app stores both the access token and the refresh
+// token in SecureStore. The access token is short-lived (15 min); the refresh
+// token is long-lived and persisted so that it is available for future silent
+// refresh implementations without requiring a full re-login. The actual silent
+// refresh logic is not yet wired up — on expiry the user is still redirected to
+// the login screen — but the token is persisted so the upgrade path is trivial.
 export interface JwtPayload {
   sub: string;
   email: string;
@@ -17,8 +19,9 @@ export interface JwtPayload {
 
 interface AuthState {
   token: string | null;
+  refreshToken: string | null;
   user: JwtPayload | null;
-  setAuth: (token: string, user: JwtPayload) => void;
+  setAuth: (token: string, user: JwtPayload, refreshToken?: string | null) => void;
   logout: () => Promise<void>;
   hydrateFromStorage: () => Promise<void>;
 }
@@ -63,14 +66,19 @@ function decodeJwtPayload(token: string): JwtPayload | null {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
+  refreshToken: null,
   user: null,
 
-  setAuth: (token: string, user: JwtPayload) => {
-    // Persist to secure storage asynchronously; don't block the UI
+  setAuth: (token: string, user: JwtPayload, refreshToken?: string | null) => {
+    // Persist access token to secure storage asynchronously; don't block the UI
     SecureStore.setItemAsync(SECURE_TOKEN_KEY, token).catch(() => {
       // Non-fatal: token will be re-fetched on next login if storage fails
     });
-    set({ token, user });
+    // Persist refresh token if provided
+    if (refreshToken) {
+      SecureStore.setItemAsync(SECURE_REFRESH_TOKEN_KEY, refreshToken).catch(() => {});
+    }
+    set({ token, user, refreshToken: refreshToken ?? null });
   },
 
   logout: async () => {
@@ -91,7 +99,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     await SecureStore.deleteItemAsync(SECURE_TOKEN_KEY).catch(() => {});
-    set({ token: null, user: null });
+    await SecureStore.deleteItemAsync(SECURE_REFRESH_TOKEN_KEY).catch(() => {});
+    set({ token: null, refreshToken: null, user: null });
   },
 
   hydrateFromStorage: async () => {
@@ -99,10 +108,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!stored) return;
     const user = decodeJwtPayload(stored);
     if (user) {
-      set({ token: stored, user });
+      const storedRefreshToken = await SecureStore.getItemAsync(SECURE_REFRESH_TOKEN_KEY);
+      set({ token: stored, user, refreshToken: storedRefreshToken ?? null });
     } else {
-      // Token malformed — discard it
+      // Token malformed — discard both tokens
       await SecureStore.deleteItemAsync(SECURE_TOKEN_KEY);
+      await SecureStore.deleteItemAsync(SECURE_REFRESH_TOKEN_KEY);
     }
   },
 }));

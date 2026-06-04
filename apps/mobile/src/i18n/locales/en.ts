@@ -78,6 +78,7 @@ export const en: Translations = {
     loadError:       'Error loading control',
     loadErrorMsg:    'Unable to load the control.',
     submitting:      'Submitting…',
+    viewerReadOnly:  'Read-only access — you are not authorised to submit this control.',
   },
   ncForm: {
     title:             'Report NC',
@@ -100,6 +101,7 @@ export const en: Translations = {
     requiredDesc:      'Please enter a description.',
     requiredSite:      'Site required',
     noSiteMsg:         'No site available. Contact your administrator.',
+    viewerReadOnly:    'Read-only access — you are not authorised to submit this report.',
     severity_values: {
       LOW:      'Low',
       MEDIUM:   'Medium',
@@ -148,6 +150,10 @@ export const en: Translations = {
     },
     printNetwork:        'Print via Zebra',
     printNetworkSuccess: 'Print job sent to network printer',
+    noPrinterSelected:   'No printer selected. Configure a printer in Settings.',
+    choosePrinter:       'Choose a printer',
+    noPrinterAvailable:  'No printer available',
+    cancel:              'Cancel',
     errorTitle:  'Error',
     errorMsg:    'Unable to calculate use-by date.',
     serverError: 'Unable to connect to the server.',

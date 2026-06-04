@@ -77,6 +77,7 @@ export const fr = {
     loadError:       'Erreur lors du chargement du contrôle',
     loadErrorMsg:    'Impossible de charger le contrôle.',
     submitting:      'Envoi en cours…',
+    viewerReadOnly:  'Accès en lecture seule — vous n\'êtes pas autorisé à soumettre ce contrôle.',
   },
   ncForm: {
     title:             'Signaler une NC',
@@ -99,6 +100,7 @@ export const fr = {
     requiredDesc:      'Veuillez saisir une description.',
     requiredSite:      'Site requis',
     noSiteMsg:         'Aucun site disponible. Contactez votre administrateur.',
+    viewerReadOnly:    'Accès en lecture seule — vous n\'êtes pas autorisé à soumettre ce signalement.',
     severity_values: {
       LOW:      'Faible',
       MEDIUM:   'Moyen',
@@ -147,6 +149,10 @@ export const fr = {
     },
     printNetwork:        'Imprimer via Zebra',
     printNetworkSuccess: "Tâche d'impression envoyée à l'imprimante réseau",
+    noPrinterSelected:   "Aucune imprimante sélectionnée. Configurez une imprimante dans Paramètres.",
+    choosePrinter:       "Choisir une imprimante",
+    noPrinterAvailable:  "Aucune imprimante disponible",
+    cancel:              "Annuler",
     errorTitle:  'Erreur',
     errorMsg:    'Impossible de calculer la DLC.',
     serverError: 'Impossible de se connecter au serveur.',

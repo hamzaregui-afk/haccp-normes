@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  BarChart3, BookOpen, Building2, ChevronRight, ClipboardList, Cog, FileText,
+  BarChart3, BookOpen, Building2, CalendarCheck2, ChevronRight, ClipboardList, Cog, FileText,
   FolderOpen, LayoutDashboard, LogOut, MapPin, Package, Printer, ScrollText, ShieldAlert, Tag, Truck, Users, UsersRound, X, Layers,
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
@@ -75,8 +75,9 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       // Dashboard: ADMIN always sees tenant dashboard; OPERATOR → /controls (their home)
       { labelKey: 'nav.overview',        to: '/dashboard',       icon: LayoutDashboard, roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN'],             moduleKey: 'DASHBOARD'       },
-      { labelKey: 'nav.controls',        to: '/controls',        icon: ClipboardList,   roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'], moduleKey: 'HACCP_CONTROLS'  },
-      { labelKey: 'nav.nonconformities', to: '/nonconformities', icon: ShieldAlert,     roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'], moduleKey: 'NONCONFORMITIES' },
+      { labelKey: 'nav.controls',        to: '/controls',        icon: ClipboardList,    roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'], moduleKey: 'HACCP_CONTROLS'  },
+      { labelKey: 'nav.planning',        to: '/planning',        icon: CalendarCheck2,   roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'], moduleKey: 'HACCP_CONTROLS'  },
+      { labelKey: 'nav.nonconformities', to: '/nonconformities', icon: ShieldAlert,      roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'], moduleKey: 'NONCONFORMITIES' },
       { labelKey: 'nav.dlc',             to: '/dlc',             icon: Tag,             roles: ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'OPERATOR'],                              moduleKey: 'DLC'             },
       { labelKey: 'nav.tracability',    to: '/tracability',    icon: Layers,          roles: ['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'VIEWER', 'SUPER_ADMIN', 'OPERATOR'], moduleKey: 'TRACABILITY'     },
     ],

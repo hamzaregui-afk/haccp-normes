@@ -69,6 +69,8 @@ type Props = BottomTabScreenProps<MainTabParamList, 'Non-conformités'>;
 export function NCFormScreen(_props: Props) {
   const { t } = useTranslation();
   const hasToken = !!useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
+  const canSubmit = user?.role !== 'VIEWER';
 
   const [description,      setDescription]      = useState('');
   const [correctiveAction, setCorrectiveAction] = useState('');
@@ -229,10 +231,15 @@ export function NCFormScreen(_props: Props) {
       />
 
       {/* Submit */}
+      {!canSubmit && (
+        <View style={styles.readOnlyBanner}>
+          <Text style={styles.readOnlyText}>{t('ncForm.viewerReadOnly')}</Text>
+        </View>
+      )}
       <TouchableOpacity
-        style={[styles.submitBtn, mutation.isPending && styles.submitBtnDisabled]}
+        style={[styles.submitBtn, (mutation.isPending || !canSubmit) && styles.submitBtnDisabled]}
         onPress={handleSubmit}
-        disabled={mutation.isPending}
+        disabled={mutation.isPending || !canSubmit}
         activeOpacity={0.85}
       >
         {mutation.isPending ? (
@@ -346,5 +353,18 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  readOnlyBanner: {
+    backgroundColor: '#FEF3C7',
+    borderLeftWidth: 4,
+    borderLeftColor: '#B5833A',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  readOnlyText: {
+    fontSize: 13,
+    color: '#92400E',
+    fontWeight: '500',
   },
 });

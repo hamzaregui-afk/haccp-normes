@@ -211,13 +211,14 @@ interface PrinterPickerProps {
 }
 
 function PrinterPickerModal({ visible, printers, selected, onSelect, onClose }: PrinterPickerProps) {
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={pickerStyles.overlay} onPress={onClose}>
         <View style={pickerStyles.sheet}>
-          <Text style={pickerStyles.title}>Choisir une imprimante</Text>
+          <Text style={pickerStyles.title}>{t('dlc.choosePrinter')}</Text>
           {printers.length === 0 ? (
-            <Text style={pickerStyles.empty}>Aucune imprimante disponible</Text>
+            <Text style={pickerStyles.empty}>{t('dlc.noPrinterAvailable')}</Text>
           ) : (
             printers.map((p) => (
               <TouchableOpacity
@@ -232,7 +233,7 @@ function PrinterPickerModal({ visible, printers, selected, onSelect, onClose }: 
             ))
           )}
           <TouchableOpacity style={pickerStyles.cancel} onPress={onClose}>
-            <Text style={pickerStyles.cancelText}>Annuler</Text>
+            <Text style={pickerStyles.cancelText}>{t('dlc.cancel')}</Text>
           </TouchableOpacity>
         </View>
       </Pressable>
@@ -381,7 +382,7 @@ export function DLCScreen(_props: Props) {
       setLastResult(result);
 
       if (!effectivePrinterId) {
-        Alert.alert(t('dlc.errorTitle'), 'Aucune imprimante sélectionnée. Veuillez configurer une imprimante dans les paramètres.');
+        Alert.alert(t('dlc.errorTitle'), t('dlc.noPrinterSelected'));
         return;
       }
 

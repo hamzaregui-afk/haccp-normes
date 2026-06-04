@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 
 import { controlClient } from '../api/client';
+import { useAuthStore } from '../store/authStore';
 import { useTranslation } from '@/i18n';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -62,9 +63,10 @@ interface CheckpointRowProps {
   index: number;
   entry: CheckpointEntry;
   onChange: (index: number, patch: Partial<CheckpointEntry>) => void;
+  readOnly?: boolean;
 }
 
-function CheckpointRow({ index, entry, onChange }: CheckpointRowProps) {
+function CheckpointRow({ index, entry, onChange, readOnly = false }: CheckpointRowProps) {
   const { t } = useTranslation();
 
   return (
@@ -72,26 +74,29 @@ function CheckpointRow({ index, entry, onChange }: CheckpointRowProps) {
       <Text style={styles.checkpointDesc}>{entry.description}</Text>
       <View style={styles.checkpointControls}>
         <TextInput
-          style={styles.tempInput}
+          style={[styles.tempInput, readOnly && styles.tempInputReadOnly]}
           placeholder="°C"
           placeholderTextColor="#9CA3AF"
           keyboardType="decimal-pad"
           value={entry.temperature}
-          onChangeText={(v) => onChange(index, { temperature: v })}
+          onChangeText={(v) => { if (!readOnly) onChange(index, { temperature: v }); }}
+          editable={!readOnly}
         />
         <TouchableOpacity
-          style={[styles.resultBtn, entry.result === 'PASS' && styles.resultBtnPass]}
-          onPress={() => onChange(index, { result: entry.result === 'PASS' ? null : 'PASS' })}
-          activeOpacity={0.8}
+          style={[styles.resultBtn, entry.result === 'PASS' && styles.resultBtnPass, readOnly && styles.resultBtnReadOnly]}
+          onPress={() => { if (!readOnly) onChange(index, { result: entry.result === 'PASS' ? null : 'PASS' }); }}
+          activeOpacity={readOnly ? 1 : 0.8}
+          disabled={readOnly}
         >
           <Text style={[styles.resultBtnText, entry.result === 'PASS' && styles.resultBtnTextActive]}>
             {t('checklist.ok')}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.resultBtn, entry.result === 'FAIL' && styles.resultBtnFail]}
-          onPress={() => onChange(index, { result: entry.result === 'FAIL' ? null : 'FAIL' })}
-          activeOpacity={0.8}
+          style={[styles.resultBtn, entry.result === 'FAIL' && styles.resultBtnFail, readOnly && styles.resultBtnReadOnly]}
+          onPress={() => { if (!readOnly) onChange(index, { result: entry.result === 'FAIL' ? null : 'FAIL' }); }}
+          activeOpacity={readOnly ? 1 : 0.8}
+          disabled={readOnly}
         >
           <Text style={[styles.resultBtnText, entry.result === 'FAIL' && styles.resultBtnTextActive]}>
             {t('checklist.nok')}
@@ -108,6 +113,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Checklist'>;
 
 export function ChecklistScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
+  const user = useAuthStore((s) => s.user);
+  const canExecute = ['OPERATOR', 'ADMIN', 'MANAGER', 'SUPER_ADMIN'].includes(user?.role ?? '');
   const { taskId } = route.params;
   const [entries, setEntries] = useState<CheckpointEntry[]>([]);
   const [templateLoaded, setTemplateLoaded] = useState(false);
@@ -223,19 +230,25 @@ export function ChecklistScreen({ route, navigation }: Props) {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.sectionTitle}>{t('checklist.checkpoints')}</Text>
+        {!canExecute && (
+          <View style={styles.readOnlyBanner}>
+            <Text style={styles.readOnlyText}>{t('checklist.viewerReadOnly')}</Text>
+          </View>
+        )}
         {entries.map((entry, idx) => (
           <CheckpointRow
             key={idx}
             index={idx}
             entry={entry}
             onChange={handleEntryChange}
+            readOnly={!canExecute}
           />
         ))}
 
         <TouchableOpacity
-          style={[styles.submitButton, submitMutation.isPending && styles.submitButtonDisabled]}
+          style={[styles.submitButton, (submitMutation.isPending || !canExecute) && styles.submitButtonDisabled]}
           onPress={handleSubmit}
-          disabled={submitMutation.isPending}
+          disabled={submitMutation.isPending || !canExecute}
           activeOpacity={0.85}
         >
           {submitMutation.isPending ? (
@@ -378,6 +391,26 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  readOnlyBanner: {
+    backgroundColor: '#FEF3C7',
+    borderLeftWidth: 4,
+    borderLeftColor: '#B5833A',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  readOnlyText: {
+    fontSize: 13,
+    color: '#92400E',
+    fontWeight: '500',
+  },
+  tempInputReadOnly: {
+    backgroundColor: '#F3F4F6',
+    color: '#9CA3AF',
+  },
+  resultBtnReadOnly: {
+    opacity: 0.55,
   },
   // Modal
   modalOverlay: {
