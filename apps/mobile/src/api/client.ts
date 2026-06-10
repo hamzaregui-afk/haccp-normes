@@ -1,6 +1,9 @@
-import axios, { type InternalAxiosRequestConfig } from 'axios';
+import axios, {
+  type AxiosError,
+  type InternalAxiosRequestConfig,
+} from 'axios';
 
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore, type JwtPayload } from '../store/authStore';
 
 // ARCH-DECISION: All mobile traffic is routed through the single nginx api-gateway.
 // Direct service ports are used ONLY in development (direct Docker network access).
@@ -38,6 +41,94 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   }
   return config;
 });
+
+// ── Silent token refresh on 401 ──────────────────────────────────────────────
+// ARCH-DECISION: The access token is short-lived (15 min). Rather than kicking
+// the operator back to the login screen on every expiry, we transparently
+// exchange the stored refresh token for a fresh access token and replay the
+// failed request once. The auth-service ROTATES the refresh token on every
+// /auth/refresh call (the old one is invalidated, with replay detection), so we
+// must persist the NEW refresh token returned in the response.
+
+interface RefreshResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: JwtPayload;
+}
+
+// Endpoints that must never trigger the refresh-and-retry loop (they ARE the
+// auth flow). Matching on the path suffix keeps this independent of the
+// /api/v1 prefix and the gateway host.
+function isAuthRoute(url: string | undefined): boolean {
+  if (!url) return false;
+  return (
+    url.includes('/auth/login') ||
+    url.includes('/auth/refresh') ||
+    url.includes('/auth/logout')
+  );
+}
+
+// ARCH-DECISION: Single-flight refresh. When several requests fail with 401 at
+// once (e.g. the AgendaScreen fires three parallel calls), they must share ONE
+// refresh round-trip — otherwise each would rotate the refresh token and
+// invalidate the others, tripping the server's replay protection and logging
+// the user out. `refreshPromise` is the shared in-flight refresh, if any.
+let refreshPromise: Promise<string | null> | null = null;
+
+async function performRefresh(): Promise<string | null> {
+  const currentRefreshToken = useAuthStore.getState().refreshToken;
+  if (!currentRefreshToken) return null;
+  try {
+    // Use a bare axios call (not apiClient/authClient) so this request is never
+    // itself intercepted, avoiding any recursion.
+    const res = await axios.post<RefreshResponse>(
+      `${GATEWAY_BASE}/api/v1/auth/refresh`,
+      { refreshToken: currentRefreshToken },
+      { timeout: 10_000, headers: { 'Content-Type': 'application/json' } },
+    );
+    const { accessToken, refreshToken, user } = res.data;
+    useAuthStore.getState().setAuth(accessToken, user, refreshToken);
+    return accessToken;
+  } catch {
+    return null;
+  }
+}
+
+function refreshAccessToken(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = performRefresh().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const original = error.config as
+      | (InternalAxiosRequestConfig & { _retry?: boolean })
+      | undefined;
+    const status = error.response?.status;
+
+    if (status !== 401 || !original || original._retry || isAuthRoute(original.url)) {
+      return Promise.reject(error);
+    }
+
+    original._retry = true;
+    const newToken = await refreshAccessToken();
+    if (!newToken) {
+      // Refresh failed (expired/revoked refresh token) — clear local session so
+      // the navigator redirects to the login screen.
+      await useAuthStore.getState().logout();
+      return Promise.reject(error);
+    }
+
+    original.headers = original.headers ?? {};
+    original.headers.Authorization = `Bearer ${newToken}`;
+    return apiClient(original);
+  },
+);
 
 // ── Unauthenticated client (login, public endpoints) ────────────────────────
 

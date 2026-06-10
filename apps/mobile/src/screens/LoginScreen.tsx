@@ -46,8 +46,10 @@ export function LoginScreen(_props: Props) {
     setErrorMsg(null);
     try {
       const res = await authClient.post<LoginResponse>('/api/v1/auth/login', { email, password });
-      const { accessToken, user } = res.data;  // flat response — no .data wrapper
-      setAuth(accessToken, user);
+      const { accessToken, refreshToken, user } = res.data;  // flat response — no .data wrapper
+      // Persist the refresh token so the client can silently renew the access
+      // token on 401 instead of forcing a re-login (see api/client.ts).
+      setAuth(accessToken, user, refreshToken);
     } catch (err: unknown) {
       const message =
         isAxiosError(err) && err.response?.data?.message

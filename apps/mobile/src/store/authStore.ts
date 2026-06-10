@@ -90,9 +90,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { token } = get();
     if (token) {
       try {
-        // Import lazily to avoid circular dependency with client.ts
-        const { authClient } = await import('../api/client');
-        await authClient.post('/auth/logout');
+        // Import lazily to avoid circular dependency with client.ts.
+        // ARCH-DECISION: use the authenticated apiClient (injects the Bearer
+        // token) and the gateway-prefixed path /api/v1/auth/logout. The endpoint
+        // is JWT-guarded, and the gateway only routes /api/v1/auth/* — the old
+        // unauthenticated authClient + '/auth/logout' path 404'd silently, so the
+        // server-side refresh token was never revoked on logout.
+        const { apiClient } = await import('../api/client');
+        await apiClient.post('/api/v1/auth/logout');
       } catch {
         // Intentionally swallow — user must always be able to log out locally
       }

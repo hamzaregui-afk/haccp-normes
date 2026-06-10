@@ -146,8 +146,13 @@ describe('LoginScreen', () => {
     });
   });
 
-  it('calls setAuth with token and user on successful login', async () => {
-    mockPost.mockResolvedValue({ data: { accessToken: 'jwt-token', user: FAKE_USER } });
+  it('calls setAuth with token, user AND refresh token on successful login', async () => {
+    // The auth-service returns a refreshToken alongside the access token; the
+    // screen must forward it to setAuth so the client can silently renew the
+    // session on 401 (AUTH-1/AUTH-2).
+    mockPost.mockResolvedValue({
+      data: { accessToken: 'jwt-token', refreshToken: 'refresh-token', user: FAKE_USER },
+    });
 
     renderScreen();
     fireEvent.changeText(screen.getByTestId('email-input'), 'chef@resto.fr');
@@ -155,7 +160,7 @@ describe('LoginScreen', () => {
     fireEvent.press(screen.getByTestId('login-button'));
 
     await waitFor(() => {
-      expect(mockSetAuth).toHaveBeenCalledWith('jwt-token', FAKE_USER);
+      expect(mockSetAuth).toHaveBeenCalledWith('jwt-token', FAKE_USER, 'refresh-token');
     });
   });
 
