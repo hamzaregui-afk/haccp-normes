@@ -29,7 +29,9 @@
     "zustand":                         "^4.5.2"
   },
   "devDependencies": {
+    "@babel/runtime":                  "^7.25.0",
     "babel-plugin-module-resolver":    "^5.0.0",
+    "babel-preset-expo":               "~11.0.0",
     "@testing-library/jest-native":    "^5.4.3",
     "@testing-library/react-native":   "^12.4.3",
     "@types/jest":                     "^29.5.12",
@@ -46,7 +48,7 @@
       "<rootDir>/src/test-setup.ts"
     ],
     "transformIgnorePatterns": [
-      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|@tanstack)"
+      "node_modules/(?!(?:\\.pnpm/[^/]+/node_modules/)?((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|@tanstack))"
     ],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1"

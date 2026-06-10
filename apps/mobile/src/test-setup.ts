@@ -17,12 +17,16 @@ jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn().mockResolvedValue(undefined),
 }));
 
-// expo-camera
-jest.mock('expo-camera', () => ({ Camera: {} }));
-
-// expo-print / expo-sharing: not needed in unit tests
-jest.mock('expo-print',   () => ({ printAsync: jest.fn() }));
-jest.mock('expo-sharing', () => ({ shareAsync:  jest.fn() }));
+// expo-print / expo-sharing: stub every method the screens call so tests can
+// override them per-case (DLCScreen uses printToFileAsync + isAvailableAsync).
+jest.mock('expo-print', () => ({
+  printToFileAsync: jest.fn(),
+  printAsync:       jest.fn(),
+}));
+jest.mock('expo-sharing', () => ({
+  isAvailableAsync: jest.fn(),
+  shareAsync:       jest.fn(),
+}));
 
 // React Native's Alert — control it in tests
 jest.spyOn(require('react-native').Alert, 'alert').mockImplementation(() => undefined);

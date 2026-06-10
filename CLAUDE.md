@@ -391,3 +391,31 @@ RabbitMQ exchanges follow: `<domain>.<entity>.<past-tense>`
 | **Verification** | Periodic confirmation that the HACCP plan is operating effectively |
 | **Audit Log** | Immutable, append-only record of all system events (regulatory requirement) |
 | **Tenant** | An independent food-business organization using the SaaS platform |
+
+---
+
+## Mobile App — Production Hardening (journal de session)
+
+> Mise à jour 2026-06-10. Suivi détaillé des bugs/tâches dans `BUGS.md`.
+
+### Faits non évidents à connaître
+- **Branche de déploiement = `main-sync`** (pas `main`). `.github/workflows/deploy.yml` fait `git reset --hard origin/main-sync` sur Hetzner (`178.105.126.165`).
+- **API mobile de prod = IP brute + cert auto-signé** (`EXPO_PUBLIC_API_BASE_URL=https://178.105.126.165`). **Bloquant stores** : les devices rejettent ce certificat. Cible : domaine + TLS valide (le domaine `normes-haccp.com` existe déjà pour `files.` via Cloudflare). Voir `INFRA-1` dans BUGS.md.
+- **Routes gateway** : tout le mobile passe par `/api/v1/*` (nginx `infrastructure/nginx/nginx.conf`). Auth : `/api/v1/auth/{login,refresh,logout}`. `refresh` **fait tourner** le refresh token (rotation + détection de rejeu).
+- **Push notifications non implémentées** côté backend (seul `FCM_SERVER_KEY` optionnel) ; notification-service = WebSocket (Socket.io) et le mobile n'a pas de client socket. Voir `PUSH-1`.
+- **Offline/sync** : confirmé **indispensable** par le PO, à implémenter (`OFF-1`).
+
+### Test harness mobile sous pnpm (important)
+La suite jest mobile **ne tournait pas** sous pnpm (séquelles de l'upgrade SDK 50→51). Corrigé (`TEST-2`) :
+- `transformIgnorePatterns` doit autoriser le préfixe `node_modules/.pnpm/<pkg>/node_modules/` (sinon le polyfill RN en Flow n'est pas transpilé).
+- `babel-preset-expo` et `@babel/runtime` doivent être des **devDependencies directes** (pnpm ne hoiste pas les transitives au top-level du workspace).
+- `pnpm-lock.yaml` doit rester synchro avec `apps/mobile/package.json` (sinon CI `--frozen-lockfile` échoue).
+- Tests d'écrans : monter les composants via `renderWithI18n` (`src/test-utils.tsx`) qui enveloppe dans le **vrai** `<I18nProvider initialLang="fr">` ; les assertions matchent `fr.ts`.
+- Lancer la suite : `corepack pnpm --filter @haccp/mobile test` (pnpm absent du PATH ; corepack l'expose).
+
+### Fait cette session (mobile-only, sans toucher infra/backend)
+- **Auth** : persistance du refreshToken au login + intercepteur 401 → refresh silencieux/single-flight/rejeu (`src/api/client.ts`) ; logout sur `/api/v1/auth/logout` authentifié. (`AUTH-1/2/3`)
+- **Harnais de test réparé** + lockfile régénéré ; **suite mobile : 8 suites / 137 tests verts**, `tsc --noEmit` OK.
+
+### Reste à faire (priorisé dans BUGS.md)
+`INFRA-1` (domaine/TLS), `PUSH-1` (push), `OFF-1` (offline/sync — indispensable), `NCPHOTO-1` (photos NC), `OBS-1` (Sentry), `CI-1` (pipeline EAS build/submit), `SEC-1` (révoquer le token GitHub en clair dans le remote git).

@@ -77,6 +77,8 @@ jest.mock('../../api/client', () => ({
 // ── Import under test ─────────────────────────────────────────────────────────
 
 import { ChecklistScreen } from '../ChecklistScreen';
+import { I18nProvider } from '../../i18n';
+import { useAuthStore } from '../../store/authStore';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -109,10 +111,12 @@ function renderScreen() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <ChecklistScreen
-        navigation={{ navigate: mockNavigate } as never}
-        route={{ params: { taskId: 'task-001' } } as never}
-      />
+      <I18nProvider initialLang="fr">
+        <ChecklistScreen
+          navigation={{ navigate: mockNavigate } as never}
+          route={{ params: { taskId: 'task-001' } } as never}
+        />
+      </I18nProvider>
     </QueryClientProvider>,
   );
 }
@@ -133,15 +137,25 @@ function setupQueriesWithEntries() {
   };
   controlClient.get.mockResolvedValue({ data: { data: TEMPLATE } });
 
-  mockUseQuery
-    .mockReturnValueOnce(qr(TASK)) // first call: task query
-    .mockImplementationOnce(        // second call: template query
-      ({ queryFn }: { queryFn?: () => Promise<unknown> }) => {
-        // Fire the queryFn so setEntries() runs as its side-effect.
-        void queryFn?.();
+  // ARCH-DECISION: a STABLE implementation keyed by queryKey (not mockReturnValueOnce).
+  // The template queryFn calls setEntries(), which re-renders the component and
+  // re-invokes useQuery — "once" mocks would be exhausted and fall back to the
+  // default loading state, leaving the screen stuck on the spinner. We key on the
+  // queryKey instead and fire the template queryFn exactly once (entries init).
+  let tplFnFired = false;
+  mockUseQuery.mockImplementation(
+    (opts: { queryKey?: unknown[]; queryFn?: () => Promise<unknown> }) => {
+      const key = Array.isArray(opts?.queryKey) ? opts.queryKey[0] : undefined;
+      if (key === 'template') {
+        if (!tplFnFired) {
+          tplFnFired = true;
+          void opts.queryFn?.();
+        }
         return qr(TEMPLATE);
-      },
-    );
+      }
+      return qr(TASK);
+    },
+  );
 }
 
 // ── Suite ─────────────────────────────────────────────────────────────────────
@@ -149,16 +163,28 @@ function setupQueriesWithEntries() {
 describe('ChecklistScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // ChecklistScreen reads the REAL auth store for canExecute (OPERATOR/ADMIN/
+    // MANAGER/SUPER_ADMIN may submit). Seed an OPERATOR so the checkpoint inputs
+    // and submit button are enabled; otherwise the read-only banner is shown and
+    // every interaction is a no-op.
+    useAuthStore.setState({
+      user: { sub: 'u1', email: 'op@test.fr', role: 'OPERATOR', tenantId: 't1' },
+      token: 'tok',
+    });
     // Default: task still loading → loading view shown
     mockUseQuery.mockReturnValue(qr(undefined, { isLoading: true }));
     mockUseMutation.mockReturnValue(mr());
+  });
+
+  afterEach(() => {
+    useAuthStore.setState({ user: null, token: null });
   });
 
   // ── Loading states ────────────────────────────────────────────────────────────
 
   it('shows "Chargement du contrôle…" while the task is loading', () => {
     renderScreen();
-    expect(screen.getByText('Chargement du contrôle…')).toBeTruthy();
+    expect(screen.getByText('Chargement…')).toBeTruthy();
   });
 
   it('shows an ActivityIndicator while loading', () => {
@@ -175,7 +201,7 @@ describe('ChecklistScreen', () => {
       .mockReturnValueOnce(qr(TASK))
       .mockReturnValueOnce(qr(undefined, { isLoading: true }));
     renderScreen();
-    expect(screen.getByText('Chargement du contrôle…')).toBeTruthy();
+    expect(screen.getByText('Chargement…')).toBeTruthy();
   });
 
   // ── Error states ──────────────────────────────────────────────────────────────
@@ -269,7 +295,7 @@ describe('ChecklistScreen', () => {
     fireEvent.press(screen.getByText('Soumettre le contrôle'));
 
     expect(Alert.alert).toHaveBeenCalledWith(
-      'Incomplet',
+      'Contrôle incomplet',
       expect.stringContaining('résultat'),
     );
   });
@@ -288,7 +314,7 @@ describe('ChecklistScreen', () => {
 
   // ── Successful submission (all PASS) ──────────────────────────────────────────
 
-  it('calls mutation with status DONE and PASS results when all checkpoints are answered', async () => {
+  it('calls mutation with status COMPLETED and PASS results when all checkpoints are answered', async () => {
     const mockMutate = jest.fn();
     setupQueriesWithEntries();
     mockUseMutation.mockReturnValue(mr(mockMutate));
@@ -302,7 +328,7 @@ describe('ChecklistScreen', () => {
 
     expect(mockMutate).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: 'DONE',
+        status: 'COMPLETED',
         resultJson: expect.objectContaining({
           checkpoints: expect.arrayContaining([
             expect.objectContaining({ description: 'Température viande',    result: 'PASS' }),

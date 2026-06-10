@@ -38,24 +38,26 @@ import * as Sharing from 'expo-sharing';
 jest.mock('../../api/client', () => ({
   dlcClient: {
     post: jest.fn(),
+    // The screen also queries printers + "expiring today" via react-query.
+    get:  jest.fn(),
   },
 }));
 
 // ── Import under test ─────────────────────────────────────────────────────────
 
 import { DLCScreen } from '../DLCScreen';
+import { I18nProvider } from '../../i18n';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
+// Mirrors the dlc-service calculate() response shape consumed by the screen
+// (res.data.data): productId / productName / dlcDays / producedAt / expiresAt.
 const DLC_RESULT = {
-  expirationDate: '2026-05-09T00:00:00.000Z',
-  label: {
-    productName:      'Yaourt nature',
-    lotNumber:        'LOT-2026-001',
-    fabricationDate:  '2026-05-06T00:00:00.000Z',
-    expirationDate:   '2026-05-09T00:00:00.000Z',
-    shelfLifeDays:    3,
-  },
+  productId:   'Yaourt nature',
+  productName: 'Yaourt nature',
+  dlcDays:     3,
+  producedAt:  '2026-05-06',
+  expiresAt:   '2026-05-09T00:00:00.000Z',
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -64,10 +66,12 @@ function renderScreen() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <DLCScreen
-        navigation={{} as never}
-        route={{} as never}
-      />
+      <I18nProvider initialLang="fr">
+        <DLCScreen
+          navigation={{} as never}
+          route={{} as never}
+        />
+      </I18nProvider>
     </QueryClientProvider>,
   );
 }
@@ -86,8 +90,8 @@ function fillForm(overrides: {
     shelfLife   = '3',
   } = overrides;
 
-  fireEvent.changeText(screen.getByPlaceholderText('Ex: Yaourt nature'),   productName);
-  fireEvent.changeText(screen.getByPlaceholderText('Ex: LOT-2025-042'),    lotNumber);
+  fireEvent.changeText(screen.getByPlaceholderText('Ex : Yaourt nature'),   productName);
+  fireEvent.changeText(screen.getByPlaceholderText('Ex : LOT-2025-042'),    lotNumber);
   fireEvent.changeText(screen.getByPlaceholderText('2025-05-03'),          fabDate);
   fireEvent.changeText(screen.getByPlaceholderText('3'),                   shelfLife);
 }
@@ -96,12 +100,16 @@ function fillForm(overrides: {
 
 describe('DLCScreen', () => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { dlcClient } = require('../../api/client') as { dlcClient: { post: jest.Mock } };
+  const { dlcClient } = require('../../api/client') as {
+    dlcClient: { post: jest.Mock; get: jest.Mock };
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
     // Default: successful API response
     dlcClient.post.mockResolvedValue({ data: { data: DLC_RESULT } });
+    // printers + expiring-today queries resolve to empty lists
+    dlcClient.get.mockResolvedValue({ data: { data: [] } });
     // expo-print: printToFileAsync returns a URI; printAsync is a no-op
     (Print.printToFileAsync as jest.Mock).mockResolvedValue({ uri: 'file:///tmp/label.pdf' });
     (Print.printAsync as jest.Mock).mockResolvedValue(undefined);
@@ -124,7 +132,7 @@ describe('DLCScreen', () => {
 
   it('renders the product name TextInput', () => {
     renderScreen();
-    expect(screen.getByPlaceholderText('Ex: Yaourt nature')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Ex : Yaourt nature')).toBeTruthy();
   });
 
   it('renders the "N° de lot *" field label', () => {
@@ -134,7 +142,7 @@ describe('DLCScreen', () => {
 
   it('renders the lot number TextInput', () => {
     renderScreen();
-    expect(screen.getByPlaceholderText('Ex: LOT-2025-042')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Ex : LOT-2025-042')).toBeTruthy();
   });
 
   it('renders the fabrication date label', () => {
@@ -174,50 +182,50 @@ describe('DLCScreen', () => {
     // Clear the shelf-life field (default is "3")
     fireEvent.changeText(screen.getByPlaceholderText('3'), '');
     fireEvent.press(screen.getByText('Calculer & Imprimer'));
-    expect(Alert.alert).toHaveBeenCalledWith('Champs requis', expect.any(String));
+    expect(Alert.alert).toHaveBeenCalledWith('Erreur', expect.any(String));
   });
 
   it('shows "Champs requis" Alert when product name is missing', () => {
     renderScreen();
-    fireEvent.changeText(screen.getByPlaceholderText('Ex: LOT-2025-042'), 'LOT-001');
+    fireEvent.changeText(screen.getByPlaceholderText('Ex : LOT-2025-042'), 'LOT-001');
     fireEvent.changeText(screen.getByPlaceholderText('2025-05-03'), '2026-05-06');
     fireEvent.press(screen.getByText('Calculer & Imprimer'));
-    expect(Alert.alert).toHaveBeenCalledWith('Champs requis', expect.any(String));
+    expect(Alert.alert).toHaveBeenCalledWith('Erreur', expect.any(String));
   });
 
   it('shows "Valeur invalide" Alert when shelf-life is 0', () => {
     renderScreen();
     fillForm({ shelfLife: '0' });
     fireEvent.press(screen.getByText('Calculer & Imprimer'));
-    expect(Alert.alert).toHaveBeenCalledWith('Valeur invalide', expect.any(String));
+    expect(Alert.alert).toHaveBeenCalledWith('Erreur', expect.any(String));
   });
 
   it('shows "Valeur invalide" Alert when shelf-life is negative', () => {
     renderScreen();
     fillForm({ shelfLife: '-5' });
     fireEvent.press(screen.getByText('Calculer & Imprimer'));
-    expect(Alert.alert).toHaveBeenCalledWith('Valeur invalide', expect.any(String));
+    expect(Alert.alert).toHaveBeenCalledWith('Erreur', expect.any(String));
   });
 
   it('shows "Valeur invalide" Alert when shelf-life is not a number', () => {
     renderScreen();
     fillForm({ shelfLife: 'abc' });
     fireEvent.press(screen.getByText('Calculer & Imprimer'));
-    expect(Alert.alert).toHaveBeenCalledWith('Valeur invalide', expect.any(String));
+    expect(Alert.alert).toHaveBeenCalledWith('Erreur', expect.any(String));
   });
 
   it('shows "Format invalide" Alert when date is not YYYY-MM-DD', () => {
     renderScreen();
     fillForm({ fabDate: '06/05/2026' });
     fireEvent.press(screen.getByText('Calculer & Imprimer'));
-    expect(Alert.alert).toHaveBeenCalledWith('Format invalide', expect.any(String));
+    expect(Alert.alert).toHaveBeenCalledWith('Erreur', expect.any(String));
   });
 
   it('shows "Format invalide" Alert for partial date strings', () => {
     renderScreen();
     fillForm({ fabDate: '2026-05' });
     fireEvent.press(screen.getByText('Calculer & Imprimer'));
-    expect(Alert.alert).toHaveBeenCalledWith('Format invalide', expect.any(String));
+    expect(Alert.alert).toHaveBeenCalledWith('Erreur', expect.any(String));
   });
 
   // ── Successful flow ───────────────────────────────────────────────────────────
@@ -231,10 +239,12 @@ describe('DLCScreen', () => {
     expect(dlcClient.post).toHaveBeenCalledWith(
       '/api/v1/dlc/calculate',
       {
-        productName:     'Yaourt nature',
-        lotNumber:       'LOT-2026-001',
-        fabricationDate: '2026-05-06',
-        shelfLifeDays:   3,
+        // lotNumber stays local (not part of the calculate DTO); productId is
+        // set to the product name for manual entries (see DLCScreen ARCH-DECISION).
+        productId:   'Yaourt nature',
+        productName: 'Yaourt nature',
+        dlcDays:     3,
+        producedAt:  '2026-05-06',
       },
     );
   });

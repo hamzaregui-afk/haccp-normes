@@ -44,8 +44,13 @@ jest.mock('@tanstack/react-query', () => ({
 // ── Auth store mock ────────────────────────────────────────────────────────────
 
 jest.mock('../../store/authStore', () => ({
-  useAuthStore: (selector: (s: { token: string | null }) => unknown) =>
-    selector({ token: 'test-jwt-token' }),
+  // The screen reads both `token` (hasToken) and `user` (role → canSubmit).
+  // An OPERATOR is allowed to submit NCs, so the submit button stays enabled.
+  useAuthStore: (selector: (s: { token: string | null; user: unknown }) => unknown) =>
+    selector({
+      token: 'test-jwt-token',
+      user: { sub: 'u1', email: 'op@test.fr', role: 'OPERATOR', tenantId: 't1' },
+    }),
 }));
 
 // ── API client mock ────────────────────────────────────────────────────────────
@@ -58,6 +63,7 @@ jest.mock('../../api/client', () => ({
 // ── Import under test ─────────────────────────────────────────────────────────
 
 import { NCFormScreen } from '../NCFormScreen';
+import { I18nProvider } from '../../i18n';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -79,7 +85,9 @@ function renderScreen() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <NCFormScreen navigation={{} as never} route={{} as never} />
+      <I18nProvider initialLang="fr">
+        <NCFormScreen navigation={{} as never} route={{} as never} />
+      </I18nProvider>
     </QueryClientProvider>,
   );
 }

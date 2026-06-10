@@ -19,7 +19,9 @@
 
 import React from 'react';
 import { Alert } from 'react-native';
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { screen, fireEvent } from '@testing-library/react-native';
+
+import { renderWithI18n as render } from '../../test-utils';
 
 // ── Mocks ──────────────────────────────────────────────────────────────────────
 
