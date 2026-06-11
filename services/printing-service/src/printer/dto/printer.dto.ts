@@ -5,6 +5,11 @@ import { z } from 'zod';
 export const ConnectionTypeSchema = z.enum(['NETWORK', 'BLUETOOTH', 'USB']);
 export type ConnectionType = z.infer<typeof ConnectionTypeSchema>;
 
+// Phase A additive enums (4-level printing engine). Optional on input so existing
+// callers (web/mobile/agent) keep working unchanged.
+export const PrinterProtocolSchema   = z.enum(['TSPL', 'ZPL', 'ESC_POS']);
+export const PrinterConnectionSchema = z.enum(['USB', 'BLUETOOTH', 'WIFI', 'LOCAL_AGENT']);
+
 // ── Create ────────────────────────────────────────────────────────────────────
 
 export const CreatePrinterSchema = z.object({
@@ -17,6 +22,11 @@ export const CreatePrinterSchema = z.object({
   isDefault:           z.boolean().default(false),
   siteId:              z.string().cuid().optional(),
   zoneId:              z.string().cuid().optional(),
+  // Phase A additive fields (all optional → backward-compatible)
+  brand:                 z.string().max(100).optional(),
+  protocol:              PrinterProtocolSchema.optional(),
+  connection:            PrinterConnectionSchema.optional(),
+  defaultMediaProfileId: z.string().min(1).optional(),
 });
 
 export type CreatePrinterDto = z.infer<typeof CreatePrinterSchema>;

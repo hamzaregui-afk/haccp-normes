@@ -68,9 +68,11 @@ describe('generateDlcZpl', () => {
 
   it('strips caret characters from product name to avoid ZPL command injection', () => {
     const zpl = generateDlcZpl({ ...baseData, productName: 'Bad^FX^Cheese' });
+    // ARCH-DECISION: sanitization removes the ZPL control chars (^ and ~) only —
+    // that alone neutralizes injection (commands must start with ^/~). The
+    // remaining letters stay as inert label text, so 'Bad^FX^Cheese' → 'BadFXCheese'.
     expect(zpl).not.toContain('^FX');
-    // The field should still contain the rest of the text
-    expect(zpl).toContain('BadCheese');
+    expect(zpl).toContain('BadFXCheese');
   });
 
   it('sets CI28 for UTF-8 character set', () => {

@@ -40,6 +40,22 @@
 
 ---
 
+## 🖨️ EPIC — Moteur d'impression pro (4 niveaux)
+
+> Objectif : LabelTemplate (métier) / MediaProfile / Printer (TSPL·ZPL·ESC-POS) / Affectations (Site·Zone·User·Module). Approche **expand/contract**, zéro régression sur le chemin DLC actuel. Décision : mobile = impression **réseau/agent** uniquement (pas de BT/USB natif). Flux : GitHub → commit → push → Hetzner (push/deploy sur « go » explicite).
+
+| # | Phase | Statut | Détail |
+|---|---|---|---|
+| PRINT-A1 | A — Fondations | 🟡 en cours | **Schéma + migration faits & validés** : enums `MediaType`/`PrinterProtocol`/`PrinterConnection`/`PrinterStatus`/`AssignmentScope`, modèles `MediaProfile` + `PrinterAssignment`, colonnes additives `Printer` (brand, protocol, connection, defaultMediaProfileId, connectionStatus, lastActivityAt). `prisma validate` OK, client régénéré. Migration `20260610000000_printing_media_assignments`. |
+| PRINT-A2 | A — Schémas partagés | 🟢 fait | `shared-validators/src/printing.schema.ts` (Create/Update/Query MediaProfile + PrinterAssignment + Resolve, enums) + `shared-types/src/printing.types.ts` (entités). Barrels mis à jour. Compile OK (DTO d'entrée en `.min(1)`, pas `.cuid()`). |
+| PRINT-A3 | A — Modules NestJS | 🟢 fait | Modules `media-profiles` + `printer-assignments` (CRUD tenant-scoped, RBAC, audit, `isDefault` atomique, endpoint **`/printer-assignments/resolve`** ZONE>SITE>USER>MODULE + fallback défaut). `Printer` DTO/serv. étendus (brand/protocol/connection/defaultMediaProfileId, additifs). **Bonus** : harnais jest du service réparé (`@types/jest` manquant + `moduleNameMapper` faux `../../`→`../../../`). **Suite service : 48/48 verts** (11 nouveaux + 37 existants qui tournaient jamais avant). |
+| PRINT-A4 | A — Gateway | 🟢 fait | Routes nginx additives `/api/v1/media-profiles` + `/api/v1/printer-assignments` ajoutées dans les **deux** serveurs (80 + 443). |
+| PRINT-B | B — Moteur rendu | 🔴 à faire | TSPL/ZPL/ESC-POS + LabelTemplate agnostique ; parité DLC (snapshots golden) avant bascule. |
+| PRINT-C | C — Web | 🔴 à faire | `Paramètres → Impression` : Imprimantes (étendu), Profils Média, Templates, Tests, Calibration. |
+| PRINT-D | D — Mobile | 🔴 à faire | Sélection imprimante par module (réseau/agent), abstraction protocole. |
+| PRINT-E | E — Agent | 🔴 à faire | Auto-start service, reconnexion, multi-imprimantes, queue, reprise + guides Win/Mac/Linux. |
+| PRINT-F | F — Audit+E2E+deploy | 🔴 à faire | Impacts DLC/Traçabilité/Contrôles/Réception/GED/Notifs/Rapports ; E2E ; déploiement. |
+
 ## 🟢 Corrigés
 
-_(vide pour l'instant)_
+_(voir AUTH-1/2/3, CI-2, TEST-1/2 ci-dessus)_

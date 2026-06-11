@@ -23,6 +23,45 @@ enum PrintJobStatus {
   FAILED
 }
 
+// ── Printing engine (Phase A — additive, non-breaking) ────────────────────────
+// ARCH-DECISION: new enums for the 4-level printing engine. The legacy
+// `ConnectionType` enum is intentionally LEFT IN PLACE for backward compat with
+// existing Printer rows / DLC flow; the richer `PrinterConnection` is added
+// alongside (nullable) and the two converge in a later expand/contract phase.
+
+enum MediaType {
+  GAP
+  BLACK_MARK
+  CONTINUOUS
+}
+
+enum PrinterProtocol {
+  TSPL
+  ZPL
+  ESC_POS
+}
+
+enum PrinterConnection {
+  USB
+  BLUETOOTH
+  WIFI
+  LOCAL_AGENT
+}
+
+enum PrinterStatus {
+  UNKNOWN
+  ONLINE
+  OFFLINE
+  ERROR
+}
+
+enum AssignmentScope {
+  SITE
+  ZONE
+  USER
+  MODULE
+}
+
 model Printer {
   id                  String         @id @default(cuid())
   tenantId            String         @map("tenant_id")
@@ -39,10 +78,69 @@ model Printer {
   createdAt           DateTime       @default(now()) @map("created_at")
   updatedAt           DateTime       @updatedAt @map("updated_at")
 
-  jobs PrintJob[]
+  // Phase A additive fields (4-level printing engine). All nullable/defaulted so
+  // existing rows remain valid; the legacy `connectionType` column is preserved.
+  brand                 String?            @map("brand")
+  protocol              PrinterProtocol    @default(ZPL) @map("protocol")
+  connection            PrinterConnection? @map("connection")
+  defaultMediaProfileId String?            @map("default_media_profile_id")
+  connectionStatus      PrinterStatus      @default(UNKNOWN) @map("connection_status")
+  lastActivityAt        DateTime?          @map("last_activity_at")
+
+  jobs                PrintJob[]
+  assignments         PrinterAssignment[]
+  defaultMediaProfile MediaProfile?       @relation(fields: [defaultMediaProfileId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
+  @@index([defaultMediaProfileId])
   @@map("printers")
+}
+
+// ── MediaProfile (Niveau 2) ───────────────────────────────────────────────────
+// Physical media a printer loads: size + technology (GAP / BLACK_MARK /
+// CONTINUOUS) + thermal params. Decoupled from both template and printer.
+model MediaProfile {
+  id            String    @id @default(cuid())
+  tenantId      String    @map("tenant_id")
+  name          String
+  widthMm       Float     @map("width_mm")
+  heightMm      Float     @map("height_mm")
+  mediaType     MediaType @default(GAP) @map("media_type")
+  gapMm         Float?    @map("gap_mm")
+  blackMarkMm   Float?    @map("black_mark_mm")
+  dpi           Int       @default(203)
+  speed         Int? // print speed (printer-native units)
+  density       Int? // darkness / heat
+  autoCalibrate Boolean   @default(true) @map("auto_calibrate")
+  isDefault     Boolean   @default(false) @map("is_default")
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  printers Printer[]
+
+  @@index([tenantId])
+  @@map("media_profiles")
+}
+
+// ── PrinterAssignment (Niveau 4) ──────────────────────────────────────────────
+// Routes a printing context (Site / Zone / User / Module) to a printer, with a
+// priority so resolution is deterministic when several rules match.
+model PrinterAssignment {
+  id          String          @id @default(cuid())
+  tenantId    String          @map("tenant_id")
+  printerId   String          @map("printer_id")
+  scope       AssignmentScope
+  referenceId String          @map("reference_id") // siteId | zoneId | userId | module key
+  priority    Int             @default(0)
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  printer Printer @relation(fields: [printerId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, scope, referenceId, printerId])
+  @@index([tenantId, scope, referenceId])
+  @@map("printer_assignments")
 }
 
 model PrinterTemplate {
@@ -69,8 +167,8 @@ model PrintJob {
   printerId    String?        @map("printer_id")
   templateId   String?        @map("template_id")
   labelType    String         @map("label_type")
-  payload      Json           // data used to render the template
-  zpl          String?        // generated ZPL (stored for retry/audit)
+  payload      Json // data used to render the template
+  zpl          String? // generated ZPL (stored for retry/audit)
   status       PrintJobStatus @default(PENDING)
   errorMessage String?        @map("error_message")
   copies       Int            @default(1)

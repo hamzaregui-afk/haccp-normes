@@ -4,6 +4,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { PrinterModule } from './printer/printer.module';
 import { TemplateModule } from './template/template.module';
 import { PrintJobModule } from './print-job/print-job.module';
+import { MediaProfileModule } from './media-profile/media-profile.module';
+import { PrinterAssignmentModule } from './printer-assignment/printer-assignment.module';
 
 @Module({
   imports: [
@@ -12,6 +14,8 @@ import { PrintJobModule } from './print-job/print-job.module';
     PrinterModule,
     TemplateModule,
     PrintJobModule,
+    MediaProfileModule,
+    PrinterAssignmentModule,
   ],
 })
 export class AppModule {}

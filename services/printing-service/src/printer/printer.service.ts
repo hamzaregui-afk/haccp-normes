@@ -63,6 +63,11 @@ export class PrinterService {
         isDefault:           dto.isDefault,
         siteId:              dto.siteId ?? null,
         zoneId:              dto.zoneId ?? null,
+        // Phase A additive fields (omit when undefined → DB defaults apply)
+        ...(dto.brand                 !== undefined ? { brand:                 dto.brand }                 : {}),
+        ...(dto.protocol              !== undefined ? { protocol:              dto.protocol }              : {}),
+        ...(dto.connection            !== undefined ? { connection:            dto.connection }            : {}),
+        ...(dto.defaultMediaProfileId !== undefined ? { defaultMediaProfileId: dto.defaultMediaProfileId } : {}),
       },
     });
 
@@ -94,6 +99,10 @@ export class PrinterService {
         ...(dto.isDefault           !== undefined ? { isDefault:           dto.isDefault }           : {}),
         ...(dto.siteId              !== undefined ? { siteId:              dto.siteId }              : {}),
         ...(dto.zoneId              !== undefined ? { zoneId:              dto.zoneId }              : {}),
+        ...(dto.brand                 !== undefined ? { brand:                 dto.brand }                 : {}),
+        ...(dto.protocol              !== undefined ? { protocol:              dto.protocol }              : {}),
+        ...(dto.connection            !== undefined ? { connection:            dto.connection }            : {}),
+        ...(dto.defaultMediaProfileId !== undefined ? { defaultMediaProfileId: dto.defaultMediaProfileId } : {}),
       },
     });
 

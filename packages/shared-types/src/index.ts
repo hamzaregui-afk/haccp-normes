@@ -9,3 +9,4 @@ export * from './notification.types';
 export * from './audit.types';
 export * from './dlc.types';
 export * from './tracability.types';
+export * from './printing.types';
