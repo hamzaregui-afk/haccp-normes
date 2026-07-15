@@ -31,6 +31,21 @@ sleep 30
 echo "=== Container status ==="
 docker compose ps --format "table {{.Name}}\t{{.Status}}" | head -20
 
+# ARCH-DECISION: nginx.conf is bind-mounted (read-only volume), so `docker compose
+# up -d` does NOT recreate the gateway when only the config file changed — the
+# running container keeps the previous nginx.conf. We must explicitly reload it so
+# routing changes (new /api/v1/* locations) take effect on every deploy.
+# `nginx -s reload` re-reads the mounted config with zero downtime; if the config
+# is invalid or reload fails, fall back to a full recreate.
+echo "=== Reloading api-gateway nginx config (applies routing changes) ==="
+if docker exec haccp-gateway nginx -t 2>&1; then
+  docker exec haccp-gateway nginx -s reload 2>&1 && echo "nginx reloaded" \
+    || docker compose up -d --force-recreate api-gateway
+else
+  echo "nginx -t failed — forcing gateway recreate"
+  docker compose up -d --force-recreate api-gateway
+fi
+
 echo "=== Port bindings (3001 must point to haccp-gateway) ==="
 ss -tlnp | grep -E "3001|:80 " || true
 
