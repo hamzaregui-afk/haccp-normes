@@ -13,6 +13,8 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 
 import { TenantService } from './tenant.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { TenantModuleService } from '../tenant-module/tenant-module.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -70,6 +72,8 @@ describe('TenantService', () => {
       providers: [
         TenantService,
         { provide: PrismaService, useValue: prisma },
+        { provide: TenantModuleService, useValue: { initForPlan: jest.fn().mockResolvedValue(undefined) } },
+        { provide: SubscriptionService, useValue: { initForPlan: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 
@@ -109,7 +113,7 @@ describe('TenantService', () => {
 
     const where = prisma.tenant.findMany.mock.calls[0][0].where;
     expect(where).toHaveProperty('OR');
-    expect(where.OR).toHaveLength(2);
+    expect(where.OR).toHaveLength(3); // name, slug, email
     const fields = (where.OR as Array<Record<string, unknown>>).map((c) => Object.keys(c)[0]);
     expect(fields).toContain('name');
     expect(fields).toContain('slug');
@@ -162,7 +166,7 @@ describe('TenantService', () => {
     expect(prisma.tenant.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: dto }),
     );
-    expect(result.message).toBe('Tenant created');
+    expect(result.message).toBe('Client créé avec succès');
     expect(result.data).toMatchObject({ slug: 'boulangerie-dupont' });
   });
 
@@ -223,7 +227,7 @@ describe('TenantService', () => {
       where: { id: 'tenant-1' },
       data: { status: 'ARCHIVED' },
     });
-    expect(result.message).toBe('Tenant archived');
+    expect(result.message).toBe('Client archivé');
     expect(result.data).toMatchObject({ status: 'ARCHIVED' });
   });
 

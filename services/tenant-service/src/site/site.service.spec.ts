@@ -21,6 +21,11 @@ import type { CreateSiteDto, CreateZoneDto } from './dto/site.dto';
 
 function makePrismaMock() {
   return {
+    // SiteService.create checks the tenant row exists (SUPER_ADMIN guard) via
+    // prisma.tenant.findUnique — default to an existing tenant.
+    tenant: {
+      findUnique: jest.fn().mockResolvedValue({ id: 'tenant-1' }),
+    },
     site: {
       findMany:  jest.fn(),
       findFirst: jest.fn(),
@@ -234,7 +239,7 @@ describe('SiteService', () => {
 
       const result = await service.remove(SITE_ID, TENANT_ID);
 
-      expect(prisma.site.delete).toHaveBeenCalledWith({ where: { id: SITE_ID } });
+      expect(prisma.site.delete).toHaveBeenCalledWith({ where: { id: SITE_ID, tenantId: TENANT_ID } });
       expect(result.message).toBe('Site deleted');
     });
 

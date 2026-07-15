@@ -13,6 +13,7 @@
 
 jest.mock('@haccp/shared-utils', () => ({
   emitAuditEvent: jest.fn().mockResolvedValue(undefined),
+  extractResourceId: (r: { data?: { id?: string } }) => r?.data?.id,
 }));
 
 jest.mock('./dto/tenant.dto', () => ({
