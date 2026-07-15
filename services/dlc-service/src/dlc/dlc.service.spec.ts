@@ -253,7 +253,9 @@ describe('DlcService', () => {
     // cutoff must be roughly 3 days from now
     const diffMs = where.expiresAt.lte.getTime() - where.expiresAt.gte.getTime();
     const diffDays = diffMs / (1000 * 60 * 60 * 24);
-    expect(diffDays).toBeCloseTo(3, 0);
+    // Window spans startOfDay(now) → endOfDay(now+3): 3 full days plus the
+    // day-boundary expansion (see ARCH-DECISION in dlc.service.ts) ≈ 4 days.
+    expect(diffDays).toBeCloseTo(4, 0);
     expect(result.data).toHaveLength(2);
   });
 
@@ -265,6 +267,7 @@ describe('DlcService', () => {
     const where = prisma.dlcLabel.findMany.mock.calls[0][0].where;
     const diffMs   = where.expiresAt.lte.getTime() - where.expiresAt.gte.getTime();
     const diffDays = diffMs / (1000 * 60 * 60 * 24);
-    expect(diffDays).toBeCloseTo(7, 0);
+    // 7 full days + day-boundary expansion ≈ 8 days (see companion test above).
+    expect(diffDays).toBeCloseTo(8, 0);
   });
 });

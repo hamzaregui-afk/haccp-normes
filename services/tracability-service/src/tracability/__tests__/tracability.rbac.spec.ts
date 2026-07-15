@@ -195,8 +195,10 @@ describe('TRACABILITY module key — ALL_MODULE_KEYS synchronisation', () => {
   // These tests validate the sync at import time.
 
   it('shared-types ALL_TENANT_MODULE_KEYS includes TRACABILITY', async () => {
-    // Dynamic import avoids circular dependency in test runner
-    const { ALL_TENANT_MODULE_KEYS } = await import('../../../../../../packages/shared-types/src/tenant.types');
+    // Dynamic import avoids circular dependency in test runner. Uses the
+    // @haccp/shared-types alias (mapped in jest-base.config) rather than a
+    // brittle deep-relative path.
+    const { ALL_TENANT_MODULE_KEYS } = await import('@haccp/shared-types');
     expect(ALL_TENANT_MODULE_KEYS).toContain('TRACABILITY');
   });
 
