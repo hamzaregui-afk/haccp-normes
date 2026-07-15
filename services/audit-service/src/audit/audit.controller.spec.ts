@@ -35,7 +35,7 @@ const JWT_PAYLOAD: JwtPayload = {
 
 const MOCK_LOG = {
   id:         AUDIT_ID,
-  action:     'USER_CREATED',
+  action:     'CREATE',
   resource:   'user',
   resourceId: 'user-456',
   userId:     USER_ID,
@@ -86,7 +86,8 @@ describe('AuditController', () => {
 
   describe('create', () => {
     const BODY = {
-      action:     'USER_CREATED',
+      userId:     USER_ID,
+      action:     'CREATE',
       resource:   'user',
       resourceId: 'user-456',
       payload:    {},
@@ -96,7 +97,7 @@ describe('AuditController', () => {
       const req = makeReq({ ip: '10.0.0.2' });
       await controller.create(BODY, JWT_PAYLOAD, req as never);
       expect(service.log).toHaveBeenCalledWith(
-        expect.objectContaining({ action: 'USER_CREATED', ipAddress: '10.0.0.2' }),
+        expect.objectContaining({ action: 'CREATE', ipAddress: '10.0.0.2' }),
         TENANT_ID,
       );
     });

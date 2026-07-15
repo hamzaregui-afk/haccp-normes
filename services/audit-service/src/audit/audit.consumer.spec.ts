@@ -37,6 +37,15 @@ function makeEnvelope(
   };
 }
 
+// Each handler acks the RabbitMQ message via ctx.getChannelRef().ack(getMessage()).
+// Provide a minimal RmqContext stub so the direct handler calls don't blow up.
+function makeCtx(): Parameters<AuditConsumer['handleNcCreated']>[1] {
+  return {
+    getChannelRef: () => ({ ack: jest.fn() }),
+    getMessage:    () => ({}),
+  } as unknown as Parameters<AuditConsumer['handleNcCreated']>[1];
+}
+
 // ─── Suite ────────────────────────────────────────────────────────────────────
 
 describe('AuditConsumer', () => {
@@ -65,7 +74,7 @@ describe('AuditConsumer', () => {
         createdBy: 'operator-001',
       });
 
-      consumer.handleNcCreated(data);
+      consumer.handleNcCreated(data, makeCtx());
       await new Promise((r) => setTimeout(r, 10)); // let void promise settle
 
       expect(mockLog).toHaveBeenCalledTimes(1);
@@ -79,7 +88,7 @@ describe('AuditConsumer', () => {
 
     it("defaults userId to 'system' when createdBy is absent", async () => {
       const data = makeEnvelope('evt-nc-002', { ncId: 'nc-002' });
-      consumer.handleNcCreated(data);
+      consumer.handleNcCreated(data, makeCtx());
       await new Promise((r) => setTimeout(r, 10));
 
       const [dto] = mockLog.mock.calls[0] as [Record<string, unknown>, string];
@@ -96,7 +105,7 @@ describe('AuditConsumer', () => {
         completedBy: 'operator-002',
       });
 
-      consumer.handleTaskCompleted(data);
+      consumer.handleTaskCompleted(data, makeCtx());
       await new Promise((r) => setTimeout(r, 10));
 
       expect(mockLog).toHaveBeenCalledTimes(1);
@@ -117,7 +126,7 @@ describe('AuditConsumer', () => {
         assigneeId: 'operator-003',
       });
 
-      consumer.handleTaskAssigned(data);
+      consumer.handleTaskAssigned(data, makeCtx());
       await new Promise((r) => setTimeout(r, 10));
 
       const [dto] = mockLog.mock.calls[0] as [Record<string, unknown>, string];
@@ -133,7 +142,7 @@ describe('AuditConsumer', () => {
         groupId:    'grp-001',
       });
 
-      consumer.handleTaskAssigned(data);
+      consumer.handleTaskAssigned(data, makeCtx());
       await new Promise((r) => setTimeout(r, 10));
 
       const [dto] = mockLog.mock.calls[0] as [Record<string, unknown>, string];
@@ -150,7 +159,7 @@ describe('AuditConsumer', () => {
         taskIds: ['t1', 't2', 't3'],
       });
 
-      consumer.handleTasksOverdue(data);
+      consumer.handleTasksOverdue(data, makeCtx());
       await new Promise((r) => setTimeout(r, 10));
 
       const [dto] = mockLog.mock.calls[0] as [Record<string, unknown>, string];
@@ -170,7 +179,7 @@ describe('AuditConsumer', () => {
         validatedBy: 'manager-001',
       });
 
-      consumer.handleReportValidated(data);
+      consumer.handleReportValidated(data, makeCtx());
       await new Promise((r) => setTimeout(r, 10));
 
       const [dto] = mockLog.mock.calls[0] as [Record<string, unknown>, string];
@@ -186,7 +195,7 @@ describe('AuditConsumer', () => {
   describe('handleDlcExpiring', () => {
     it('logs a CREATE / system entry', async () => {
       const data = makeEnvelope('evt-dlc-001', { count: 4 });
-      consumer.handleDlcExpiring(data);
+      consumer.handleDlcExpiring(data, makeCtx());
       await new Promise((r) => setTimeout(r, 10));
 
       const [dto] = mockLog.mock.calls[0] as [Record<string, unknown>, string];
@@ -202,8 +211,8 @@ describe('AuditConsumer', () => {
     it('skips a second call with the same eventId', async () => {
       const data = makeEnvelope('evt-dup-001', { ncId: 'nc-dup', createdBy: 'u-001' });
 
-      consumer.handleNcCreated(data);
-      consumer.handleNcCreated(data); // duplicate
+      consumer.handleNcCreated(data, makeCtx());
+      consumer.handleNcCreated(data, makeCtx()); // duplicate
       await new Promise((r) => setTimeout(r, 20));
 
       // log() called exactly once despite two handler invocations
@@ -220,7 +229,7 @@ describe('AuditConsumer', () => {
       const data = makeEnvelope('evt-err-001', { ncId: 'nc-err', createdBy: 'u-001' });
 
       // Handler must not throw — RabbitMQ nack would cause infinite retry loop
-      expect(() => consumer.handleNcCreated(data)).not.toThrow();
+      expect(() => consumer.handleNcCreated(data, makeCtx())).not.toThrow();
       await new Promise((r) => setTimeout(r, 20)); // let rejection settle
       // No unhandled rejection — test passes if we get here
     });
