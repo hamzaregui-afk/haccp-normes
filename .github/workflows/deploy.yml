@@ -17,6 +17,7 @@ on:
         options:
           - full-deploy
           - setup-https
+          - setup-tls
           - restart-only
           - reload-gateway
           - run-migrations
@@ -164,6 +165,83 @@ jobs:
               echo "=== HTTPS setup complete ==="
               echo "=== Access the app at: https://178.105.126.165 ==="
               echo "=== Browser will show a security warning — click Advanced > Proceed ==="
+              exit 0
+            fi
+
+            if [ "$ACTION" = "setup-tls" ]; then
+              # Provision a REAL Let's Encrypt certificate for the mobile API domain,
+              # replacing the store-blocking self-signed cert. This is the INFRA-1 fix.
+              # PREREQUISITE (done once, manually, at the DNS provider): an A record
+              #   api.normes-haccp.com -> 178.105.126.165
+              # This action is GUARDED: it refuses to run until that record resolves to
+              # THIS server, so it can never be triggered prematurely or clobber the
+              # working self-signed setup.
+              TLS_DOMAIN="${TLS_DOMAIN:-api.normes-haccp.com}"
+              TLS_EMAIL="${TLS_EMAIL:-hamzaregui31@gmail.com}"
+              echo "=== setup-tls for ${TLS_DOMAIN} ==="
+
+              SERVER_IP="$(curl -s -m 10 https://api.ipify.org || echo '')"
+              RESOLVED_IP="$(getent hosts "$TLS_DOMAIN" | awk '{print $1}' | head -1)"
+              echo "server public IP: ${SERVER_IP:-unknown} | ${TLS_DOMAIN} resolves to: ${RESOLVED_IP:-<nxdomain>}"
+              if [ -z "$RESOLVED_IP" ]; then
+                echo "ABORT: ${TLS_DOMAIN} does not resolve yet. Create the A record"
+                echo "       ${TLS_DOMAIN} -> ${SERVER_IP:-178.105.126.165} at the DNS provider, wait for"
+                echo "       propagation, then re-run this action. (self-signed cert left untouched)"
+                exit 1
+              fi
+              if [ -n "$SERVER_IP" ] && [ "$RESOLVED_IP" != "$SERVER_IP" ]; then
+                echo "ABORT: ${TLS_DOMAIN} resolves to ${RESOLVED_IP}, not this server (${SERVER_IP})."
+                echo "       Fix the A record before provisioning TLS. (self-signed cert left untouched)"
+                exit 1
+              fi
+
+              echo "=== Installing certbot (if missing) ==="
+              command -v certbot >/dev/null 2>&1 || (apt-get update -y && apt-get install -y certbot)
+
+              # ARCH-DECISION: certbot --standalone binds port 80, which the dockerized
+              # gateway holds. Stop only the gateway briefly (services stay up behind it),
+              # issue the cert (HTTP-01), then bring it back. ~30s of gateway downtime.
+              echo "=== Freeing port 80 (stop gateway) ==="
+              cd /opt/haccp
+              docker compose stop api-gateway || true
+
+              echo "=== Requesting Let's Encrypt certificate ==="
+              certbot certonly --standalone --non-interactive --agree-tos \
+                -m "$TLS_EMAIL" -d "$TLS_DOMAIN" --keep-until-expiring
+
+              LE_DIR="/etc/letsencrypt/live/${TLS_DOMAIN}"
+              if [ ! -f "$LE_DIR/fullchain.pem" ]; then
+                echo "ABORT: certbot did not produce ${LE_DIR}/fullchain.pem — restarting gateway with existing cert."
+                docker compose up -d api-gateway
+                exit 1
+              fi
+
+              echo "=== Installing cert into the gateway's mounted path ==="
+              mkdir -p /opt/haccp/ssl
+              cp "$LE_DIR/fullchain.pem" /opt/haccp/ssl/cert.pem
+              cp "$LE_DIR/privkey.pem"   /opt/haccp/ssl/key.pem
+              chmod 644 /opt/haccp/ssl/cert.pem
+              chmod 600 /opt/haccp/ssl/key.pem
+
+              # Auto-renew: copy the renewed cert into the mounted path + reload gateway.
+              # Built with printf (not a nested heredoc) to avoid delimiter/indentation
+              # pitfalls inside this YAML/SSH script block.
+              echo "=== Wiring auto-renewal deploy hook ==="
+              mkdir -p /etc/letsencrypt/renewal-hooks/deploy
+              HOOK_FILE=/etc/letsencrypt/renewal-hooks/deploy/haccp-gateway.sh
+              printf '#!/bin/sh\n' > "$HOOK_FILE"
+              printf 'cp "/etc/letsencrypt/live/%s/fullchain.pem" /opt/haccp/ssl/cert.pem\n' "$TLS_DOMAIN" >> "$HOOK_FILE"
+              printf 'cp "/etc/letsencrypt/live/%s/privkey.pem" /opt/haccp/ssl/key.pem\n' "$TLS_DOMAIN" >> "$HOOK_FILE"
+              printf 'docker exec haccp-gateway nginx -s reload 2>/dev/null || (cd /opt/haccp && docker compose up -d --force-recreate api-gateway)\n' >> "$HOOK_FILE"
+              chmod +x "$HOOK_FILE"
+
+              echo "=== Restarting gateway with the real certificate ==="
+              docker compose up -d --force-recreate api-gateway
+              sleep 8
+              echo "=== Verifying valid TLS for ${TLS_DOMAIN} ==="
+              curl -s -m 15 -o /dev/null -w "https://${TLS_DOMAIN}/api/v1/health -> HTTP %{http_code}\n" "https://${TLS_DOMAIN}/api/v1/health" || echo "verify failed"
+              echo | openssl s_client -connect "${TLS_DOMAIN}:443" -servername "$TLS_DOMAIN" 2>/dev/null | openssl x509 -noout -issuer -dates
+              echo "=== setup-tls complete — devices will now accept ${TLS_DOMAIN} ==="
               exit 0
             fi
 

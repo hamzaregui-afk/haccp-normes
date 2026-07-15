@@ -16,7 +16,6 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.normeshaccp.app",
       "buildNumber": "1",
-      "deploymentTarget": "14.0",
       "infoPlist": {
         "NSCameraUsageDescription": "NORMES HACCP utilise votre caméra pour prendre des photos lors des contrôles qualité et de sécurité alimentaire.",
         "NSPhotoLibraryUsageDescription": "NORMES HACCP accède à votre photothèque pour joindre des photos aux non-conformités et aux contrôles.",
