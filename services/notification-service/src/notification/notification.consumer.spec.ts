@@ -21,6 +21,15 @@ function makeGatewayMock() {
   };
 }
 
+// Each handler acks the RabbitMQ message via ctx.getChannelRef().ack(getMessage()).
+// Provide a minimal RmqContext stub so direct handler calls don't blow up.
+function makeCtx(): Parameters<NotificationConsumer['handleNcCreated']>[1] {
+  return {
+    getChannelRef: () => ({ ack: jest.fn() }),
+    getMessage:    () => ({}),
+  } as unknown as Parameters<NotificationConsumer['handleNcCreated']>[1];
+}
+
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
 const BASE_ENVELOPE = {
@@ -87,7 +96,7 @@ describe('NotificationConsumer', () => {
 
   describe('handleNcCreated', () => {
     it('calls emitToTenant with the correct tenant and event name', () => {
-      consumer.handleNcCreated(NC_CREATED_DATA);
+      consumer.handleNcCreated(NC_CREATED_DATA, makeCtx());
 
       expect(gateway.emitToTenant).toHaveBeenCalledWith(
         'tenant-abc',
@@ -97,7 +106,7 @@ describe('NotificationConsumer', () => {
     });
 
     it('forwards the NC payload fields', () => {
-      consumer.handleNcCreated(NC_CREATED_DATA);
+      consumer.handleNcCreated(NC_CREATED_DATA, makeCtx());
 
       expect(gateway.emitToTenant).toHaveBeenCalledWith(
         expect.any(String),
@@ -111,7 +120,7 @@ describe('NotificationConsumer', () => {
     });
 
     it('includes eventId and timestamp in the broadcast payload', () => {
-      consumer.handleNcCreated(NC_CREATED_DATA);
+      consumer.handleNcCreated(NC_CREATED_DATA, makeCtx());
 
       expect(gateway.emitToTenant).toHaveBeenCalledWith(
         expect.any(String),
@@ -124,7 +133,7 @@ describe('NotificationConsumer', () => {
     });
 
     it('does NOT call emitToUser (tenant broadcast only)', () => {
-      consumer.handleNcCreated(NC_CREATED_DATA);
+      consumer.handleNcCreated(NC_CREATED_DATA, makeCtx());
       expect(gateway.emitToUser).not.toHaveBeenCalled();
     });
   });
@@ -133,7 +142,7 @@ describe('NotificationConsumer', () => {
 
   describe('handleTaskCompleted', () => {
     it('calls emitToTenant with the correct tenant and event name', () => {
-      consumer.handleTaskCompleted(TASK_COMPLETED_DATA);
+      consumer.handleTaskCompleted(TASK_COMPLETED_DATA, makeCtx());
 
       expect(gateway.emitToTenant).toHaveBeenCalledWith(
         'tenant-abc',
@@ -143,7 +152,7 @@ describe('NotificationConsumer', () => {
     });
 
     it('forwards the task payload fields', () => {
-      consumer.handleTaskCompleted(TASK_COMPLETED_DATA);
+      consumer.handleTaskCompleted(TASK_COMPLETED_DATA, makeCtx());
 
       expect(gateway.emitToTenant).toHaveBeenCalledWith(
         expect.any(String),
@@ -157,7 +166,7 @@ describe('NotificationConsumer', () => {
     });
 
     it('does NOT call emitToUser', () => {
-      consumer.handleTaskCompleted(TASK_COMPLETED_DATA);
+      consumer.handleTaskCompleted(TASK_COMPLETED_DATA, makeCtx());
       expect(gateway.emitToUser).not.toHaveBeenCalled();
     });
   });
@@ -166,7 +175,7 @@ describe('NotificationConsumer', () => {
 
   describe('handleReportValidated', () => {
     it('calls emitToTenant with the correct tenant and event name', () => {
-      consumer.handleReportValidated(REPORT_VALIDATED_DATA);
+      consumer.handleReportValidated(REPORT_VALIDATED_DATA, makeCtx());
 
       expect(gateway.emitToTenant).toHaveBeenCalledWith(
         'tenant-abc',
@@ -176,7 +185,7 @@ describe('NotificationConsumer', () => {
     });
 
     it('forwards the report payload fields', () => {
-      consumer.handleReportValidated(REPORT_VALIDATED_DATA);
+      consumer.handleReportValidated(REPORT_VALIDATED_DATA, makeCtx());
 
       expect(gateway.emitToTenant).toHaveBeenCalledWith(
         expect.any(String),
@@ -190,7 +199,7 @@ describe('NotificationConsumer', () => {
     });
 
     it('does NOT call emitToUser', () => {
-      consumer.handleReportValidated(REPORT_VALIDATED_DATA);
+      consumer.handleReportValidated(REPORT_VALIDATED_DATA, makeCtx());
       expect(gateway.emitToUser).not.toHaveBeenCalled();
     });
   });
@@ -199,7 +208,7 @@ describe('NotificationConsumer', () => {
 
   describe('handleDlcExpiringToday', () => {
     it('calls emitToTenant with notification:dlc-expiring-today', () => {
-      consumer.handleDlcExpiringToday(DLC_EXPIRING_DATA);
+      consumer.handleDlcExpiringToday(DLC_EXPIRING_DATA, makeCtx());
 
       expect(gateway.emitToTenant).toHaveBeenCalledWith(
         'tenant-abc',
@@ -209,7 +218,7 @@ describe('NotificationConsumer', () => {
     });
 
     it('forwards count and labels in payload', () => {
-      consumer.handleDlcExpiringToday(DLC_EXPIRING_DATA);
+      consumer.handleDlcExpiringToday(DLC_EXPIRING_DATA, makeCtx());
 
       expect(gateway.emitToTenant).toHaveBeenCalledWith(
         expect.any(String),
@@ -219,7 +228,7 @@ describe('NotificationConsumer', () => {
     });
 
     it('does NOT call emitToUser', () => {
-      consumer.handleDlcExpiringToday(DLC_EXPIRING_DATA);
+      consumer.handleDlcExpiringToday(DLC_EXPIRING_DATA, makeCtx());
       expect(gateway.emitToUser).not.toHaveBeenCalled();
     });
   });
@@ -228,19 +237,22 @@ describe('NotificationConsumer', () => {
 
   describe('isolation', () => {
     it('each handler calls emitToTenant exactly once', () => {
-      consumer.handleNcCreated(NC_CREATED_DATA);
+      // Distinct eventIds per call: the consumer dedups by eventId via
+      // IdempotencyGuard, and all shared fixtures use the same evt-001, so a
+      // single consumer instance would otherwise skip the 2nd–4th as duplicates.
+      consumer.handleNcCreated({ ...NC_CREATED_DATA, eventId: 'iso-nc' }, makeCtx());
       expect(gateway.emitToTenant).toHaveBeenCalledTimes(1);
       gateway.emitToTenant.mockClear();
 
-      consumer.handleTaskCompleted(TASK_COMPLETED_DATA);
+      consumer.handleTaskCompleted({ ...TASK_COMPLETED_DATA, eventId: 'iso-task' }, makeCtx());
       expect(gateway.emitToTenant).toHaveBeenCalledTimes(1);
       gateway.emitToTenant.mockClear();
 
-      consumer.handleReportValidated(REPORT_VALIDATED_DATA);
+      consumer.handleReportValidated({ ...REPORT_VALIDATED_DATA, eventId: 'iso-report' }, makeCtx());
       expect(gateway.emitToTenant).toHaveBeenCalledTimes(1);
       gateway.emitToTenant.mockClear();
 
-      consumer.handleDlcExpiringToday(DLC_EXPIRING_DATA);
+      consumer.handleDlcExpiringToday({ ...DLC_EXPIRING_DATA, eventId: 'iso-dlc' }, makeCtx());
       expect(gateway.emitToTenant).toHaveBeenCalledTimes(1);
     });
   });
