@@ -279,7 +279,7 @@ describe('GroupService', () => {
 
       const result = await service.remove(GROUP_ID, TENANT_ID);
 
-      expect(prisma.group.delete).toHaveBeenCalledWith({ where: { id: GROUP_ID } });
+      expect(prisma.group.delete).toHaveBeenCalledWith({ where: { id: GROUP_ID, tenantId: TENANT_ID } });
       expect(result.message).toBe('Group deleted');
     });
 

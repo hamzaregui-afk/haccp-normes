@@ -12,6 +12,10 @@ const baseConfig: Config = {
   preset: 'ts-jest',
   testEnvironment: 'node',
 
+  // Set dummy env vars before any module loads, so each service's env.ts (which
+  // process.exit(1)s on validation failure at import time) doesn't crash suites.
+  setupFiles: [require.resolve('./jest-setup-env.ts')],
+
   // Match *.spec.ts files anywhere in src/ — excludes integration tests
   testMatch: ['**/*.spec.ts'],
   testPathIgnorePatterns: [
