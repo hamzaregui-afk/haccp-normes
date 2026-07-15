@@ -4,9 +4,9 @@ import { z } from 'zod';
 
 export const CreatePrintJobSchema = z.object({
   /** Target printer ID. If omitted, the tenant's default printer is used. */
-  printerId:  z.string().cuid().optional(),
+  printerId:  z.string().min(1).optional(),
   /** Template ID to render. If omitted, the default template for labelType is used. */
-  templateId: z.string().cuid().optional(),
+  templateId: z.string().min(1).optional(),
   /** Label category — must match a PrinterTemplate.labelType value. */
   labelType:  z.string().min(1).max(50),
   /**

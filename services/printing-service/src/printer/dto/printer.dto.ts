@@ -20,8 +20,8 @@ export const CreatePrinterSchema = z.object({
   port:                z.coerce.number().int().min(1).max(65535).default(9100),
   bluetoothIdentifier: z.string().max(100).optional(),
   isDefault:           z.boolean().default(false),
-  siteId:              z.string().cuid().optional(),
-  zoneId:              z.string().cuid().optional(),
+  siteId:              z.string().min(1).optional(),
+  zoneId:              z.string().min(1).optional(),
   // Phase A additive fields (all optional → backward-compatible)
   brand:                 z.string().max(100).optional(),
   protocol:              PrinterProtocolSchema.optional(),
