@@ -43,7 +43,11 @@ describe('JwtStrategy.validate', () => {
 
     const result = strategy.validate(payload);
 
-    expect(result).toEqual({ sub: VALID_SUB, email: VALID_EMAIL, tenantId: VALID_TENANT, role: 'ADMIN' });
+    // JwtPayloadSchema fills default enrichment fields when absent from the token.
+    expect(result).toEqual({
+      sub: VALID_SUB, email: VALID_EMAIL, tenantId: VALID_TENANT, role: 'ADMIN',
+      allowedModules: [], subscriptionPlan: 'standard', tenantStatus: 'ACTIVE',
+    });
   });
 
   it('accepts all valid roles defined in the system', () => {

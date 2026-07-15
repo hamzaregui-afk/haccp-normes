@@ -24,6 +24,13 @@ const baseConfig: Config = {
     '^.+\\.ts$': [
       'ts-jest',
       {
+        // ARCH-DECISION: transpile-only (no type-checking) under ts-jest. pnpm's
+        // strict node_modules layout does not hoist @types/jest into each service,
+        // so full type-checking made EVERY spec fail with "Cannot find name 'jest'/
+        // 'describe'/'expect'" and no test ran at all. Type safety is still enforced
+        // separately by each service's `tsc --noEmit` (typecheck script); tests only
+        // need the transpiled JS + jest's runtime globals.
+        isolatedModules: true,
         tsconfig: {
           // Inherit the service's local tsconfig but force CommonJS for Jest
           module: 'commonjs',

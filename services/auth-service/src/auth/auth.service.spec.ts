@@ -19,7 +19,9 @@ jest.mock('../config/env', () => ({
 }));
 
 // ── bcrypt mock ───────────────────────────────────────────────────────────────
-jest.mock('bcrypt', () => ({
+// AuthService imports 'bcryptjs' (not 'bcrypt') — the mock/import MUST target the
+// same module or the real bcryptjs runs against fake hashes and every login fails.
+jest.mock('bcryptjs', () => ({
   compare: jest.fn(),
   hash:    jest.fn(),
 }));
@@ -27,11 +29,12 @@ jest.mock('bcrypt', () => ({
 // ── Imports ───────────────────────────────────────────────────────────────────
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UnauthorizedError } from '@haccp/shared-errors';
+import { UnauthorizedException } from '@nestjs/common';
 
 // ── Typed bcrypt mocks ────────────────────────────────────────────────────────
 const mockBcryptCompare = bcrypt.compare as jest.MockedFunction<typeof bcrypt.compare>;
@@ -147,6 +150,11 @@ describe('AuthService', () => {
         email:    'admin@haccp.com',
         tenantId: TENANT_ID,
         role:     'ADMIN',
+        name:     'Test Admin',
+        // Enrichment fields the service adds from the tenant JWT context (defaults).
+        allowedModules:   [],
+        subscriptionPlan: 'standard',
+        tenantStatus:     'ACTIVE',
       });
     });
 
@@ -314,7 +322,7 @@ describe('AuthService', () => {
     it('throws UnauthorizedError when the refresh token is invalid', async () => {
       mockJwt.verifyAsync.mockRejectedValue(new Error('jwt expired'));
 
-      await expect(service.refresh('expired-token')).rejects.toThrow(UnauthorizedError);
+      await expect(service.refresh('expired-token')).rejects.toThrow(UnauthorizedException);
     });
 
     it('throws UnauthorizedError when the user is no longer ACTIVE', async () => {
@@ -322,7 +330,7 @@ describe('AuthService', () => {
       mockPrisma.user.findUnique.mockResolvedValue(makeDbUser({ status: 'INACTIVE' }));
 
       await expect(service.refresh('valid-token-but-user-inactive')).rejects.toThrow(
-        UnauthorizedError,
+        UnauthorizedException,
       );
     });
 
@@ -331,7 +339,7 @@ describe('AuthService', () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
 
       await expect(service.refresh('valid-token-deleted-user')).rejects.toThrow(
-        UnauthorizedError,
+        UnauthorizedException,
       );
     });
 
@@ -342,7 +350,7 @@ describe('AuthService', () => {
       // bcrypt.compare returns false → token was revoked / not matching
       mockBcryptCompare.mockResolvedValue(false as never);
 
-      await expect(service.refresh('revoked-token')).rejects.toThrow(UnauthorizedError);
+      await expect(service.refresh('revoked-token')).rejects.toThrow(UnauthorizedException);
     });
 
     it('deletes all user tokens when a revoked token is presented (replay attack)', async () => {

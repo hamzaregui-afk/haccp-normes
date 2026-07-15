@@ -34,7 +34,7 @@ export class AuthController {
       resourceId: req.user.sub,
       tenantId:   req.user.tenantId,
       payload:    { email: req.user.email },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     // ARCH-DECISION: Include `user` (JwtPayload) in the login response so clients
     // can store the decoded user object without a second /me call or local JWT
@@ -72,7 +72,7 @@ export class AuthController {
       resourceId: req.user.sub,
       tenantId:   req.user.tenantId,
       payload:    {},
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
   }
 
   @SkipThrottle() // JWT-protected endpoints don't need throttling — JWT is the protection

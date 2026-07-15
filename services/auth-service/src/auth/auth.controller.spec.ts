@@ -82,7 +82,8 @@ describe('AuthController', () => {
   describe('login', () => {
     it('returns the token pair from AuthService', async () => {
       const result = await controller.login({ user: JWT_PAYLOAD });
-      expect(result).toEqual(TOKEN_PAIR);
+      // The controller includes the decoded user in the login response.
+      expect(result).toEqual({ ...TOKEN_PAIR, user: JWT_PAYLOAD });
     });
 
     it('calls AuthService.login with the JWT payload from the request', async () => {
@@ -124,7 +125,8 @@ describe('AuthController', () => {
       const result = await controller.login({ user: JWT_PAYLOAD });
 
       // Fire-and-forget — error is swallowed inside emitAuditEvent itself
-      expect(result).toEqual(TOKEN_PAIR);
+      // The controller includes the decoded user in the login response.
+      expect(result).toEqual({ ...TOKEN_PAIR, user: JWT_PAYLOAD });
     });
 
     it('emits exactly one audit event per login', async () => {
