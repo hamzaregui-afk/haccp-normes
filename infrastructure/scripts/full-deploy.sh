@@ -31,20 +31,16 @@ sleep 30
 echo "=== Container status ==="
 docker compose ps --format "table {{.Name}}\t{{.Status}}" | head -20
 
-# ARCH-DECISION: nginx.conf is bind-mounted (read-only volume), so `docker compose
-# up -d` does NOT recreate the gateway when only the config file changed — the
-# running container keeps the previous nginx.conf. We must explicitly reload it so
-# routing changes (new /api/v1/* locations) take effect on every deploy.
-# `nginx -s reload` re-reads the mounted config with zero downtime; if the config
-# is invalid or reload fails, fall back to a full recreate.
-echo "=== Reloading api-gateway nginx config (applies routing changes) ==="
-if docker exec haccp-gateway nginx -t 2>&1; then
-  docker exec haccp-gateway nginx -s reload 2>&1 && echo "nginx reloaded" \
-    || docker compose up -d --force-recreate api-gateway
-else
-  echo "nginx -t failed — forcing gateway recreate"
-  docker compose up -d --force-recreate api-gateway
-fi
+# ARCH-DECISION: nginx.conf is bind-mounted as a single FILE. `git reset --hard`
+# REPLACES that file (new inode), and the running gateway container's mount keeps
+# pointing at the OLD inode — so `nginx -s reload` re-reads stale config and new
+# /api/v1/* routes never appear. A force-recreate re-establishes the bind mount
+# against the current host file, so config changes reliably go live on every deploy
+# (this is exactly what the reload-gateway action does).
+echo "=== Recreating api-gateway to apply nginx.conf changes ==="
+docker compose up -d --force-recreate api-gateway
+sleep 5
+docker exec haccp-gateway nginx -t 2>&1 || echo "WARNING: nginx config test failed"
 
 echo "=== Port bindings (3001 must point to haccp-gateway) ==="
 ss -tlnp | grep -E "3001|:80 " || true
