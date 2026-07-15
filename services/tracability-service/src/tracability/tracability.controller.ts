@@ -77,7 +77,7 @@ export class TracabilityController {
       resource:   'tracabilities',
       resourceId: (result.data as { id: string }).id,
       payload:    { lotNumber: dto.lotNumber, productName: dto.productName },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     void publishDomainEvent({
       eventType: 'tracability.record.created.v1',
@@ -107,7 +107,7 @@ export class TracabilityController {
       resource:   'tracabilities',
       resourceId: id,
       payload:    dto as Record<string, unknown>,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -125,7 +125,7 @@ export class TracabilityController {
       action:     'DELETE',
       resource:   'tracabilities',
       resourceId: id,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -150,7 +150,7 @@ export class TracabilityController {
       action:     'CREATE',
       resource:   'tracability_photos',
       resourceId: id,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -172,7 +172,7 @@ export class TracabilityController {
       action:     'DELETE',
       resource:   'tracability_photos',
       resourceId: photoId,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }

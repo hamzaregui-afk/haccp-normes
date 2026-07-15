@@ -91,7 +91,7 @@ export class ScheduleController {
       resource:   'control-schedules',
       resourceId: (result as { data?: { id?: string } }).data?.id,
       payload:    { frequency: dto.frequency, templateId: dto.templateId },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -115,7 +115,7 @@ export class ScheduleController {
       resource:   'control-schedules',
       resourceId: id,
       payload:    dto,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -134,7 +134,7 @@ export class ScheduleController {
       resource:   'control-schedules',
       resourceId: id,
       payload:    { deactivated: true },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }

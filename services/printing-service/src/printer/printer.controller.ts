@@ -61,7 +61,7 @@ export class PrinterController {
       resource:   'printers',
       resourceId: (result.data as { id: string }).id,
       payload:    { name: dto.name, connectionType: dto.connectionType },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -85,7 +85,7 @@ export class PrinterController {
       resource:   'printers',
       resourceId: id,
       payload:    dto as Record<string, unknown>,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -104,7 +104,7 @@ export class PrinterController {
       resource:   'printers',
       resourceId: id,
       payload:    { action: 'set-default' },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -122,7 +122,7 @@ export class PrinterController {
       action:     'DELETE',
       resource:   'printers',
       resourceId: id,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }

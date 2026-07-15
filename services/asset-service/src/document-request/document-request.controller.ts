@@ -45,7 +45,7 @@ export class DocumentRequestController {
       resource:   'document_requests',
       resourceId: (result.data as { id: string }).id,
       payload:    { title: dto.title, category: dto.category },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     // ARCH-DECISION: Fire-and-forget — notification-service listens on this event
     // and sends in-app alert to all MANAGER/ADMIN users of the tenant.
@@ -80,7 +80,7 @@ export class DocumentRequestController {
       resource:   'document_requests',
       resourceId: id,
       payload:    { status: dto.status, comment: dto.comment },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     // ARCH-DECISION: Fire-and-forget — notification-service listens and
     // notifies the original requester about the decision (FULFILLED / REJECTED).

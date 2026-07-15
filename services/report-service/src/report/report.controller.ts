@@ -69,7 +69,7 @@ export class ReportController {
       resource:   'reports',
       resourceId: id,
       tenantId:   user.tenantId,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     res.set({
       'Content-Type':        'application/pdf',
@@ -102,7 +102,7 @@ export class ReportController {
       ...(extractResourceId(result) !== undefined && { resourceId: extractResourceId(result) }),
       tenantId:   user.tenantId,
       payload:    { type: dto.type },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -126,7 +126,7 @@ export class ReportController {
       resourceId: id,
       tenantId:   user.tenantId,
       payload:    { status: dto.status },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     // Publish domain event when a report reaches VALIDATED status —
     // notification-service triggers email to admins + WebSocket push to tenant.
@@ -158,7 +158,7 @@ export class ReportController {
       resource:   'reports',
       resourceId: id,
       tenantId:   user.tenantId,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }

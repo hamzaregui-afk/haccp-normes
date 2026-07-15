@@ -1,5 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, NotFoundException } from '@nestjs/common';
+
+// Mock bcrypt: the native module's `hash` is non-configurable so jest.spyOn fails
+// with "Cannot redefine property". An explicit mock exposes an inspectable jest.fn.
+jest.mock('bcrypt', () => ({
+  hash:    jest.fn().mockResolvedValue('hashed-password'),
+  compare: jest.fn().mockResolvedValue(true),
+}));
 import * as bcrypt from 'bcrypt';
 
 import { UserService } from './user.service';
@@ -78,6 +85,12 @@ describe('UserService', () => {
     }).compile();
 
     service = module.get<UserService>(UserService);
+
+    // create()/changePassword() sync credentials to auth-service via global fetch —
+    // mock it as a successful call so unit tests don't hit the network / rollback path.
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true, status: 201, json: async () => ({}),
+    }) as unknown as typeof fetch;
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -201,7 +214,7 @@ describe('UserService', () => {
     });
 
     it('throws ConflictException when email is already in use', async () => {
-      prisma.user.findUnique.mockResolvedValue(baseUser); // already exists
+      prisma.user.findFirst.mockResolvedValue(baseUser); // already exists (service checks findFirst)
 
       await expect(service.create(createDto, actorA)).rejects.toThrow(ConflictException);
       expect(prisma.user.create).not.toHaveBeenCalled();
@@ -211,7 +224,7 @@ describe('UserService', () => {
       prisma.user.findUnique.mockResolvedValue(null);
       prisma.user.create.mockResolvedValue({ ...baseUser });
 
-      const hashSpy = jest.spyOn(bcrypt, 'hash');
+      const hashSpy = bcrypt.hash as jest.Mock;
 
       await service.create(createDto, actorA);
 
@@ -252,7 +265,7 @@ describe('UserService', () => {
       const differentActor: JwtPayload = { ...actorA, sub: 'actor-999' };
       const result = await service.remove('user-001', TENANT_A, differentActor);
 
-      expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'user-001' } });
+      expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'user-001', tenantId: TENANT_A } });
       expect(result.message).toBe('User deleted');
     });
 

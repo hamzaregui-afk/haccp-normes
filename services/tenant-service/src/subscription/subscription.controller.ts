@@ -35,7 +35,7 @@ export class SubscriptionController {
       resourceId: id,
       tenantId:   actor.tenantId,
       payload:    { plan: dto.plan },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -55,7 +55,7 @@ export class SubscriptionController {
       resource:   'tenant_subscriptions',
       resourceId: id,
       tenantId:   actor.tenantId,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }

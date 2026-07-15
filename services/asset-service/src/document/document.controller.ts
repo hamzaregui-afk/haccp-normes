@@ -52,7 +52,7 @@ export class DocumentController {
       resource:   'documents',
       resourceId: (result.data as { id: string }).id,
       payload:    { name: name || file.originalname, category: cat, sizeBytes: file.size },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -69,7 +69,7 @@ export class DocumentController {
       resource:   'documents',
       resourceId: id,
       payload:    {},
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }

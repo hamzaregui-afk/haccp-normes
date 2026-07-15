@@ -68,7 +68,7 @@ export class PrintJobController {
       resource:   'print_jobs',
       resourceId: (result.data as { id: string }).id,
       payload:    { labelType: dto.labelType, copies: dto.copies },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }

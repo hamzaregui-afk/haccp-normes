@@ -72,7 +72,7 @@ export class PrinterAssignmentController {
       resource:   'printer_assignments',
       resourceId: (result.data as { id: string }).id,
       payload:    { scope: dto.scope, referenceId: dto.referenceId, printerId: dto.printerId },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -95,7 +95,7 @@ export class PrinterAssignmentController {
       resource:   'printer_assignments',
       resourceId: id,
       payload:    dto as Record<string, unknown>,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -112,7 +112,7 @@ export class PrinterAssignmentController {
       action:     'DELETE',
       resource:   'printer_assignments',
       resourceId: id,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }

@@ -60,7 +60,7 @@ export class UserController {
       ...(extractResourceId(result) !== undefined && { resourceId: extractResourceId(result) }),
       tenantId,                            // audit in the TARGET tenant's context
       payload:    { email: dto.email, role: dto.role, createdBySuper: true },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -78,7 +78,7 @@ export class UserController {
       ...(extractResourceId(result) !== undefined && { resourceId: extractResourceId(result) }),
       tenantId:   actor.tenantId,
       payload:    { email: dto.email, role: dto.role },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -99,7 +99,7 @@ export class UserController {
       resource:   'users',
       resourceId: id,
       tenantId:   user.tenantId,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -126,7 +126,7 @@ export class UserController {
       resource:   'users',
       resourceId: id,
       tenantId:   user.tenantId,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }

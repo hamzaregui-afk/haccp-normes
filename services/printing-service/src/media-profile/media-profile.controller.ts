@@ -62,7 +62,7 @@ export class MediaProfileController {
       resource:   'media_profiles',
       resourceId: (result.data as { id: string }).id,
       payload:    { name: dto.name, mediaType: dto.mediaType },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -85,7 +85,7 @@ export class MediaProfileController {
       resource:   'media_profiles',
       resourceId: id,
       payload:    dto as Record<string, unknown>,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -102,7 +102,7 @@ export class MediaProfileController {
       action:     'DELETE',
       resource:   'media_profiles',
       resourceId: id,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }

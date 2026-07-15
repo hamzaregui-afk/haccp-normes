@@ -43,7 +43,7 @@ export class DlcController {
         productName: dto.productName,
         ...(dto.lotNumber !== undefined && { lotNumber: dto.lotNumber }),
       },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }

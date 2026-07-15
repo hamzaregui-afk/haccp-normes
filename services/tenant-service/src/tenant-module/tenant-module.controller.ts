@@ -39,7 +39,7 @@ export class TenantModuleController {
       resourceId: id,
       tenantId:   actor.tenantId,
       payload:    { modulesChanged: dto.modules.length },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }

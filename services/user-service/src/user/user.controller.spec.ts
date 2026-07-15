@@ -12,6 +12,7 @@
 
 jest.mock('@haccp/shared-utils', () => ({
   emitAuditEvent: jest.fn().mockResolvedValue(undefined),
+  extractResourceId: (r: { data?: { id?: string } }) => r?.data?.id,
 }));
 
 // ── Mocks for DTOs — let zod parse through without complaints ─────────────────

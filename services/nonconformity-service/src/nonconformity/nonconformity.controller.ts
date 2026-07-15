@@ -81,7 +81,7 @@ export class NonconformityController {
       ...(extractResourceId(result) !== undefined && { resourceId: extractResourceId(result) }),
       tenantId:   user.tenantId,
       payload:    { severity: dto.severity, category: dto.category },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     // Broadcast domain event so notification-service can push real-time alerts
     void publishDomainEvent({
@@ -118,7 +118,7 @@ export class NonconformityController {
       resourceId: id,
       tenantId:   user.tenantId,
       payload:    { status: dto.status },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -149,7 +149,7 @@ export class NonconformityController {
       resource:   'nonconformities',
       resourceId: id,
       tenantId:   user.tenantId,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }

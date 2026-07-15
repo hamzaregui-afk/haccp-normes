@@ -44,7 +44,7 @@ export class ProductController {
       ...(extractResourceId(result) !== undefined && { resourceId: extractResourceId(result) }),
       tenantId:   user.tenantId,
       payload:    { name: dto.name },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -61,7 +61,7 @@ export class ProductController {
       resource:   'products',
       resourceId: id,
       tenantId:   user.tenantId,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -77,7 +77,7 @@ export class ProductController {
       resource:   'products',
       resourceId: id,
       tenantId:   user.tenantId,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }

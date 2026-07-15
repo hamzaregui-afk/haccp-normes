@@ -42,7 +42,7 @@ export class GroupController {
       ...(extractResourceId(result) !== undefined && { resourceId: extractResourceId(result) }),
       tenantId:   user.tenantId,
       payload:    { name: dto.name },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -60,7 +60,7 @@ export class GroupController {
       resourceId: id,
       tenantId:   user.tenantId,
       payload:    { action: 'addMember', memberId: dto.userId },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -81,7 +81,7 @@ export class GroupController {
       resourceId: id,
       tenantId:   user.tenantId,
       payload:    { action: 'removeMember', memberId: userId },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -97,7 +97,7 @@ export class GroupController {
       resource:   'groups',
       resourceId: id,
       tenantId:   user.tenantId,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }

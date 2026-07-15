@@ -55,7 +55,7 @@ export class TenantController {
       resource:   'tenants',
       resourceId: actor.tenantId,
       tenantId:   actor.tenantId,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -77,7 +77,7 @@ export class TenantController {
       ...(extractResourceId(result) !== undefined && { resourceId: extractResourceId(result) }),
       tenantId:   actor.tenantId,
       payload:    { name: dto.name },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -97,7 +97,7 @@ export class TenantController {
       resource:   'tenants',
       resourceId: id,
       tenantId:   actor.tenantId,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -112,7 +112,7 @@ export class TenantController {
       resource:   'tenants',
       resourceId: id,
       tenantId:   actor.tenantId,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -139,7 +139,7 @@ export class TenantController {
       resourceId: id,
       tenantId:   actor.tenantId,
       payload:    { siteName: dto.name },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -158,7 +158,7 @@ export class TenantController {
       resource:   'sites',
       resourceId: siteId,
       tenantId:   actor.tenantId,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }

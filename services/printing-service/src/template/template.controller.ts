@@ -61,7 +61,7 @@ export class TemplateController {
       resource:   'printer_templates',
       resourceId: (result.data as { id: string }).id,
       payload:    { name: dto.name, labelType: dto.labelType },
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -85,7 +85,7 @@ export class TemplateController {
       resource:   'printer_templates',
       resourceId: id,
       payload:    dto as Record<string, unknown>,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
@@ -103,7 +103,7 @@ export class TemplateController {
       action:     'DELETE',
       resource:   'printer_templates',
       resourceId: id,
-    });
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
   }
