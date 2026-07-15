@@ -266,7 +266,7 @@ describe('ReportService', () => {
 
       const result = await service.remove('report-001', TENANT_A);
 
-      expect(prisma.report.delete).toHaveBeenCalledWith({ where: { id: 'report-001' } });
+      expect(prisma.report.delete).toHaveBeenCalledWith({ where: { id: 'report-001', tenantId: TENANT_A } });
       expect(result.message).toBe('Report deleted successfully');
     });
 
