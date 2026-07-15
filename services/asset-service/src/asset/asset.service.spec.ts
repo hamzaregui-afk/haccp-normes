@@ -172,7 +172,7 @@ describe('ProductService', () => {
     const result = await service.update('prod-1', { name: 'Poulet Label Rouge' }, TENANT_A);
 
     expect(prisma.product.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'prod-1' }, data: { name: 'Poulet Label Rouge' } }),
+      expect.objectContaining({ where: { id: 'prod-1', tenantId: TENANT_A }, data: { name: 'Poulet Label Rouge' } }),
     );
     expect(result.data).toMatchObject({ name: 'Poulet Label Rouge' });
   });
@@ -186,7 +186,7 @@ describe('ProductService', () => {
     const result = await service.remove('prod-1', TENANT_A);
 
     expect(prisma.product.update).toHaveBeenCalledWith({
-      where: { id: 'prod-1' },
+      where: { id: 'prod-1', tenantId: TENANT_A },
       data: { isActive: false },
     });
     expect(result.message).toBe('Produit désactivé');
@@ -339,7 +339,7 @@ describe('SupplierService', () => {
 
     const result = await service.remove('sup-1', TENANT_A);
 
-    expect(prisma.supplier.delete).toHaveBeenCalledWith({ where: { id: 'sup-1' } });
+    expect(prisma.supplier.delete).toHaveBeenCalledWith({ where: { id: 'sup-1', tenantId: TENANT_A } });
     expect(result.message).toBe('Fournisseur supprimé');
   });
 
@@ -351,7 +351,7 @@ describe('SupplierService', () => {
     const result = await service.remove('sup-1', TENANT_A);
 
     expect(prisma.supplier.update).toHaveBeenCalledWith({
-      where: { id: 'sup-1' },
+      where: { id: 'sup-1', tenantId: TENANT_A },
       data: { isActive: false },
     });
     expect(prisma.supplier.delete).not.toHaveBeenCalled();
@@ -478,7 +478,7 @@ describe('EquipmentService', () => {
     const result = await service.update('equip-1', { tempMax: 6 }, TENANT_A);
 
     expect(prisma.equipment.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'equip-1' }, data: { tempMax: 6 } }),
+      expect.objectContaining({ where: { id: 'equip-1', tenantId: TENANT_A }, data: { tempMax: 6 } }),
     );
     expect(result.data).toMatchObject({ tempMax: 6 });
   });
@@ -500,7 +500,7 @@ describe('EquipmentService', () => {
     const result = await service.remove('equip-1', TENANT_A);
 
     expect(prisma.equipment.update).toHaveBeenCalledWith({
-      where: { id: 'equip-1' },
+      where: { id: 'equip-1', tenantId: TENANT_A },
       data: { isActive: false },
     });
     expect(result.message).toBe('Équipement désactivé');
