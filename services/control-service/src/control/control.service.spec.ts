@@ -34,10 +34,17 @@ const mockPrisma = {
   controlTemplate: mockControlTemplate,
   controlTask:     mockControlTask,
   outboxEvent:     mockOutboxEvent,
-  // ARCH-DECISION: $transaction receives an array of Prisma promises. In tests we
-  // resolve them all concurrently with Promise.all — this preserves the positional
-  // destructuring the service relies on without spinning up a real DB transaction.
-  $transaction: jest.fn().mockImplementation((ops: Promise<unknown>[]) => Promise.all(ops)),
+  // ARCH-DECISION: $transaction is used in BOTH forms by the service:
+  //  - array form  ($transaction([...promises]))   → resolve with Promise.all,
+  //    preserving the positional destructuring the caller relies on.
+  //  - callback form ($transaction(async (tx) => …)) → invoke the callback with
+  //    the mock itself as `tx` (createTask needs the created task.id before it
+  //    builds the outbox payload — see ARCH-DECISION in control.service.ts).
+  $transaction: jest.fn().mockImplementation((arg: unknown) =>
+    typeof arg === 'function'
+      ? (arg as (tx: typeof mockPrisma) => unknown)(mockPrisma)
+      : Promise.all(arg as Promise<unknown>[]),
+  ),
 };
 
 // ── MinioService mock ─────────────────────────────────────────────────────────
