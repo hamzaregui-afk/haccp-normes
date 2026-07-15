@@ -11,8 +11,13 @@
  *  - Instantiate NonconformityController directly (no NestJS DI overhead)
  */
 
+// Preserve the real module (circuitBreakerRegistry is used at import time by
+// minio.service, and extractResourceId is a pure helper the controller calls);
+// override only the fire-and-forget side-effects we assert on / must not run.
 jest.mock('@haccp/shared-utils', () => ({
-  emitAuditEvent: jest.fn().mockResolvedValue(undefined),
+  ...jest.requireActual('@haccp/shared-utils'),
+  emitAuditEvent:     jest.fn().mockResolvedValue(undefined),
+  publishDomainEvent: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('./dto/nonconformity.dto', () => ({

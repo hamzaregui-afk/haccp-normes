@@ -72,6 +72,12 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      # Generate Prisma clients: control/nonconformity unit tests map @prisma/client
+      # to a per-service test-client (see their schema.prisma testClient generator +
+      # jest.config.ts) so that shared-store generation cannot clobber their runtime
+      # enums. Without this step those clients are absent and the suites fail to load.
+      - name: Generate Prisma clients
+        run: pnpm db:generate
       - name: Run unit tests
         run: pnpm test --passWithNoTests
       - name: Upload coverage

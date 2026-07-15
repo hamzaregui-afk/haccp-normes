@@ -4,6 +4,7 @@ import { NCStatus, NCSeverity, NCCategory } from '@prisma/client';
 
 import { NonconformityService } from './nonconformity.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { MinioService } from '../minio/minio.service';
 import type { NcQuery, CreateNcDto, UpdateNcDto } from './dto/nonconformity.dto';
 
 // ─── Prisma mock ─────────────────────────────────────────────────────────────
@@ -19,6 +20,15 @@ const mockPrisma = {
   },
   // $transaction is used in findAll — simulate it by executing each callback
   $transaction: jest.fn(),
+};
+
+// ─── MinioService mock ────────────────────────────────────────────────────────
+// The service injects MinioService (used for NC photo upload/presign). Photo
+// paths aren't exercised in these specs, so stubbed jest.fns suffice — but the
+// provider MUST be present or NestJS cannot instantiate the service.
+const mockMinio = {
+  upload:          jest.fn().mockResolvedValue('photos/nc/stub.jpg'),
+  presignedGetUrl: jest.fn().mockResolvedValue('https://minio.local/stub.jpg'),
 };
 
 // ─── Fixture helpers ──────────────────────────────────────────────────────────
@@ -76,10 +86,22 @@ describe('NonconformityService', () => {
       providers: [
         NonconformityService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: MinioService, useValue: mockMinio },
       ],
     }).compile();
 
     service = module.get<NonconformityService>(NonconformityService);
+
+    // Default $transaction handles BOTH forms the service uses:
+    //  - array form    ($transaction([...]))          → Promise.all (findAll, getStats)
+    //  - callback form ($transaction(async (tx) => …)) → invoke with mock as tx
+    //    (create → generateReference(tx) + tx.nonConformity.create).
+    // findAll specs override this per-test with their own array-form impl.
+    mockPrisma.$transaction.mockImplementation((arg: unknown) =>
+      typeof arg === 'function'
+        ? (arg as (tx: typeof mockPrisma) => unknown)(mockPrisma)
+        : Promise.all(arg as Promise<unknown>[]),
+    );
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -405,7 +427,7 @@ describe('NonconformityService', () => {
 
       const result = await service.remove(NC_ID, TENANT_ID);
 
-      expect(mockPrisma.nonConformity.delete).toHaveBeenCalledWith({ where: { id: NC_ID } });
+      expect(mockPrisma.nonConformity.delete).toHaveBeenCalledWith({ where: { id: NC_ID, tenantId: TENANT_ID } });
       expect(result.message).toBe('Non-conformity deleted successfully');
     });
 
@@ -416,7 +438,7 @@ describe('NonconformityService', () => {
       mockPrisma.nonConformity.delete.mockResolvedValue(makeNc());
 
       await expect(service.remove(NC_ID, TENANT_ID)).resolves.not.toThrow();
-      expect(mockPrisma.nonConformity.delete).toHaveBeenCalledWith({ where: { id: NC_ID } });
+      expect(mockPrisma.nonConformity.delete).toHaveBeenCalledWith({ where: { id: NC_ID, tenantId: TENANT_ID } });
     });
   });
 

@@ -5,6 +5,17 @@ generator client {
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
+// ARCH-DECISION: Second generator with a service-local output used ONLY by unit
+// tests (jest maps @prisma/client -> this path). The monorepo shares a single
+// @prisma/client in the pnpm store, so `prisma generate` for one service would
+// otherwise clobber another's runtime enums (NCSeverity vs TaskStatus, ...). This
+// per-service output is clobber-free and parallel-safe. Prod is unaffected: each
+// container runs one service and uses the default `client` generator above.
+generator testClient {
+  provider = "prisma-client-js"
+  output   = "./generated/test-client"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
