@@ -31,6 +31,13 @@ jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn().mockResolvedValue(undefined),
 }));
 
+// ProfileScreen imports lib/push (Expo push) on logout; mock it so the test
+// never loads the native expo-notifications module.
+jest.mock('../../lib/push', () => ({
+  registerForPush:   jest.fn().mockResolvedValue(undefined),
+  unregisterForPush: jest.fn().mockResolvedValue(undefined),
+}));
+
 // ── Auth store ─────────────────────────────────────────────────────────────────
 
 import { useAuthStore, type JwtPayload } from '../../store/authStore';

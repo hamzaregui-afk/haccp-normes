@@ -56,6 +56,7 @@
           "cameraPermission": "NORMES HACCP utilise votre caméra pour photographier les non-conformités lors des contrôles."
         }
       ],
+      "expo-notifications",
       [
         "expo-build-properties",
         {

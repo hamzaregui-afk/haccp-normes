@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { I18nProvider } from '../i18n';
+import { registerForPush } from '../lib/push';
 import { ChecklistScreen } from '../screens/ChecklistScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { useAuthStore } from '../store/authStore';
@@ -26,6 +27,11 @@ function AppNavigator() {
   useEffect(() => {
     hydrateFromStorage().finally(() => setHydrating(false));
   }, [hydrateFromStorage]);
+
+  // Register for push once the user is authenticated (best-effort).
+  useEffect(() => {
+    if (token) void registerForPush();
+  }, [token]);
 
   if (hydrating) {
     return (

@@ -1,4 +1,5 @@
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { unregisterForPush } from '../lib/push';
 import { useAuthStore } from '../store/authStore';
 import { useTranslation } from '@/i18n';
 
@@ -31,7 +32,12 @@ export function ProfileScreen() {
       t('profile.logoutMsg'),
       [
         { text: t('profile.logoutCancel'), style: 'cancel' },
-        { text: t('profile.logoutConfirm'), style: 'destructive', onPress: () => void logout() },
+        {
+          text: t('profile.logoutConfirm'),
+          style: 'destructive',
+          // Remove this device's push token first, then clear the session.
+          onPress: () => void unregisterForPush().finally(() => void logout()),
+        },
       ],
     );
   };
