@@ -1,5 +1,5 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { onlineManager, useMutation, useQuery } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import {
@@ -14,7 +14,12 @@ import {
   View,
 } from 'react-native';
 
-import { nonconformityClient, tenantClient } from '../api/client';
+import { tenantClient } from '../api/client';
+import {
+  MUTATION_KEYS,
+  type NcCreateResult,
+  type NcCreateVars,
+} from '../lib/mutationKeys';
 import { useAuthStore } from '../store/authStore';
 import { useTranslation } from '@/i18n';
 import type { MainTabParamList } from '../navigation/MainNavigator';
@@ -33,14 +38,6 @@ type NCCategory =
   | 'OTHER';
 
 interface Site { id: string; name: string; }
-
-interface CreateNCPayload {
-  description:      string;
-  siteId:           string;
-  severity:         NCSeverity;
-  category:         NCCategory;
-  correctiveAction?: string;
-}
 
 // A photo picked locally, ready to be uploaded as multipart/form-data.
 interface LocalPhoto { uri: string; name: string; type: string; }
@@ -152,31 +149,11 @@ export function NCFormScreen(_props: Props) {
   };
 
   // ── Submit NC (+ optional photos) ──────────────────────────────────────────
-  const mutation = useMutation({
-    mutationFn: async (payload: CreateNCPayload): Promise<{ photoFailures: number }> => {
-      const res = await nonconformityClient.post<{ data?: { id?: string } }>(
-        '/api/v1/nonconformities',
-        payload,
-      );
-      const ncId = res?.data?.data?.id;
-
-      let photoFailures = 0;
-      if (ncId && photos.length > 0) {
-        for (const photo of photos) {
-          try {
-            const form = new FormData();
-            // React Native FormData accepts a { uri, name, type } file part.
-            form.append('file', { uri: photo.uri, name: photo.name, type: photo.type } as unknown as Blob);
-            await nonconformityClient.post(`/api/v1/nonconformities/${ncId}/photos`, form, {
-              headers: { 'Content-Type': 'multipart/form-data' },
-            });
-          } catch {
-            photoFailures += 1;
-          }
-        }
-      }
-      return { photoFailures };
-    },
+  // ARCH-DECISION: The mutationFn lives in queryClient.ts registered under
+  // MUTATION_KEYS.ncCreate, so a submission made offline is paused, persisted and
+  // replayed on reconnect (even after an app restart). See lib/mutationKeys.ts.
+  const mutation = useMutation<NcCreateResult, unknown, NcCreateVars>({
+    mutationKey: MUTATION_KEYS.ncCreate,
     onSuccess: ({ photoFailures }) => {
       const partial = photoFailures > 0;
       Alert.alert(
@@ -200,13 +177,24 @@ export function NCFormScreen(_props: Props) {
       Alert.alert(t('ncForm.requiredSite'), t('ncForm.noSiteMsg'));
       return;
     }
-    mutation.mutate({
-      description:      description.trim(),
-      siteId:           resolvedSiteId,
-      severity,
-      category,
-      correctiveAction: correctiveAction.trim() || undefined,
-    });
+    const vars: NcCreateVars = {
+      payload: {
+        description:      description.trim(),
+        siteId:           resolvedSiteId,
+        severity,
+        category,
+        correctiveAction: correctiveAction.trim() || undefined,
+      },
+      photos,
+    };
+    mutation.mutate(vars);
+    // Offline: the mutation is paused (not failed) — confirm it's queued and
+    // reset the form now; it will replay automatically on reconnect.
+    if (!onlineManager.isOnline()) {
+      Alert.alert(t('offline.queuedTitle'), t('offline.queuedMsg'), [
+        { text: t('common.ok'), onPress: resetForm },
+      ]);
+    }
   };
 
   return (

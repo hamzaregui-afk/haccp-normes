@@ -27,7 +27,7 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react-native';
 import { Alert } from 'react-native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // ── react-query mock ───────────────────────────────────────────────────────────
 
@@ -216,10 +216,13 @@ describe('NCFormScreen', () => {
 
     expect(mockMutate).toHaveBeenCalledWith(
       expect.objectContaining({
-        description: 'Frigo HS',
-        siteId:      'site-001',
-        severity:    'MEDIUM',
-        category:    'OTHER',
+        payload: expect.objectContaining({
+          description: 'Frigo HS',
+          siteId:      'site-001',
+          severity:    'MEDIUM',
+          category:    'OTHER',
+        }),
+        photos: expect.any(Array),
       }),
     );
   });
@@ -234,7 +237,7 @@ describe('NCFormScreen', () => {
     fireEvent.press(screen.getByText('Soumettre le signalement'));
 
     expect(mockMutate).toHaveBeenCalledWith(
-      expect.objectContaining({ severity: 'CRITICAL' }),
+      expect.objectContaining({ payload: expect.objectContaining({ severity: 'CRITICAL' }) }),
     );
   });
 
@@ -248,7 +251,7 @@ describe('NCFormScreen', () => {
     fireEvent.press(screen.getByText('Soumettre le signalement'));
 
     expect(mockMutate).toHaveBeenCalledWith(
-      expect.objectContaining({ category: 'HYGIENE' }),
+      expect.objectContaining({ payload: expect.objectContaining({ category: 'HYGIENE' }) }),
     );
   });
 
@@ -262,8 +265,27 @@ describe('NCFormScreen', () => {
     fireEvent.press(screen.getByText('Soumettre le signalement'));
 
     expect(mockMutate).toHaveBeenCalledWith(
-      expect.objectContaining({ correctiveAction: 'Nettoyer filtre' }),
+      expect.objectContaining({ payload: expect.objectContaining({ correctiveAction: 'Nettoyer filtre' }) }),
     );
+  });
+
+  it('queues the NC and shows the offline alert when offline', () => {
+    const mockMutate = jest.fn();
+    mockUseMutation.mockReturnValue(mr(mockMutate));
+    const spy = jest.spyOn(onlineManager, 'isOnline').mockReturnValue(false);
+    renderScreen();
+
+    fireEvent.changeText(screen.getByPlaceholderText(/décrivez le problème/i), 'Frigo HS');
+    fireEvent.press(screen.getByText('Soumettre le signalement'));
+
+    // Still enqueued (mutate called — React Query pauses it), and the user is told.
+    expect(mockMutate).toHaveBeenCalled();
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Enregistré hors ligne',
+      expect.any(String),
+      expect.any(Array),
+    );
+    spy.mockRestore();
   });
 
   // ── Alerts ────────────────────────────────────────────────────────────────────

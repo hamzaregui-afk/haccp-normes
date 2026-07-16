@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { onlineManager, useQuery, useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 
 import { controlClient } from '../api/client';
+import { MUTATION_KEYS, type ControlSubmitVars } from '../lib/mutationKeys';
 import { useAuthStore } from '../store/authStore';
 import { useTranslation } from '@/i18n';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -43,18 +44,6 @@ interface ControlTask {
 
 interface TaskResponse {
   data: ControlTask;
-}
-
-interface SubmitPayload {
-  // ARCH-DECISION: 'COMPLETED' is the canonical status value per TaskStatusSchema.
-  // The mobile screen previously sent 'DONE' which Zod rejected with a 400 error,
-  // causing tasks to never be marked complete and the compliance KPI to stay at 0%.
-  status: 'COMPLETED';
-  completedAt: string;
-  resultJson: {
-    checkpoints: Array<{ description: string; temperature: string; result: string | null }>;
-    completedAt: string;
-  };
 }
 
 // ── CheckpointRow ─────────────────────────────────────────────────────────────
@@ -147,10 +136,11 @@ export function ChecklistScreen({ route, navigation }: Props) {
     },
   });
 
-  const submitMutation = useMutation({
-    mutationFn: async (payload: SubmitPayload) => {
-      await controlClient.patch(`/api/v1/controls/tasks/${taskId}`, payload);
-    },
+  // ARCH-DECISION: mutationFn registered in queryClient.ts under
+  // MUTATION_KEYS.controlSubmit so a completion done offline is paused,
+  // persisted and replayed on reconnect. See lib/mutationKeys.ts.
+  const submitMutation = useMutation<void, unknown, ControlSubmitVars>({
+    mutationKey: MUTATION_KEYS.controlSubmit,
     onSuccess: () => {
       const hasFailure = entries.some((e) => e.result === 'FAIL');
       if (hasFailure) {
@@ -178,17 +168,30 @@ export function ChecklistScreen({ route, navigation }: Props) {
     }
     const now = new Date().toISOString();
     submitMutation.mutate({
-      status: 'COMPLETED',
-      completedAt: now,
-      resultJson: {
-        checkpoints: entries.map((e) => ({
-          description: e.description,
-          temperature: e.temperature,
-          result: e.result,
-        })),
+      taskId,
+      payload: {
+        // ARCH-DECISION: 'COMPLETED' is the canonical status per TaskStatusSchema.
+        // The screen previously sent 'DONE' which Zod rejected with 400, leaving
+        // tasks never marked complete and the compliance KPI stuck at 0%.
+        status: 'COMPLETED',
         completedAt: now,
+        resultJson: {
+          checkpoints: entries.map((e) => ({
+            description: e.description,
+            temperature: e.temperature,
+            result: e.result,
+          })),
+          completedAt: now,
+        },
       },
     });
+    // Offline: the completion is queued (paused) and will replay on reconnect —
+    // confirm and return to the agenda rather than waiting for a server response.
+    if (!onlineManager.isOnline()) {
+      Alert.alert(t('offline.queuedTitle'), t('offline.queuedMsg'), [
+        { text: t('common.ok'), onPress: () => navigation.navigate('Main') },
+      ]);
+    }
   };
 
   const handleNCModalYes = () => {

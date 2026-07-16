@@ -19,6 +19,13 @@ export const en: Translations = {
     back:     'Back',
     noData:   'No data',
   },
+  offline: {
+    offline:     'Offline',
+    pending:     'pending',
+    syncing:     'Syncing…',
+    queuedTitle: 'Saved offline',
+    queuedMsg:   'You are offline. Your action was saved and will be sent automatically when the connection returns.',
+  },
   auth: {
     title:       'NORMES HACCP',
     subtitle:    'Operator sign-in',

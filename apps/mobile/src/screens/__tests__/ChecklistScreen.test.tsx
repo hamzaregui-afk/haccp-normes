@@ -328,12 +328,15 @@ describe('ChecklistScreen', () => {
 
     expect(mockMutate).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: 'COMPLETED',
-        resultJson: expect.objectContaining({
-          checkpoints: expect.arrayContaining([
-            expect.objectContaining({ description: 'Température viande',    result: 'PASS' }),
-            expect.objectContaining({ description: 'Aspect visuel produit', result: 'PASS' }),
-          ]),
+        taskId: 'task-001',
+        payload: expect.objectContaining({
+          status: 'COMPLETED',
+          resultJson: expect.objectContaining({
+            checkpoints: expect.arrayContaining([
+              expect.objectContaining({ description: 'Température viande',    result: 'PASS' }),
+              expect.objectContaining({ description: 'Aspect visuel produit', result: 'PASS' }),
+            ]),
+          }),
         }),
       }),
     );
@@ -349,8 +352,8 @@ describe('ChecklistScreen', () => {
     screen.getAllByText('✓ OK').forEach((btn) => fireEvent.press(btn));
     fireEvent.press(screen.getByText('Soumettre le contrôle'));
 
-    const call = mockMutate.mock.calls[0]?.[0] as { resultJson?: { completedAt?: string } };
-    expect(call?.resultJson?.completedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    const call = mockMutate.mock.calls[0]?.[0] as { payload?: { resultJson?: { completedAt?: string } } };
+    expect(call?.payload?.resultJson?.completedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
   // ── isPending state ───────────────────────────────────────────────────────────

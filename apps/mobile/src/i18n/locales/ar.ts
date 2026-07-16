@@ -21,6 +21,13 @@ export const ar: Translations = {
     back:     'رجوع',
     noData:   'لا توجد بيانات',
   },
+  offline: {
+    offline:     'غير متصل',
+    pending:     'قيد الانتظار',
+    syncing:     'جارٍ المزامنة…',
+    queuedTitle: 'تم الحفظ دون اتصال',
+    queuedMsg:   'أنت غير متصل بالإنترنت. تم حفظ الإجراء وسيُرسَل تلقائيًا عند عودة الاتصال.',
+  },
   auth: {
     title:       'NORMES HACCP',
     subtitle:    'تسجيل دخول المشغّل',

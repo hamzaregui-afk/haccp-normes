@@ -18,6 +18,13 @@ export const fr = {
     back:     'Retour',
     noData:   'Aucune donnée',
   },
+  offline: {
+    offline:     'Hors ligne',
+    pending:     'en attente',
+    syncing:     'Synchronisation…',
+    queuedTitle: 'Enregistré hors ligne',
+    queuedMsg:   'Vous êtes hors ligne. L\'action a été enregistrée et sera envoyée automatiquement dès le retour du réseau.',
+  },
   auth: {
     title:       'NORMES HACCP',
     subtitle:    'Connexion opérateur',
