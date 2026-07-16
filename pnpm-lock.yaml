@@ -99,6 +99,12 @@ importers:
       '@babel/runtime':
         specifier: ^7.25.0
         version: 7.29.2
+      '@react-native-community/cli':
+        specifier: 13.6.9
+        version: 13.6.9
+      '@react-native/codegen':
+        specifier: 0.74.87
+        version: 0.74.87(@babel/preset-env@7.29.5(@babel/core@7.29.0))
       '@testing-library/jest-native':
         specifier: ^5.4.3
         version: 5.4.3(react-native@0.74.5(@babel/core@7.29.0)(@babel/preset-env@7.29.5(@babel/core@7.29.0))(@types/react@18.2.79)(react@18.2.0))(react-test-renderer@18.2.0(react@18.2.0))(react@18.2.0)
