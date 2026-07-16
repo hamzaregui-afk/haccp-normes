@@ -20,11 +20,11 @@ declare const process: { env: Record<string, string | undefined> };
 // ARCH-DECISION: Default to the production HTTPS URL (not the Android emulator
 // loopback 10.0.2.2 which only works in dev). Development builds set
 // EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:80 via eas.json or .env.local.
-// Production/preview builds set EXPO_PUBLIC_API_BASE_URL=https://api.normes-haccp.com
+// Production/preview builds set EXPO_PUBLIC_API_BASE_URL=https://app.normes-haccp.com
 // (a real domain + valid TLS via Cloudflare — devices reject the self-signed
 // cert that the raw 178.105.126.165 origin still serves).
 const GATEWAY_BASE =
-  process.env['EXPO_PUBLIC_API_BASE_URL'] ?? 'https://api.normes-haccp.com';
+  process.env['EXPO_PUBLIC_API_BASE_URL'] ?? 'https://app.normes-haccp.com';
 
 // ── Authenticated gateway client ────────────────────────────────────────────
 // Use this for all API calls — all services are routed through nginx.

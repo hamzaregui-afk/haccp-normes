@@ -172,11 +172,11 @@ jobs:
               # Provision a REAL Let's Encrypt certificate for the mobile API domain,
               # replacing the store-blocking self-signed cert. This is the INFRA-1 fix.
               # PREREQUISITE (done once, manually, at the DNS provider): an A record
-              #   api.normes-haccp.com -> 178.105.126.165
+              #   app.normes-haccp.com -> 178.105.126.165
               # This action is GUARDED: it refuses to run until that record resolves to
               # THIS server, so it can never be triggered prematurely or clobber the
               # working self-signed setup.
-              TLS_DOMAIN="${TLS_DOMAIN:-api.normes-haccp.com}"
+              TLS_DOMAIN="${TLS_DOMAIN:-app.normes-haccp.com}"
               TLS_EMAIL="${TLS_EMAIL:-hamzaregui31@gmail.com}"
               echo "=== setup-tls for ${TLS_DOMAIN} ==="
 

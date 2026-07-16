@@ -11,7 +11,7 @@
 | # | P | Statut | Sujet | Détail |
 |---|---|---|---|---|
 | SEC-1 | P0 | 🔴 ouvert | Token GitHub en clair dans le remote git | `git remote -v` contient un `gho_…` en clair. À **révoquer** sur GitHub et reconfigurer le remote via credential helper / `GITHUB_TOKEN`, sans secret en clair. Ne jamais committer. |
-| INFRA-1 | P0 | 🟠 prêt, bloqué DNS | API prod = IP brute + cert auto-signé | `EXPO_PUBLIC_API_BASE_URL=https://178.105.126.165` (cert self-signed) → devices rejettent → app inutilisable en prod. **Côté fait** : mobile pointé sur `https://api.normes-haccp.com` (`eas.json`+`client.ts`) ; action de déploiement **`setup-tls`** ajoutée (Let's Encrypt/certbot, garde-fou DNS, renouvellement auto) ; nginx catch-all matche déjà le domaine. **Bloquant restant** : `api.normes-haccp.com` = NXDOMAIN — DNS géré chez **Hostinger** (`dns-parking`), créer A `api → 178.105.126.165` (action propriétaire). Runbook : `MOBILE_DEPLOY.md`. |
+| INFRA-1 | P0 | 🟡 DNS OK, TLS à provisionner | API prod = IP brute + cert auto-signé | `https://178.105.126.165` + cert self-signed → devices rejettent → app inutilisable en prod. **Fait** : (1) **DNS ✅ 2026-07-16** — A `app → 178.105.126.165` créé chez Hostinger, vérifié (`app.normes-haccp.com` résout vers Hetzner, le gateway répond) ; apex/`www`/MX du site officiel intacts. (2) mobile pointé sur `https://app.normes-haccp.com` (`eas.json`+`client.ts`). (3) action **`setup-tls`** prête (Let's Encrypt/certbot, garde-fou DNS, renouvellement auto) ; nginx catch-all matche déjà le domaine. **Reste** : déclencher `setup-tls` pour remplacer le cert auto-signé. Sous-domaine retenu = **`app`** (pas `api` — reliquat `api` pointe encore chez Hostinger, inutilisé). Runbook : `MOBILE_DEPLOY.md`. |
 
 ---
 
