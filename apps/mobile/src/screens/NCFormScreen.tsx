@@ -1,9 +1,11 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -38,6 +40,20 @@ interface CreateNCPayload {
   severity:         NCSeverity;
   category:         NCCategory;
   correctiveAction?: string;
+}
+
+// A photo picked locally, ready to be uploaded as multipart/form-data.
+interface LocalPhoto { uri: string; name: string; type: string; }
+
+const MAX_PHOTOS = 5;
+
+// ARCH-DECISION: The backend NC-photo endpoint takes ONE file per request
+// (POST /nonconformities/:id/photos, field "file"). We therefore upload photos
+// sequentially AFTER the NC is created (we need its id). Photo failures are
+// non-fatal — the NC already exists — so we count them and warn, never rollback.
+function toLocalPhoto(asset: ImagePicker.ImagePickerAsset): LocalPhoto {
+  const name = asset.fileName ?? asset.uri.split('/').pop() ?? `nc-photo-${Date.now()}.jpg`;
+  return { uri: asset.uri, name, type: asset.mimeType ?? 'image/jpeg' };
 }
 
 // ── Severity config ───────────────────────────────────────────────────────────
@@ -79,6 +95,43 @@ export function NCFormScreen(_props: Props) {
   const [severity,         setSeverity]         = useState<NCSeverity>('MEDIUM');
   const [category,         setCategory]         = useState<NCCategory>('OTHER');
   const [siteId,           setSiteId]           = useState<string | null>(null);
+  const [photos,           setPhotos]           = useState<LocalPhoto[]>([]);
+
+  // ── Photo attachment ───────────────────────────────────────────────────────
+  const addAssets = (assets: ImagePicker.ImagePickerAsset[]) => {
+    setPhotos((prev) => {
+      const room = MAX_PHOTOS - prev.length;
+      return room <= 0 ? prev : [...prev, ...assets.slice(0, room).map(toLocalPhoto)];
+    });
+  };
+
+  const takePhoto = async () => {
+    if (photos.length >= MAX_PHOTOS) return;
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(t('ncForm.permissionDenied'), t('ncForm.permissionCameraMsg'));
+      return;
+    }
+    const res = await ImagePicker.launchCameraAsync({ quality: 0.6 });
+    if (!res.canceled) addAssets(res.assets);
+  };
+
+  const choosePhoto = async () => {
+    if (photos.length >= MAX_PHOTOS) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(t('ncForm.permissionDenied'), t('ncForm.permissionLibraryMsg'));
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      quality: 0.6,
+      allowsMultipleSelection: true,
+      selectionLimit: MAX_PHOTOS - photos.length,
+    });
+    if (!res.canceled) addAssets(res.assets);
+  };
+
+  const removePhoto = (uri: string) => setPhotos((prev) => prev.filter((p) => p.uri !== uri));
 
   // ── Load sites so the operator can pick one ────────────────────────────────
   const { data: sitesData } = useQuery<{ data: { data: Site[] } }>({
@@ -89,24 +142,48 @@ export function NCFormScreen(_props: Props) {
   });
   const sites: Site[] = sitesData?.data?.data ?? [];
 
-  // ── Submit NC ─────────────────────────────────────────────────────────────
+  const resetForm = () => {
+    setDescription('');
+    setCorrectiveAction('');
+    setSeverity('MEDIUM');
+    setCategory('OTHER');
+    setSiteId(null);
+    setPhotos([]);
+  };
+
+  // ── Submit NC (+ optional photos) ──────────────────────────────────────────
   const mutation = useMutation({
-    mutationFn: async (payload: CreateNCPayload) => {
-      await nonconformityClient.post('/api/v1/nonconformities', payload);
+    mutationFn: async (payload: CreateNCPayload): Promise<{ photoFailures: number }> => {
+      const res = await nonconformityClient.post<{ data?: { id?: string } }>(
+        '/api/v1/nonconformities',
+        payload,
+      );
+      const ncId = res?.data?.data?.id;
+
+      let photoFailures = 0;
+      if (ncId && photos.length > 0) {
+        for (const photo of photos) {
+          try {
+            const form = new FormData();
+            // React Native FormData accepts a { uri, name, type } file part.
+            form.append('file', { uri: photo.uri, name: photo.name, type: photo.type } as unknown as Blob);
+            await nonconformityClient.post(`/api/v1/nonconformities/${ncId}/photos`, form, {
+              headers: { 'Content-Type': 'multipart/form-data' },
+            });
+          } catch {
+            photoFailures += 1;
+          }
+        }
+      }
+      return { photoFailures };
     },
-    onSuccess: () => {
-      Alert.alert(t('ncForm.successTitle'), t('ncForm.successMsg'), [
-        {
-          text: t('common.ok'),
-          onPress: () => {
-            setDescription('');
-            setCorrectiveAction('');
-            setSeverity('MEDIUM');
-            setCategory('OTHER');
-            setSiteId(null);
-          },
-        },
-      ]);
+    onSuccess: ({ photoFailures }) => {
+      const partial = photoFailures > 0;
+      Alert.alert(
+        partial ? t('ncForm.photoPartialTitle') : t('ncForm.successTitle'),
+        partial ? t('ncForm.photoPartialMsg') : t('ncForm.successMsg'),
+        [{ text: t('common.ok'), onPress: resetForm }],
+      );
     },
     onError: () => {
       Alert.alert(t('ncForm.errorTitle'), t('ncForm.errorMsg'));
@@ -232,6 +309,36 @@ export function NCFormScreen(_props: Props) {
         textAlignVertical="top"
       />
 
+      {/* Photos */}
+      <Text style={styles.label}>{t('ncForm.photos')}</Text>
+      <View style={styles.photoRow}>
+        {photos.map((p) => (
+          <View key={p.uri} style={styles.thumbWrap}>
+            <Image source={{ uri: p.uri }} style={styles.thumb} />
+            <TouchableOpacity
+              style={styles.thumbRemove}
+              onPress={() => removePhoto(p.uri)}
+              activeOpacity={0.8}
+              accessibilityLabel={t('ncForm.removePhoto')}
+            >
+              <Text style={styles.thumbRemoveText}>×</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+        {photos.length < MAX_PHOTOS && (
+          <>
+            <TouchableOpacity style={styles.photoAddBtn} onPress={takePhoto} activeOpacity={0.8}>
+              <Text style={styles.photoAddIcon}>📷</Text>
+              <Text style={styles.photoAddText}>{t('ncForm.takePhoto')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.photoAddBtn} onPress={choosePhoto} activeOpacity={0.8}>
+              <Text style={styles.photoAddIcon}>🖼️</Text>
+              <Text style={styles.photoAddText}>{t('ncForm.choosePhoto')}</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+
       {/* Submit */}
       {!canSubmit && (
         <View style={styles.readOnlyBanner}>
@@ -341,6 +448,63 @@ const styles = StyleSheet.create({
   },
   categoryBtnTextActive: {
     color: '#fff',
+  },
+  photoRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 24,
+  },
+  thumbWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 8,
+    position: 'relative',
+  },
+  thumb: {
+    width: 72,
+    height: 72,
+    borderRadius: 8,
+    backgroundColor: '#E5E7EB',
+  },
+  thumbRemove: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#991B1B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbRemoveText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  photoAddBtn: {
+    width: 72,
+    height: 72,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
+    borderStyle: 'dashed',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  photoAddIcon: {
+    fontSize: 20,
+    marginBottom: 2,
+  },
+  photoAddText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#6B7280',
+    textAlign: 'center',
   },
   submitBtn: {
     backgroundColor: '#B5833A',

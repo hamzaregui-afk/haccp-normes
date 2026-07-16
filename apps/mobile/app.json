@@ -50,6 +50,13 @@
     "plugins": [
       "expo-secure-store",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "NORMES HACCP accède à votre photothèque pour joindre des photos aux non-conformités.",
+          "cameraPermission": "NORMES HACCP utilise votre caméra pour photographier les non-conformités lors des contrôles."
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {

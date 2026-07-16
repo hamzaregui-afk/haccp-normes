@@ -60,6 +60,16 @@ jest.mock('../../api/client', () => ({
   tenantClient:        { get:  jest.fn() },
 }));
 
+// ── expo-image-picker mock ──────────────────────────────────────────────────────
+// The screen imports expo-image-picker for the photo attachment UI. The native
+// module isn't available under jest, so stub the functions the screen calls.
+jest.mock('expo-image-picker', () => ({
+  requestCameraPermissionsAsync:      jest.fn().mockResolvedValue({ granted: true }),
+  requestMediaLibraryPermissionsAsync: jest.fn().mockResolvedValue({ granted: true }),
+  launchCameraAsync:                  jest.fn().mockResolvedValue({ canceled: true, assets: [] }),
+  launchImageLibraryAsync:            jest.fn().mockResolvedValue({ canceled: true, assets: [] }),
+}));
+
 // ── Import under test ─────────────────────────────────────────────────────────
 
 import { NCFormScreen } from '../NCFormScreen';
@@ -258,22 +268,50 @@ describe('NCFormScreen', () => {
 
   // ── Alerts ────────────────────────────────────────────────────────────────────
 
-  it('shows success Alert when onSuccess fires', () => {
-    let capturedOnSuccess: (() => void) | undefined;
-    mockUseMutation.mockImplementation(({ onSuccess }: { onSuccess?: () => void }) => {
-      capturedOnSuccess = onSuccess;
-      return { mutate: jest.fn(), isPending: false };
-    });
+  it('shows success Alert when onSuccess fires (no photo failures)', () => {
+    // onSuccess now receives the mutation result { photoFailures }.
+    let capturedOnSuccess: ((r: { photoFailures: number }) => void) | undefined;
+    mockUseMutation.mockImplementation(
+      ({ onSuccess }: { onSuccess?: (r: { photoFailures: number }) => void }) => {
+        capturedOnSuccess = onSuccess;
+        return { mutate: jest.fn(), isPending: false };
+      },
+    );
     renderScreen();
 
     fireEvent.changeText(screen.getByPlaceholderText(/décrivez le problème/i), 'Test');
     fireEvent.press(screen.getByText('Soumettre le signalement'));
 
-    act(() => { capturedOnSuccess?.(); });
+    act(() => { capturedOnSuccess?.({ photoFailures: 0 }); });
 
     expect(Alert.alert).toHaveBeenCalledWith(
       'Succès',
       expect.stringContaining('créée'),
+      expect.any(Array),
+    );
+  });
+
+  it('renders the photo attachment buttons (Prendre / Galerie)', () => {
+    renderScreen();
+    expect(screen.getByText('Prendre')).toBeTruthy();
+    expect(screen.getByText('Galerie')).toBeTruthy();
+  });
+
+  it('warns on partial photo failure when onSuccess reports failures', () => {
+    let capturedOnSuccess: ((r: { photoFailures: number }) => void) | undefined;
+    mockUseMutation.mockImplementation(
+      ({ onSuccess }: { onSuccess?: (r: { photoFailures: number }) => void }) => {
+        capturedOnSuccess = onSuccess;
+        return { mutate: jest.fn(), isPending: false };
+      },
+    );
+    renderScreen();
+
+    act(() => { capturedOnSuccess?.({ photoFailures: 2 }); });
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'NC créée',
+      expect.stringContaining('photos'),
       expect.any(Array),
     );
   });
