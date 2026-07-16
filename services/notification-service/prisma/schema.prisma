@@ -8,6 +8,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ARCH-DECISION: PushDevice stores Expo push tokens for mobile devices. `role` is
+// denormalised from the JWT at registration so push can target by role (e.g. NC
+// alerts → managers/quality) without a cross-service user-service lookup. It may
+// go slightly stale if a user's role changes before they re-open the app —
+// acceptable for push targeting. expoPushToken is unique (one row per device).
+model PushDevice {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  userId        String   @map("user_id")
+  role          String
+  expoPushToken String   @unique @map("expo_push_token")
+  platform      String   // 'ios' | 'android'
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([tenantId, role])
+  @@map("push_devices")
+}
+
 model Notification {
   id        String   @id @default(cuid())
   tenantId  String   @map("tenant_id")

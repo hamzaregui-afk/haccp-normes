@@ -7,6 +7,10 @@ import { NotificationController } from './notification.controller';
 import { NotificationGateway } from './notification.gateway';
 import { NotificationService } from './notification.service';
 import { EmailService } from './email.service';
+import { DeviceController } from './device.controller';
+import { DeviceService } from './device.service';
+import { ExpoPushService } from './expo-push.service';
+import { PushService } from './push.service';
 import { env } from '../config/env';
 
 @Module({
@@ -19,8 +23,16 @@ import { env } from '../config/env';
     JwtModule.register({ secret: env.JWT_SECRET }),
   ],
   // NotificationConsumer handles @EventPattern messages from the RabbitMQ microservice transport
-  controllers: [NotificationController, NotificationConsumer],
-  providers: [NotificationService, NotificationGateway, PrismaService, EmailService],
+  controllers: [NotificationController, DeviceController, NotificationConsumer],
+  providers: [
+    NotificationService,
+    NotificationGateway,
+    PrismaService,
+    EmailService,
+    DeviceService,
+    ExpoPushService,
+    PushService,
+  ],
   exports: [NotificationService],
 })
 export class NotificationModule {}

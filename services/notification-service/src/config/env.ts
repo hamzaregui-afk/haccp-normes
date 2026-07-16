@@ -11,6 +11,9 @@ const envSchema = z.object({
   RABBITMQ_URL:    z.string().default('amqp://guest:guest@localhost:5672'),
   // FCM — optional (Firebase Cloud Messaging for mobile push notifications)
   FCM_SERVER_KEY:  z.string().optional(),
+  // Expo push — optional access token for the Expo Push API (enhanced security +
+  // receipts). Push still works without it; Expo relays to APNs/FCM.
+  EXPO_ACCESS_TOKEN: z.string().optional(),
   // SMTP — optional in development (Ethereal test account used as fallback)
   SMTP_HOST:       z.string().optional(),
   SMTP_PORT:       z.coerce.number().optional().default(587),

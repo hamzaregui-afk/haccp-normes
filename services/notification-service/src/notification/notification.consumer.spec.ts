@@ -83,13 +83,27 @@ const DLC_EXPIRING_DATA = {
 
 // ─── Suite ────────────────────────────────────────────────────────────────────
 
+// NotificationService + PushService are fire-and-forget side-effects; stub them
+// so the consumer can be instantiated and the push path resolves cleanly.
+function makeServiceMock() {
+  return { create: jest.fn().mockResolvedValue(undefined) };
+}
+function makePushMock() {
+  return {
+    pushToRoles: jest.fn().mockResolvedValue(undefined),
+    pushToUser:  jest.fn().mockResolvedValue(undefined),
+  };
+}
+
 describe('NotificationConsumer', () => {
   let consumer: NotificationConsumer;
   let gateway: ReturnType<typeof makeGatewayMock>;
+  let push: ReturnType<typeof makePushMock>;
 
   beforeEach(() => {
     gateway  = makeGatewayMock();
-    consumer = new NotificationConsumer(gateway as never);
+    push     = makePushMock();
+    consumer = new NotificationConsumer(gateway as never, makeServiceMock() as never, push as never);
   });
 
   // ── nonconformity.nc.created ───────────────────────────────────────────────
@@ -103,6 +117,22 @@ describe('NotificationConsumer', () => {
         'notification:nc-created',
         expect.any(Object),
       );
+    });
+
+    it('sends a push alert to the tenant manager/quality roles', () => {
+      consumer.handleNcCreated(NC_CREATED_DATA, makeCtx());
+
+      expect(push.pushToRoles).toHaveBeenCalledWith(
+        'tenant-abc',
+        expect.arrayContaining(['MANAGER', 'QUALITY_OFFICER']),
+        expect.objectContaining({ data: expect.objectContaining({ type: 'nc-created' }) }),
+      );
+    });
+
+    it('does not push twice for a duplicate delivery (same eventId)', () => {
+      consumer.handleNcCreated(NC_CREATED_DATA, makeCtx());
+      consumer.handleNcCreated(NC_CREATED_DATA, makeCtx()); // duplicate
+      expect(push.pushToRoles).toHaveBeenCalledTimes(1);
     });
 
     it('forwards the NC payload fields', () => {

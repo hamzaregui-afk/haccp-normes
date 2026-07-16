@@ -38,6 +38,8 @@ import { Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
 import { IdempotencyGuard } from '@haccp/shared-utils';
 import { NotificationGateway } from './notification.gateway';
 import { NotificationService } from './notification.service';
+import { NC_ALERT_ROLES } from './device.service';
+import { PushService } from './push.service';
 
 interface DomainEventEnvelope {
   tenantId:      string;
@@ -72,6 +74,7 @@ export class NotificationConsumer {
   constructor(
     private readonly gateway:  NotificationGateway,
     private readonly service:  NotificationService,
+    private readonly push:     PushService,
   ) {}
 
   // ─── Generic dispatch helper ──────────────────────────────────────────────
@@ -80,6 +83,9 @@ export class NotificationConsumer {
     logTag:      string,
     socketEvent: string,
     logExtra?:   string,
+    // Extra side-effect (e.g. push) run ONLY on first delivery — gated by the
+    // same dedup guard as the WebSocket emit so duplicates never double-fire.
+    afterEmit?:  () => void,
   ): void {
     if (this.dedup.isDuplicate(data.eventId)) return;
 
@@ -92,6 +98,8 @@ export class NotificationConsumer {
       eventId:   data.eventId,
       timestamp: data.timestamp,
     });
+
+    afterEmit?.();
   }
 
   // ─── nonconformity.nc.created ─────────────────────────────────────────────
@@ -109,11 +117,23 @@ export class NotificationConsumer {
   }
 
   private dispatchNcCreated(data: DomainEventEnvelope): void {
+    const severity = String(data.payload['severity'] ?? '');
     this.dispatch(
       data,
       'nc.created',
       'notification:nc-created',
-      `ncId=${String(data.payload['ncId'] ?? '?')} severity=${String(data.payload['severity'] ?? '?')}`,
+      `ncId=${String(data.payload['ncId'] ?? '?')} severity=${severity || '?'}`,
+      // Push alert to the tenant's managers / quality officers (fire-and-forget —
+      // a push failure must never break event processing).
+      () => {
+        void this.push
+          .pushToRoles(data.tenantId, NC_ALERT_ROLES, {
+            title: 'Nouvelle non-conformité',
+            body: severity ? `Sévérité ${severity} signalée` : 'Une non-conformité a été signalée',
+            data: { type: 'nc-created', ncId: data.payload['ncId'], eventId: data.eventId },
+          })
+          .catch((err: unknown) => this.logger.warn(`[nc.created] push failed: ${String(err)}`));
+      },
     );
   }
 
@@ -188,6 +208,17 @@ export class NotificationConsumer {
       }, data.tenantId).catch((err: unknown) =>
         this.logger.warn(`[task.assigned] DB persist failed: ${String(err)}`),
       );
+
+      // Push alert to the assigned operator (fire-and-forget).
+      void this.push
+        .pushToUser(data.tenantId, assigneeId, {
+          title: `Nouvelle tâche : ${templateName ?? 'Contrôle HACCP'}`,
+          body: scheduledAt
+            ? `Planifiée le ${new Date(scheduledAt).toLocaleDateString('fr-FR')}`
+            : 'Une tâche vous a été assignée',
+          data: { type: 'task-assigned', taskId, eventId: data.eventId },
+        })
+        .catch((err: unknown) => this.logger.warn(`[task.assigned] push failed: ${String(err)}`));
     }
 
     // Broadcast to tenant managers
