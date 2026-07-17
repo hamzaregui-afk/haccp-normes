@@ -2,7 +2,7 @@
   "name": "@haccp/mobile",
   "version": "1.0.0",
   "private": true,
-  "main": "expo/AppEntry.js",
+  "main": "index.js",
   "scripts": {
     "dev":       "expo start",
     "android":   "expo start --android",
