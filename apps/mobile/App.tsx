@@ -2,7 +2,6 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { OfflineBanner } from './src/components/OfflineBanner';
 import { initOnlineManager } from './src/lib/offline';
 import { asyncStoragePersister, queryClient } from './src/lib/queryClient';
 import { RootNavigator } from './src/navigation/RootNavigator';
@@ -27,7 +26,8 @@ export default function App() {
     >
       <SafeAreaProvider>
         <StatusBar barStyle="light-content" backgroundColor="#1A3D2B" />
-        <OfflineBanner />
+        {/* OfflineBanner is rendered inside RootNavigator's I18nProvider (it uses
+            useTranslation) — see RootNavigator. Placing it here crashed on launch. */}
         <RootNavigator />
       </SafeAreaProvider>
     </PersistQueryClientProvider>

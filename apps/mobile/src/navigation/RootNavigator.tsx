@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
+import { OfflineBanner } from '../components/OfflineBanner';
 import { I18nProvider } from '../i18n';
 import { registerForPush } from '../lib/push';
 import { ChecklistScreen } from '../screens/ChecklistScreen';
@@ -68,9 +69,15 @@ function AppNavigator() {
 }
 
 // ─── Root — wraps everything in I18nProvider ──────────────────────────────────
+// ARCH-DECISION: OfflineBanner lives HERE (inside I18nProvider), not in App.tsx.
+// It calls useTranslation(), which throws "useTranslation must be used inside
+// <I18nProvider>" if rendered above the provider — that crash-on-launch is exactly
+// what happened when it sat in App.tsx. QueryClient + SafeAreaProvider contexts
+// still reach it because App wraps RootNavigator in both.
 
 export const RootNavigator = () => (
   <I18nProvider>
+    <OfflineBanner />
     <AppNavigator />
   </I18nProvider>
 );
