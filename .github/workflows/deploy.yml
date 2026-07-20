@@ -26,6 +26,7 @@ on:
           - diagnose
           - free-space-and-recover
           - reset-password
+          - force-reset-superadmin
 
 concurrency:
   group: deploy-production
@@ -325,6 +326,36 @@ jobs:
                 echo "=== ALL OK: password updated + throttler reset + login confirmed ==="
                 echo "=== Email: $ADMIN_EMAIL ==="
                 echo "=== Password: use SUPERADMIN_PASSWORD secret value ==="
+              else
+                echo "=== FAILED: $LOGIN ==="
+              fi
+              exit 0
+            fi
+
+            if [ "$ACTION" = "force-reset-superadmin" ]; then
+              # ARCH-DECISION: Secret-INDEPENDENT superadmin recovery. Repeated resets
+              # via SUPERADMIN_PASSWORD kept failing because the secret held an unknown
+              # value. This action upserts the superadmin with a bcrypt(10) hash of a
+              # KNOWN recovery password, hardcoded below — no secret involved. Upsert by
+              # email so it works whether the account exists or not.
+              echo "=== Force-resetting superadmin (secret-independent) ==="
+              ADMIN_EMAIL="superadmin@haccp.com"
+              ADMIN_ID="clx_superadmin_platform_01"
+              # bcrypt(10) hash of the recovery password 'Admin@HACCP2024!'
+              ADMIN_HASH='$2a$10$xqMmmQ0WKB61MgT6sNkh2e1ETn9/yauNnbsvirlj/eo2/5GnjM/du'
+              PGUSER=$(docker exec haccp-postgres printenv POSTGRES_USER)
+              PGPASS=$(docker exec haccp-postgres printenv POSTGRES_PASSWORD)
+              SQL=$(printf "INSERT INTO users (id,email,name,password_hash,role,status,tenant_id,updated_at) VALUES ('%s','%s','Super Administrateur','%s','SUPER_ADMIN'::\"UserRole\",'ACTIVE'::\"UserStatus\",'platform',NOW()) ON CONFLICT (email) DO UPDATE SET password_hash=EXCLUDED.password_hash,status='ACTIVE'::\"UserStatus\",updated_at=NOW();" "$ADMIN_ID" "$ADMIN_EMAIL" "$ADMIN_HASH")
+              docker exec -e PGPASSWORD="$PGPASS" haccp-postgres psql -U "$PGUSER" -d haccp_auth -c "$SQL"
+              echo "=== Restarting auth (clears throttler / IP bans) ==="
+              docker restart haccp-auth
+              sleep 12
+              echo "=== Verifying login from server ==="
+              LOGIN=$(curl -s -X POST http://localhost/api/v1/auth/login \
+                -H "Content-Type: application/json" \
+                -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"Admin@HACCP2024!\"}")
+              if echo "$LOGIN" | grep -q "accessToken"; then
+                echo "=== OK: superadmin@haccp.com / Admin@HACCP2024! CONFIRMED ==="
               else
                 echo "=== FAILED: $LOGIN ==="
               fi
