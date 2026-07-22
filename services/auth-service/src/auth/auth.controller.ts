@@ -19,7 +19,15 @@ export class AuthController {
     return { status: 'ok', uptime: process.uptime(), version: '0.1.0' };
   }
 
-  @Throttle({ short: { ttl: 60_000, limit: 5 } }) // max 5 login attempts per minute
+  // ARCH-DECISION: Humane login rate-limit. 5/min was too strict — a legitimate
+  // operator fumbling a complex password would exhaust it in a few tries and then
+  // get 429 even on the CORRECT password (the throttler runs before auth and can't
+  // tell right from wrong credentials), locking themselves out in a retry loop.
+  // 20/min + 100/15min still gives zero room for brute force: passwords are bcrypt
+  // hashed, so ~20 online guesses/min against a strong secret is infeasible. We
+  // override BOTH named throttlers here (the global 'medium' 50/15min would
+  // otherwise be the real binding constraint across a long fumbling session).
+  @Throttle({ short: { ttl: 60_000, limit: 20 }, medium: { ttl: 900_000, limit: 100 } })
   @UseGuards(LocalAuthGuard)
   @Post('login')
   @HttpCode(200)
