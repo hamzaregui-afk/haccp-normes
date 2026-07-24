@@ -47,6 +47,7 @@ describe('JwtStrategy.validate', () => {
     expect(result).toEqual({
       sub: VALID_SUB, email: VALID_EMAIL, tenantId: VALID_TENANT, role: 'ADMIN',
       allowedModules: [], subscriptionPlan: 'standard', tenantStatus: 'ACTIVE',
+      mustChangePassword: false,
     });
   });
 

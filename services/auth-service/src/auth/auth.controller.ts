@@ -89,4 +89,35 @@ export class AuthController {
   me(@Request() req: { user: JwtPayload }) {
     return req.user;
   }
+
+  /**
+   * POST /api/v1/auth/change-password — self-service password change.
+   * Also the endpoint the forced change-on-next-login interstitial calls.
+   * Requires the current password; throttled to blunt current-password guessing.
+   */
+  @Throttle({ short: { ttl: 60_000, limit: 10 } })
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  @HttpCode(200)
+  async changePassword(@Request() req: { user: JwtPayload }, @Body() body: unknown) {
+    const { currentPassword, newPassword } = z
+      .object({
+        currentPassword: z.string().min(1),
+        newPassword:     z.string().min(8).max(128),
+      })
+      .parse(body);
+
+    await this.authService.changeOwnPassword(req.user.sub, currentPassword, newPassword);
+
+    void emitAuditEvent({
+      userId:     req.user.sub,
+      action:     'UPDATE',
+      resource:   'users',
+      resourceId: req.user.sub,
+      tenantId:   req.user.tenantId,
+      payload:    { selfPasswordChange: true },
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
+
+    return { ok: true };
+  }
 }

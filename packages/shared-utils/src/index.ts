@@ -8,5 +8,6 @@ export * from './graceful-shutdown';
 export * from './idempotency.middleware';
 export * from './outbox';
 export * from './pagination.utils';
+export * from './password.utils';
 export * from './resource.utils';
 export * from './tracing';

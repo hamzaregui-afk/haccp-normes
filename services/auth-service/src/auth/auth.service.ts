@@ -101,6 +101,14 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedError('AUTH_001');
     }
 
+    // ARCH-DECISION: A non-null lockedAt means an admin locked the account. We reject
+    // with the SAME generic AUTH_001 as a bad password so the endpoint never reveals
+    // whether an email exists / is locked (no user-enumeration or lock-probing leak).
+    // The admin UI shows the lock state explicitly; end users see a generic failure.
+    if (user.lockedAt) {
+      throw new UnauthorizedError('AUTH_001');
+    }
+
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
       throw new UnauthorizedError('AUTH_001');
@@ -121,6 +129,7 @@ export class AuthService implements OnModuleInit {
       allowedModules:   tenantCtx.allowedModules,
       subscriptionPlan: tenantCtx.subscriptionPlan,
       tenantStatus:     tenantCtx.tenantStatus,
+      mustChangePassword: user.mustChangePassword,
     };
   }
 
@@ -206,18 +215,21 @@ export class AuthService implements OnModuleInit {
       // without requiring re-login. SUPER_ADMIN always gets all modules.
       const tenantCtx = dbUser.role === 'SUPER_ADMIN'
         ? { allowedModules: ALL_MODULE_KEYS, subscriptionPlan: 'premium', tenantStatus: 'ACTIVE' }
-        : await this.fetchTenantJwtContext(payload.tenantId);
+        : await this.fetchTenantJwtContext(dbUser.tenantId);
 
-      // Re-fetch name from DB so it reflects any profile updates since last login
+      // ARCH-DECISION: Re-read role/tenantId/email/name from the DB (not the presented
+      // token) so a role change, tenant move, or profile edit takes effect at the next
+      // refresh instead of persisting for the whole refresh-token lifetime.
       const user: JwtPayload = {
-        sub:              payload.sub,
-        email:            payload.email,
+        sub:              dbUser.id,
+        email:            dbUser.email,
         name:             dbUser.name,
-        tenantId:         payload.tenantId,
-        role:             payload.role,
+        tenantId:         dbUser.tenantId,
+        role:             dbUser.role as JwtPayload['role'],
         allowedModules:   tenantCtx.allowedModules,
         subscriptionPlan: tenantCtx.subscriptionPlan,
         tenantStatus:     tenantCtx.tenantStatus,
+        mustChangePassword: dbUser.mustChangePassword,
       };
 
       // ARCH-DECISION: Return user alongside tokens so the web auth.store
@@ -239,5 +251,39 @@ export class AuthService implements OnModuleInit {
   /** Invalidate all refresh tokens for a user (called on logout). */
   async logout(userId: string): Promise<void> {
     await this.prisma.refreshToken.deleteMany({ where: { userId } });
+  }
+
+  /**
+   * Self-service password change — also completes a forced change-on-next-login.
+   *
+   * ARCH-DECISION: Lives in auth-service (the credential owner) and requires the
+   * CURRENT password so a stolen access token alone cannot silently rotate the
+   * password. Clears mustChangePassword, stamps passwordChangedAt, records a
+   * SELF_CHANGE history event, and revokes ALL refresh tokens so every session
+   * (including stale ones) must re-authenticate with the new password.
+   */
+  async changeOwnPassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) throw new UnauthorizedError('AUTH_001');
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash, mustChangePassword: false, passwordChangedAt: new Date() },
+      }),
+      this.prisma.refreshToken.deleteMany({ where: { userId } }),
+      this.prisma.passwordResetEvent.create({
+        data: {
+          userId,
+          tenantId:          user.tenantId,
+          performedByUserId: userId,
+          method:            'SELF_CHANGE',
+        },
+      }),
+    ]);
   }
 }

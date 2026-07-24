@@ -1,9 +1,13 @@
 import {
   Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, UseGuards,
 } from '@nestjs/common';
+import { z } from 'zod';
 
 import type { JwtPayload } from '@haccp/shared-types';
 import { emitAuditEvent, extractResourceId } from '@haccp/shared-utils';
+
+// Optional free-text reason attached to a lock action (shown in reset history).
+const LockBodySchema = z.object({ reason: z.string().max(500).optional() });
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -113,6 +117,88 @@ export class UserController {
   ) {
     const dto = ChangePasswordDtoSchema.parse(body);
     return this.userService.changePassword(id, dto, user.tenantId);
+  }
+
+  // ─── Password lifecycle (admin-driven) ───────────────────────────────────────
+  // ARCH-DECISION: own-tenant actions are ADMIN-only and scoped by actor.tenantId;
+  // SUPER_ADMIN acts across tenants via the explicit /for-tenant/:tenantId/... routes
+  // (its JWT tenantId='platform' never matches a real tenant user row).
+
+  @Patch(':id/reset-password')
+  @Roles('ADMIN')
+  async resetPassword(@Param('id') id: string, @CurrentUser() actor: JwtPayload) {
+    const result = await this.userService.resetPassword(id, actor);
+    void emitAuditEvent({
+      userId: actor.sub, action: 'UPDATE', resource: 'users', resourceId: id,
+      tenantId: actor.tenantId, payload: { passwordReset: true },
+    }).catch(() => { /* fire-and-forget */ });
+    return result;
+  }
+
+  @Post('for-tenant/:tenantId/:id/reset-password')
+  @Roles('SUPER_ADMIN')
+  async resetPasswordForTenant(
+    @Param('tenantId') tenantId: string,
+    @Param('id') id: string,
+    @CurrentUser() actor: JwtPayload,
+  ) {
+    const result = await this.userService.resetPasswordForTenant(tenantId, id, actor);
+    void emitAuditEvent({
+      userId: actor.sub, action: 'UPDATE', resource: 'users', resourceId: id,
+      tenantId, payload: { passwordReset: true, bySuper: true },
+    }).catch(() => { /* fire-and-forget */ });
+    return result;
+  }
+
+  @Patch(':id/lock')
+  @Roles('ADMIN')
+  async lock(@Param('id') id: string, @Body() body: unknown, @CurrentUser() actor: JwtPayload) {
+    const { reason } = LockBodySchema.parse(body ?? {});
+    return this.userService.setLock(id, actor, true, reason);
+  }
+
+  @Patch(':id/unlock')
+  @Roles('ADMIN')
+  async unlock(@Param('id') id: string, @CurrentUser() actor: JwtPayload) {
+    return this.userService.setLock(id, actor, false);
+  }
+
+  @Post('for-tenant/:tenantId/:id/lock')
+  @Roles('SUPER_ADMIN')
+  async lockForTenant(
+    @Param('tenantId') tenantId: string,
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @CurrentUser() actor: JwtPayload,
+  ) {
+    const { reason } = LockBodySchema.parse(body ?? {});
+    return this.userService.setLockForTenant(tenantId, id, actor, true, reason);
+  }
+
+  @Post('for-tenant/:tenantId/:id/unlock')
+  @Roles('SUPER_ADMIN')
+  async unlockForTenant(
+    @Param('tenantId') tenantId: string,
+    @Param('id') id: string,
+    @CurrentUser() actor: JwtPayload,
+  ) {
+    return this.userService.setLockForTenant(tenantId, id, actor, false);
+  }
+
+  @Get(':id/password-history')
+  @Roles('ADMIN')
+  async passwordHistory(@Param('id') id: string, @CurrentUser() actor: JwtPayload) {
+    return this.userService.getPasswordHistory(id, actor.tenantId);
+  }
+
+  @Get('for-tenant/:tenantId/:id/password-history')
+  @Roles('SUPER_ADMIN')
+  async passwordHistoryForTenant(
+    @Param('tenantId') tenantId: string,
+    @Param('id') id: string,
+    @CurrentUser() actor: JwtPayload,
+  ) {
+    return this.userService.getPasswordHistoryForTenant(tenantId, id, actor);
   }
 
   @Delete(':id')

@@ -41,11 +41,39 @@ model User {
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
+  // ── Password lifecycle (admin-driven reset workflow) ─────────────────────────
+  // ARCH-DECISION: These live on the auth-service User because auth-service is the
+  // sole owner of credentials. All default to a benign value so the additive
+  // migration cannot change the behaviour of existing accounts.
+  mustChangePassword Boolean   @default(false) @map("must_change_password")
+  passwordChangedAt  DateTime? @map("password_changed_at")
+  lockedAt           DateTime? @map("locked_at")     // non-null ⇒ account locked, login refused
+  lockedBy           String?   @map("locked_by")     // userId of the admin who locked it
+  lockReason         String?   @map("lock_reason")
+
   refreshTokens RefreshToken[]
 
   @@index([tenantId])
   @@index([email])
   @@map("users")
+}
+
+// ARCH-DECISION: Append-only history of password resets/locks so SUPER_ADMIN and
+// tenant ADMINs can audit "who reset whose password, when, and how". Kept in the
+// auth DB (the credential owner) and ALSO mirrored to audit-service via
+// emitAuditEvent for the immutable legal log. No UPDATE/DELETE ever runs here.
+model PasswordResetEvent {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id")           // whose credential was affected
+  tenantId          String   @map("tenant_id")
+  performedByUserId String   @map("performed_by_user_id")
+  method            String                              // ADMIN_RESET | TEMP_GENERATED | SELF_CHANGE | LOCK | UNLOCK
+  emailSent         Boolean  @default(false) @map("email_sent")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([tenantId])
+  @@map("password_reset_events")
 }
 
 model RefreshToken {

@@ -43,7 +43,10 @@ export class ControlController {
   // ─── Templates ─────────────────────────────────────────────────────────────
 
   @Get('templates')
-  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'VIEWER')
+  // OPERATOR included: the mobile app must read checklist templates to render and
+  // execute a control task. Omitting it 403'd every operator and broke the app's
+  // core workflow end-to-end.
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'VIEWER', 'OPERATOR')
   findAllTemplates(@CurrentUser() user: JwtPayload, @Query() query: unknown) {
     return this.controlService.findAllTemplates(
       user.tenantId,
@@ -52,7 +55,10 @@ export class ControlController {
   }
 
   @Get('templates/:id')
-  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'VIEWER')
+  // OPERATOR included — see findAllTemplates. The mobile ChecklistScreen fetches
+  // this template to render its checkpoints; a 403 here left operators unable to
+  // execute any control.
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'VIEWER', 'OPERATOR')
   findOneTemplate(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.controlService.findOneTemplate(id, user.tenantId);
   }

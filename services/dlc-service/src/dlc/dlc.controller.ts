@@ -49,7 +49,10 @@ export class DlcController {
   }
 
   @Get('labels/expiring-today')
-  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'VIEWER')
+  // OPERATOR included: the mobile DLC screen shows an "expiring today" banner to
+  // field operators — the role that actually acts on it. Omitting it made the
+  // banner silently 403 and never appear.
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'VIEWER', 'OPERATOR')
   getExpiringToday(@CurrentUser() user: JwtPayload) {
     return this.dlcService.getExpiringToday(user.tenantId);
   }

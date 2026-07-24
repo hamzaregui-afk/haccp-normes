@@ -80,6 +80,11 @@ export const JwtPayloadSchema = z.object({
   allowedModules:   z.array(z.string()).optional().default([]),  // enabled TenantModuleKeys
   subscriptionPlan: z.string().optional().default('standard'),   // trial | standard | premium
   tenantStatus:     z.string().optional().default('ACTIVE'),     // ACTIVE | SUSPENDED | ARCHIVED
+  // ── Password lifecycle ───────────────────────────────────────────────────────
+  // ARCH-DECISION: mustChangePassword rides in the JWT so the web/mobile router can
+  // force a change-password interstitial before any other route, without an extra
+  // round-trip. Optional+default(false) keeps pre-existing tokens valid on deploy.
+  mustChangePassword: z.boolean().optional().default(false),
   iat: z.number().optional(),
   exp: z.number().optional(),
 });

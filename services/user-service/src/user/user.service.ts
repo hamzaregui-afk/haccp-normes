@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import type { JwtPayload } from '@haccp/shared-types';
 import { toApiResponse, toPaginationMeta } from '@haccp/shared-types';
 import { PaginationQuerySchema } from '@haccp/shared-validators';
+import { generateTempPassword } from '@haccp/shared-utils';
 
 import { env } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
@@ -245,6 +246,19 @@ export class UserService {
         role: true, status: true, tenantId: true, createdAt: true, updatedAt: true,
       },
     });
+
+    // ARCH-DECISION: Propagate an activation/deactivation to auth-service (the
+    // credential owner). Without this a deactivated profile kept a live, ACTIVE
+    // credential and the user could still log in and refresh — an auth-bypass.
+    // Deactivation also revokes existing sessions on the auth side.
+    if (dto.status === 'ACTIVE' || dto.status === 'INACTIVE') {
+      const res = await this.authFetch(`/internal/users/${id}/status`, 'POST', { status: dto.status })
+        .catch(() => undefined);
+      if (!res || !res.ok) {
+        throw new InternalServerErrorException('auth-service unreachable — status change not applied');
+      }
+    }
+
     return toApiResponse(user);
   }
 
@@ -261,7 +275,9 @@ export class UserService {
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
 
-    // Sync new credential to auth-service (same pattern as create())
+    // Sync new credential to auth-service (same pattern as create()).
+    // mustChangePassword:false — setting a concrete password clears any prior
+    // "force change on next login" flag so a completed change ends the requirement.
     try {
       const authUrl = `${env.AUTH_SERVICE_URL}/internal/users`;
       const response = await fetch(authUrl, {
@@ -270,7 +286,7 @@ export class UserService {
           'Content-Type':      'application/json',
           'X-Internal-Secret': env.INTERNAL_SERVICE_SECRET,
         },
-        body:   JSON.stringify({ ...existing, passwordHash }),
+        body:   JSON.stringify({ ...existing, passwordHash, mustChangePassword: false }),
         signal: AbortSignal.timeout(5_000),
       });
 
@@ -293,7 +309,131 @@ export class UserService {
     await this.findOne(id, tenantId);
     if (id === actor.sub) throw new ConflictException('You cannot delete your own account');
 
+    // ARCH-DECISION: Delete the CREDENTIAL first (the security-relevant record) so a
+    // partial failure can never leave a login-capable orphan in auth-service. This
+    // closes the CRITICAL auth-bypass where deleting the profile left the credential
+    // alive and the "deleted" user kept authenticating. Then remove the profile.
+    const res = await this.authFetch(`/internal/users/${id}/delete`, 'POST', {}).catch(() => undefined);
+    if (!res || !res.ok) {
+      throw new InternalServerErrorException('auth-service unreachable — user deletion aborted');
+    }
+
     await this.prisma.user.delete({ where: { id, tenantId } });
     return toApiResponse(null, undefined, 'User deleted');
+  }
+
+  // ─── Password lifecycle orchestration ─────────────────────────────────────────
+  // ARCH-DECISION: user-service orchestrates but auth-service OWNS credentials, so
+  // every write below goes over the secret-guarded internal HTTP boundary. Tenant
+  // scoping is enforced here: an ADMIN can only act within actor.tenantId; a
+  // SUPER_ADMIN (JWT tenantId='platform', which never matches a real user row) must
+  // use the explicit for-tenant variants.
+
+  private async authFetch(path: string, method: 'POST' | 'GET', body?: unknown): Promise<Response> {
+    return fetch(`${env.AUTH_SERVICE_URL}${path}`, {
+      method,
+      headers: {
+        'Content-Type':      'application/json',
+        'X-Internal-Secret': env.INTERNAL_SERVICE_SECRET,
+      },
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      signal: AbortSignal.timeout(5_000),
+    });
+  }
+
+  private async loadScopedUser(id: string, tenantId: string) {
+    this.assertTenantId(tenantId);
+    const user = await this.prisma.user.findFirst({
+      where: { id, tenantId, role: { not: 'SUPER_ADMIN' as const } },
+      select: { id: true, tenantId: true },
+    });
+    if (!user) throw new NotFoundException(`User ${id} not found`);
+    return user;
+  }
+
+  private async loadForTenant(targetTenantId: string, id: string, actor: JwtPayload) {
+    if (actor.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Only SUPER_ADMIN may manage users across tenants.');
+    }
+    const user = await this.prisma.user.findFirst({
+      where: { id, tenantId: targetTenantId },
+      select: { id: true },
+    });
+    if (!user) throw new NotFoundException(`User ${id} not found in tenant`);
+    return user;
+  }
+
+  /** ADMIN resets a user in their own tenant. Returns the temp password ONCE. */
+  async resetPassword(id: string, actor: JwtPayload) {
+    if (id === actor.sub) throw new ConflictException('Use the change-password screen for your own account');
+    const user = await this.loadScopedUser(id, actor.tenantId);
+    return this.performReset(user.id, user.tenantId, actor.sub);
+  }
+
+  /** SUPER_ADMIN resets a user (typically a tenant ADMIN) in a specific tenant. */
+  async resetPasswordForTenant(targetTenantId: string, id: string, actor: JwtPayload) {
+    await this.loadForTenant(targetTenantId, id, actor);
+    return this.performReset(id, targetTenantId, actor.sub);
+  }
+
+  private async performReset(userId: string, tenantId: string, performedByUserId: string) {
+    const temporaryPassword = generateTempPassword(12);
+    const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+    const res = await this.authFetch(`/internal/users/${userId}/reset-password`, 'POST', {
+      passwordHash, performedByUserId, tenantId, method: 'TEMP_GENERATED', emailSent: false,
+    }).catch(() => undefined);
+    if (!res || !res.ok) {
+      throw new InternalServerErrorException('auth-service unreachable — password reset failed');
+    }
+    // ARCH-DECISION: return the plaintext ONCE for the admin to display / send. It is
+    // never stored in plaintext — only its bcrypt hash ever reaches auth-service.
+    return toApiResponse({ temporaryPassword }, undefined, 'Mot de passe temporaire généré');
+  }
+
+  /** ADMIN locks/unlocks a user in their own tenant. */
+  async setLock(id: string, actor: JwtPayload, locked: boolean, reason?: string) {
+    if (id === actor.sub) throw new ConflictException('You cannot lock your own account');
+    const user = await this.loadScopedUser(id, actor.tenantId);
+    return this.performLock(user.id, user.tenantId, actor.sub, locked, reason);
+  }
+
+  async setLockForTenant(targetTenantId: string, id: string, actor: JwtPayload, locked: boolean, reason?: string) {
+    await this.loadForTenant(targetTenantId, id, actor);
+    return this.performLock(id, targetTenantId, actor.sub, locked, reason);
+  }
+
+  private async performLock(
+    userId: string, tenantId: string, performedByUserId: string, locked: boolean, reason?: string,
+  ) {
+    const path = locked ? `/internal/users/${userId}/lock` : `/internal/users/${userId}/unlock`;
+    const res = await this.authFetch(path, 'POST', {
+      performedByUserId, tenantId, ...(reason ? { reason } : {}),
+    }).catch(() => undefined);
+    if (!res || !res.ok) {
+      throw new InternalServerErrorException('auth-service unreachable — lock/unlock failed');
+    }
+    return toApiResponse(null, undefined, locked ? 'Compte verrouillé' : 'Compte déverrouillé');
+  }
+
+  /** Reset/lock history for a user (own tenant). */
+  async getPasswordHistory(id: string, tenantId: string) {
+    this.assertTenantId(tenantId);
+    const user = await this.prisma.user.findFirst({ where: { id, tenantId }, select: { id: true } });
+    if (!user) throw new NotFoundException(`User ${id} not found`);
+    return this.loadHistory(id);
+  }
+
+  async getPasswordHistoryForTenant(targetTenantId: string, id: string, actor: JwtPayload) {
+    await this.loadForTenant(targetTenantId, id, actor);
+    return this.loadHistory(id);
+  }
+
+  private async loadHistory(userId: string) {
+    const res = await this.authFetch(`/internal/users/${userId}/reset-history`, 'GET').catch(() => undefined);
+    if (!res || !res.ok) {
+      throw new InternalServerErrorException('auth-service unreachable — history unavailable');
+    }
+    const json = (await res.json()) as { data: unknown[] };
+    return toApiResponse(json.data);
   }
 }
