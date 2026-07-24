@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 
 import { AppLayout } from '@/components/layout/AppLayout';
+import ForcePasswordChange from '@/features/auth/ForcePasswordChange';
 import { useAuthStore } from '@/store/auth.store';
 import type { UserRole } from '@haccp/shared-types';
 
@@ -39,7 +40,11 @@ const PageLoader = () => (
 // ─── Route guards ─────────────────────────────────────────────────────────────
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.accessToken);
+  const mustChangePassword = useAuthStore((s) => s.user?.mustChangePassword);
   if (!token) return <Navigate to="/login" replace />;
+  // ARCH-DECISION: An admin-driven reset sets mustChangePassword in the JWT. Block
+  // every authenticated route behind the change-password interstitial until it's done.
+  if (mustChangePassword) return <ForcePasswordChange />;
   return <>{children}</>;
 }
 

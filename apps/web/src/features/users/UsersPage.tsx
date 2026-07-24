@@ -1,6 +1,6 @@
 import { isAxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Edit2, Eye, EyeOff, Filter, Key, Plus, Search, Trash2, UserPlus } from 'lucide-react';
+import { Edit2, Eye, EyeOff, Filter, Key, Plus, RotateCcw, Search, Trash2, UserPlus } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useForm, type UseFormRegisterReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -469,6 +469,26 @@ export default function UsersPage() {
     void deleteMutation.mutateAsync(user.id);
   };
 
+  // Admin-driven reset: generates a temp password, forces change on next login and
+  // revokes the user's sessions (handled by user-service/auth-service). Shown once.
+  const [resetPwd, setResetPwd] = useState<string | null>(null);
+  const [copiedPwd, setCopiedPwd] = useState(false);
+
+  const resetMutation = useMutation({
+    mutationFn: (id: string) =>
+      api.patch<ApiResponse<{ temporaryPassword: string }>>(`/api/v1/users/${id}/reset-password`),
+    onSuccess: (res) => {
+      setResetPwd(res.data.data?.temporaryPassword ?? null);
+      setCopiedPwd(false);
+    },
+    onError: () => showToast({ title: t('users.error.reset'), variant: 'error' }),
+  });
+
+  const handleReset = (user: User) => {
+    if (!window.confirm(t('users.resetConfirm', { name: user.name }))) return;
+    resetMutation.mutate(user.id);
+  };
+
   return (
     <>
       <Header title={t('users.title')} subtitle={t('users.subtitle')} />
@@ -588,6 +608,13 @@ export default function UsersPage() {
                                   <Key className="h-4 w-4" />
                                 </button>
                                 {!isSelf && (
+                                  <button title={t('users.resetPwd')} onClick={() => handleReset(user)}
+                                    disabled={resetMutation.isPending}
+                                    className="rounded-md p-1.5 text-gray-400 hover:bg-amber-50 hover:text-amber-600 transition-colors disabled:opacity-50">
+                                    <RotateCcw className="h-4 w-4" />
+                                  </button>
+                                )}
+                                {!isSelf && (
                                   <button title={t('common.delete')} onClick={() => handleDelete(user)}
                                     disabled={deleteMutation.isPending}
                                     className="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50">
@@ -635,6 +662,12 @@ export default function UsersPage() {
                               className="rounded p-1.5 text-gray-400 hover:text-brand-dark">
                               <Key className="h-4 w-4" />
                             </button>
+                            {!isSelf && (
+                              <button onClick={() => handleReset(user)} disabled={resetMutation.isPending}
+                                className="rounded p-1.5 text-gray-400 hover:text-amber-600 disabled:opacity-50">
+                                <RotateCcw className="h-4 w-4" />
+                              </button>
+                            )}
                             {!isSelf && (
                               <button onClick={() => handleDelete(user)} disabled={deleteMutation.isPending}
                                 className="rounded p-1.5 text-gray-400 hover:text-red-600 disabled:opacity-50">
@@ -708,6 +741,33 @@ export default function UsersPage() {
       {modal.kind === 'changePassword' && (
         <Modal open onClose={closeModal} title={t('users.passwordModal.title')} size="sm">
           <ChangePasswordModal userId={modal.user.id} userName={modal.user.name} onClose={closeModal} onSuccess={refresh} />
+        </Modal>
+      )}
+
+      {/* ── Reset result modal (one-time temporary password) ─────────────────── */}
+      {resetPwd !== null && (
+        <Modal open onClose={() => setResetPwd(null)} title={t('users.resetModal.title')} size="sm">
+          <div className="flex flex-col gap-4">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+              {t('users.resetModal.warning')}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-700">{t('users.resetModal.label')}</label>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 break-all rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-sm text-gray-900">
+                  {resetPwd}
+                </code>
+                <Button type="button" size="sm" variant="secondary"
+                  onClick={() => { void navigator.clipboard?.writeText(resetPwd).then(() => setCopiedPwd(true)); }}>
+                  {copiedPwd ? t('users.resetModal.copied') : t('users.resetModal.copy')}
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500">{t('users.resetModal.hint')}</p>
+            <div className="flex justify-end pt-1">
+              <Button type="button" onClick={() => setResetPwd(null)}>{t('users.resetModal.done')}</Button>
+            </div>
+          </div>
         </Modal>
       )}
     </>
