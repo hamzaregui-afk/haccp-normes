@@ -299,10 +299,28 @@ function AdminTab({ tenant, tenantId }: AdminTabProps) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
+  // Holds the one-time temporary password returned by a reset, shown in a modal.
+  const [resetPwd, setResetPwd] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<{
     name: string; email: string; password: string;
   }>();
+
+  const resetMutation = useMutation({
+    // SUPER_ADMIN cross-tenant reset: generates a temp password, forces change on
+    // next login, and revokes the admin's sessions (handled by user-service/auth-service).
+    mutationFn: () =>
+      api.post<ApiResponse<{ temporaryPassword: string }>>(
+        `/api/v1/users/for-tenant/${tenantId}/${tenant.primaryAdminId}/reset-password`,
+      ),
+    onSuccess: (res) => {
+      const pwd = res.data.data?.temporaryPassword ?? null;
+      setResetPwd(pwd);
+      setCopied(false);
+    },
+    onError: (err) => showToast({ title: extractApiError(err, t), variant: 'error' }),
+  });
 
   const createMutation = useMutation({
     mutationFn: (v: { name: string; email: string; password: string }) =>
@@ -356,9 +374,8 @@ function AdminTab({ tenant, tenantId }: AdminTabProps) {
             <Button
               size="sm"
               variant="secondary"
-              onClick={() => {
-                showToast({ title: t('clients.detail.admin.resetPwdToast'), variant: 'info' });
-              }}
+              loading={resetMutation.isPending}
+              onClick={() => resetMutation.mutate()}
             >
               <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> {t('clients.detail.admin.resetPwd')}
             </Button>
@@ -431,6 +448,36 @@ function AdminTab({ tenant, tenantId }: AdminTabProps) {
               <Button type="submit" loading={createMutation.isPending}>{t('clients.detail.admin.createModal.submit')}</Button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {resetPwd !== null && (
+        <Modal open title={t('clients.detail.admin.resetModal.title')} onClose={() => setResetPwd(null)}>
+          <div className="flex flex-col gap-4">
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+              {t('clients.detail.admin.resetModal.warning')}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-700">{t('clients.detail.admin.resetModal.label')}</label>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-sm text-gray-900 break-all">
+                  {resetPwd}
+                </code>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => { void navigator.clipboard?.writeText(resetPwd).then(() => setCopied(true)); }}
+                >
+                  {copied ? t('clients.detail.admin.resetModal.copied') : t('clients.detail.admin.resetModal.copy')}
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500">{t('clients.detail.admin.resetModal.hint')}</p>
+            <div className="flex justify-end pt-1">
+              <Button type="button" onClick={() => setResetPwd(null)}>{t('clients.detail.admin.resetModal.done')}</Button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>
