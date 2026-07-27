@@ -198,9 +198,24 @@ export class PrintJobService {
       zpl = await this.resolveZpl(dto, tenantId);
 
       if (!printer || printer.connectionType !== 'NETWORK' || !printer.ipAddress) {
-        // ARCH-DECISION: For non-network printers (Bluetooth, USB) or unconfigured
-        // printers, we store the ZPL and mark COMPLETED — the mobile client is
-        // responsible for pushing the ZPL to the physical device over Bluetooth.
+        // ── USB → served by the LOCAL PRINT AGENT ──────────────────────────────
+        // ARCH-DECISION: The agent polls PENDING jobs (?status=PENDING), claims them
+        // (→ PROCESSING), prints the stored ZPL over USB, then acks (→ COMPLETED).
+        // The previous code marked USB jobs COMPLETED here immediately, so the agent
+        // (which only fetches PENDING) NEVER saw them and nothing ever printed on USB
+        // — a false "terminé" status (audit MAJOR). Fix: store the ZPL and LEAVE the
+        // job PENDING so the agent can claim, print, and complete it.
+        if (printer && printer.connectionType === 'USB') {
+          await this.prisma.printJob.update({
+            where: { id: jobId, tenantId },
+            data:  { status: 'PENDING', zpl },
+          });
+          return;
+        }
+
+        // ── Bluetooth / unconfigured → mobile relay ────────────────────────────
+        // The mobile client fetches the stored ZPL and pushes it to the device over
+        // Bluetooth, so the server-side leg is done: store the ZPL and mark COMPLETED.
         await this.prisma.printJob.update({
           where: { id: jobId, tenantId },
           data:  { status: 'COMPLETED', zpl, printedAt: new Date() },
