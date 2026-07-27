@@ -428,6 +428,8 @@ services:
       MINIO_PUBLIC_URL: "https://files.normes-haccp.com"
       AUDIT_SERVICE_URL: http://audit-service:3019/api/v1
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-haccp-internal-dev-secret-change-in-prod}
+      # Internal endpoint (not gateway-forwarded) — lets reports embed real NC data.
+      NONCONFORMITY_SERVICE_URL: http://nonconformity-service:3013
       OTEL_SERVICE_NAME: report-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
       OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}

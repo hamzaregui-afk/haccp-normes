@@ -19,6 +19,9 @@ const envSchema = z.object({
   // Service-to-service
   AUDIT_SERVICE_URL:       z.string().url(),
   INTERNAL_SERVICE_SECRET: z.string().min(16),
+  // Optional — when set, reports embed the tenant's real non-conformity data.
+  // Absent → reports still generate (metadata only), so this is a safe additive.
+  NONCONFORMITY_SERVICE_URL: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

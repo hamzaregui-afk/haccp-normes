@@ -59,8 +59,17 @@ export class ReportController {
     @CurrentUser() user: JwtPayload,
     @Res() res: Response,
   ): Promise<void> {
-    const report    = await this.reportService.findOneRaw(id, user.tenantId);
-    const pdfBuffer = await generateReportPdf(report);
+    const report = await this.reportService.findOneRaw(id, user.tenantId);
+
+    // ARCH-DECISION: Embed the tenant's real non-conformities for HACCP / hygiene /
+    // NC-type reports so the PDF is an actual compliance record, not a metadata shell.
+    // Other report types (e.g. TEMPERATURE_LOG) skip this. The fetch is graceful
+    // (returns [] on any failure) so PDF generation is never blocked.
+    const includeNc = /HACCP|HYGIENE|NC|NONCONF|CONFORMIT/i.test(report.type);
+    const nonConformities = includeNc
+      ? await this.reportService.fetchNonConformities(user.tenantId)
+      : [];
+    const pdfBuffer = await generateReportPdf(report, { nonConformities });
 
     // Audit the export action so inspectors can see who downloaded which report
     void emitAuditEvent({

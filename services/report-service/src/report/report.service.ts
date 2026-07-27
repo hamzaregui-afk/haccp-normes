@@ -6,6 +6,8 @@ import {
 import { Prisma, ReportStatus } from '@prisma/client';
 import { toApiResponse, toPaginationMeta } from '@haccp/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
+import { env } from '../config/env';
+import type { NonConformityRow } from './pdf/report-pdf.generator';
 import {
   type CreateReportDto,
   type UpdateReportDto,
@@ -65,6 +67,31 @@ export class ReportService {
       throw new NotFoundException(`Report ${id} not found`);
     }
     return report;
+  }
+
+  // ─── fetchNonConformities ─────────────────────────────────────────────────────
+  // ARCH-DECISION: Reports were data-less shells. This pulls the tenant's real NCs
+  // from nonconformity-service over the secret-guarded internal endpoint so the PDF
+  // embeds actual compliance data. Fully graceful: if the URL is unset or the call
+  // fails, it returns [] and the report still generates (metadata only) — no report
+  // generation can ever be blocked by a transient dependency outage.
+  async fetchNonConformities(tenantId: string): Promise<NonConformityRow[]> {
+    const base = env.NONCONFORMITY_SERVICE_URL;
+    if (!base) return [];
+    try {
+      const res = await fetch(
+        `${base}/internal/nonconformities?tenantId=${encodeURIComponent(tenantId)}`,
+        {
+          headers: { 'x-internal-secret': env.INTERNAL_SERVICE_SECRET },
+          signal:  AbortSignal.timeout(5_000),
+        },
+      );
+      if (!res.ok) return [];
+      const json = (await res.json()) as { data?: NonConformityRow[] };
+      return json.data ?? [];
+    } catch {
+      return [];
+    }
   }
 
   // ─── create ──────────────────────────────────────────────────────────────────

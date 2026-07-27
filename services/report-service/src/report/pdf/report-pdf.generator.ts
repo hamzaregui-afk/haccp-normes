@@ -33,13 +33,81 @@ export interface ReportRecord {
   sentAt:      Date | null;
 }
 
+/** A non-conformity row embedded in a compliance report (from nonconformity-service). */
+export interface NonConformityRow {
+  reference:   string;
+  status:      string;
+  severity:    string;
+  category:    string;
+  description: string;
+  createdAt:   string | Date;
+}
+
+/** Real module data fetched by report.service and embedded into the PDF. */
+export interface ReportEnrichment {
+  nonConformities?: NonConformityRow[];
+}
+
 const FR_DATE = (d: Date): string => d.toLocaleDateString('fr-FR');
 
+const NC_SEVERITY_LABELS: Record<string, string> = {
+  LOW: 'Faible', MEDIUM: 'Moyen', HIGH: 'Élevé', CRITICAL: 'Critique',
+};
+const NC_STATUS_LABELS: Record<string, string> = {
+  OPEN: 'Ouverte', IN_PROGRESS: 'En cours', CLOSED: 'Clôturée', REJECTED: 'Rejetée',
+};
+
 /**
- * Generates a HACCP monthly hygiene report PDF buffer using pdfmake.
+ * Build the "Non-conformités" section (title + summary + table) from real data.
+ * Returns [] when there is nothing to show so the caller can spread it safely.
+ */
+function buildNonConformitySection(rows: NonConformityRow[]): Content[] {
+  if (rows.length === 0) return [];
+
+  const openCount     = rows.filter((r) => r.status === 'OPEN' || r.status === 'IN_PROGRESS').length;
+  const criticalCount = rows.filter((r) => r.severity === 'CRITICAL').length;
+
+  const headerRow = ['Référence', 'Date', 'Sévérité', 'Statut', 'Description'].map((h) => ({
+    text: h, style: 'label' as const,
+  }));
+
+  const bodyRows = rows.slice(0, 200).map((r) => [
+    { text: r.reference, style: 'value' as const },
+    { text: FR_DATE(new Date(r.createdAt)), style: 'value' as const },
+    { text: NC_SEVERITY_LABELS[r.severity] ?? r.severity, style: 'value' as const },
+    { text: NC_STATUS_LABELS[r.status] ?? r.status, style: 'value' as const },
+    { text: r.description.length > 90 ? `${r.description.slice(0, 90)}…` : r.description, style: 'value' as const },
+  ]);
+
+  return [
+    { text: '\nNon-conformités enregistrées', style: 'sectionTitle' } as Content,
+    {
+      text:  `${rows.length} non-conformité(s) — ${openCount} en cours, ${criticalCount} critique(s).`,
+      style: 'body',
+      margin: [0, 0, 0, 8] as [number, number, number, number],
+    } as Content,
+    {
+      style: 'infoTable',
+      table: {
+        headerRows: 1,
+        widths:     [70, 55, 55, 60, '*'],
+        body:       [headerRow, ...bodyRows],
+      },
+      layout: 'lightHorizontalLines',
+    } as Content,
+    ...(rows.length > 200
+      ? [{ text: `… et ${rows.length - 200} autres non affichées.`, style: 'disclaimer' } as Content]
+      : []),
+  ];
+}
+
+/**
+ * Generates a HACCP report PDF buffer using pdfmake. When `enrichment` carries real
+ * module data (e.g. non-conformities), it is embedded as a dedicated section so the
+ * report is an actual compliance record rather than a metadata-only shell.
  * Returns a Promise<Buffer> compatible with NestJS `res.end()`.
  */
-export function generateReportPdf(report: ReportRecord): Promise<Buffer> {
+export function generateReportPdf(report: ReportRecord, enrichment?: ReportEnrichment): Promise<Buffer> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const PdfPrinter = require('pdfmake') as new (fonts: TFontDictionary) => {
     createPdfKitDocument(docDefinition: TDocumentDefinitions): NodeJS.EventEmitter & { end(): void };
@@ -163,6 +231,9 @@ export function generateReportPdf(report: ReportRecord): Promise<Buffer> {
             { text: report.fileUrl,    style: 'body'         } as Content,
           ]
         : []),
+
+      // ── Real module data — non-conformities (when provided) ──────────────────
+      ...buildNonConformitySection(enrichment?.nonConformities ?? []),
 
       // ── Footer note ──────────────────────────────────────────────────────────
       {
