@@ -167,3 +167,50 @@ describe('renderTemplate', () => {
     expect(result).toBe('{single}');
   });
 });
+
+// ── generateDlcZpl with a MediaProfile ─────────────────────────────────────────
+
+describe('generateDlcZpl — media profile', () => {
+  const baseData = { productName: 'Camembert AOP', producedAt: '2026-06-01', expiresAt: '2026-06-08' };
+
+  it('sizes the label to a 50×29mm GAP profile at 203dpi', () => {
+    const zpl = generateDlcZpl(baseData, 1, { widthMm: 50, heightMm: 29, dpi: 203, mediaType: 'GAP' });
+    // 50mm × 8dpmm = 400 ; 29mm × 8dpmm ≈ 232
+    expect(zpl).toContain('^PW400');
+    expect(zpl).toContain('^LL232');
+    expect(zpl).toContain('^MNY'); // gap/web sensing for die-cut labels
+  });
+
+  it('emits continuous-media tracking (^MNN) for a continuous roll', () => {
+    const zpl = generateDlcZpl(baseData, 1, { widthMm: 58, heightMm: 100, mediaType: 'CONTINUOUS' });
+    expect(zpl).toContain('^MNN');
+  });
+
+  it('emits black-mark tracking (^MNM)', () => {
+    const zpl = generateDlcZpl(baseData, 1, { widthMm: 50, heightMm: 29, mediaType: 'BLACK_MARK' });
+    expect(zpl).toContain('^MNM');
+  });
+
+  it('applies print speed (^PR) and density (^MD) when provided', () => {
+    const zpl = generateDlcZpl(baseData, 1, { widthMm: 50, heightMm: 29, speed: 4, density: 15 });
+    expect(zpl).toContain('^PR4');
+    expect(zpl).toContain('^MD15');
+  });
+
+  it('keeps every field within the label height (no clipping off the media)', () => {
+    const zpl = generateDlcZpl({ ...baseData, lotNumber: 'LOT-1' }, 1, { widthMm: 50, heightMm: 29, dpi: 203 });
+    const ll = 232;
+    const yCoords = [...zpl.matchAll(/\^FO\d+,(\d+)/g)].map((m) => Number(m[1]));
+    expect(yCoords.length).toBeGreaterThan(0);
+    for (const y of yCoords) expect(y).toBeLessThanOrEqual(ll);
+  });
+
+  it('is byte-for-byte identical to the legacy 100×50 output when no media is given', () => {
+    const withNoMedia = generateDlcZpl(baseData);
+    const withDefaultMedia = generateDlcZpl(baseData);
+    expect(withNoMedia).toBe(withDefaultMedia);
+    expect(withNoMedia).toContain('^PW800');
+    expect(withNoMedia).toContain('^LL400');
+    expect(withNoMedia).not.toContain('^MN'); // no media-tracking command in legacy mode
+  });
+});

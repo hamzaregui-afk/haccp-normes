@@ -4,7 +4,7 @@ import { publishDomainEvent } from '@haccp/shared-utils';
 import { PrismaService } from '../prisma/prisma.service';
 import { PrinterService } from '../printer/printer.service';
 import { TemplateService } from '../template/template.service';
-import { generateDlcZpl, renderTemplate } from '../printer/zpl.generator';
+import { generateDlcZpl, renderTemplate, type LabelMedia } from '../printer/zpl.generator';
 import { sendZplOverTcp } from '../printer/tcp.printer';
 import type { CreatePrintJobDto, PrintJobQuery } from './dto/print-job.dto';
 import { Prisma } from '@prisma/client';
@@ -255,6 +255,44 @@ export class PrintJobService {
   }
 
   /**
+   * Resolve the physical media (size / technology / thermal params) for a job so
+   * the DLC generator can size and lay out the label to the real stock. Priority:
+   *   1. the target printer's defaultMediaProfile,
+   *   2. the tenant's default active MediaProfile,
+   *   3. undefined → generator falls back to the legacy 100×50mm output.
+   */
+  private async resolveMedia(
+    printerId: string | undefined,
+    tenantId: string,
+  ): Promise<LabelMedia | undefined> {
+    const profile =
+      (printerId
+        ? (
+            await this.prisma.printer.findFirst({
+              where:   { id: printerId, tenantId },
+              include: { defaultMediaProfile: true },
+            })
+          )?.defaultMediaProfile ?? null
+        : null) ??
+      (await this.prisma.mediaProfile.findFirst({
+        where: { tenantId, isActive: true, isDefault: true },
+      }));
+
+    if (!profile) return undefined;
+
+    return {
+      widthMm:     profile.widthMm,
+      heightMm:    profile.heightMm,
+      dpi:         profile.dpi,
+      mediaType:   profile.mediaType,
+      gapMm:       profile.gapMm ?? undefined,
+      blackMarkMm: profile.blackMarkMm ?? undefined,
+      speed:       profile.speed ?? undefined,
+      density:     profile.density ?? undefined,
+    };
+  }
+
+  /**
    * Determine the ZPL to send for a given job:
    *  1. If a templateId is provided → load template and render {{placeholders}}.
    *  2. If labelType === 'DLC' and no template → use the built-in DLC generator.
@@ -276,6 +314,7 @@ export class PrintJobService {
 
     // ── Built-in DLC generator ────────────────────────────────────────────────
     if (dto.labelType === 'DLC') {
+      const media = await this.resolveMedia(dto.printerId, tenantId);
       return generateDlcZpl(
         {
           productName: String(payload['productName'] ?? ''),
@@ -285,6 +324,7 @@ export class PrintJobService {
           tenantName:  payload['tenantName'] != null ? String(payload['tenantName']) : undefined,
         },
         dto.copies,
+        media,
       );
     }
 

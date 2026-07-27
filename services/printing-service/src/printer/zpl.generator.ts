@@ -25,6 +25,36 @@ export interface DlcLabelData {
   copies?:      number;
 }
 
+/**
+ * Physical media a label is printed on — comes from the tenant's MediaProfile.
+ * When provided, the ZPL is sized and laid out for THESE dimensions instead of
+ * the hardcoded 100×50 mm default, and media-tracking / speed / density
+ * commands are emitted so the printer feeds and cuts correctly.
+ */
+export interface LabelMedia {
+  widthMm:      number;
+  heightMm:     number;
+  dpi?:         number;   // dots per inch — default 203
+  mediaType?:   string;   // 'GAP' | 'CONTINUOUS' | 'BLACK_MARK'
+  gapMm?:       number;
+  blackMarkMm?: number;
+  speed?:       number;   // ^PR print speed
+  density?:     number;   // ^MD darkness
+}
+
+// Baseline the original layout was designed for: 100mm × 50mm at 203 dpi (8 dpmm).
+const BASE_W = 800;
+const BASE_H = 400;
+
+function mediaTrackingCommand(mediaType?: string): string | null {
+  switch (mediaType) {
+    case 'CONTINUOUS': return '^MNN';                    // continuous media — no gap/mark sensing
+    case 'BLACK_MARK': return '^MNM';                    // black-mark sensing
+    case 'GAP':        return '^MNY';                    // web/gap sensing (die-cut labels)
+    default:           return null;                      // leave the printer's configured default
+  }
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
@@ -71,58 +101,80 @@ function escapeZpl(value: string): string {
  * @param data   Label data
  * @param copies Number of copies to print (default 1)
  */
-export function generateDlcZpl(data: DlcLabelData, copies = 1): string {
+export function generateDlcZpl(data: DlcLabelData, copies = 1, media?: LabelMedia): string {
   const effectiveCopies = Math.max(1, data.copies ?? copies);
   const productName     = escapeZpl(data.productName).substring(0, 40);
   const producedStr     = formatDate(data.producedAt);
   const expiresStr      = formatDate(data.expiresAt);
   const tenantLine      = data.tenantName ? escapeZpl(data.tenantName).substring(0, 40) : '';
 
+  // ── Resolve print dimensions ────────────────────────────────────────────────
+  // ARCH-DECISION: With no MediaProfile we reproduce the exact original 800×400
+  // (100×50mm@203dpi) output byte-for-byte — existing templates/tests are unaffected.
+  // With a profile, the whole layout scales proportionally to the real label so a
+  // 50×29mm or 2×4in or continuous-roll label prints correctly instead of being
+  // clipped to 100×50. Font sizes scale with height; widths with width.
+  const dpmm = media ? Math.max(1, (media.dpi ?? 203) / 25.4) : 8;
+  const pw   = media ? Math.round(media.widthMm * dpmm)  : BASE_W;
+  const ll   = media ? Math.round(media.heightMm * dpmm) : BASE_H;
+  const sx   = pw / BASE_W;
+  const sy   = ll / BASE_H;
+  const x = (v: number): number => Math.round(v * sx);
+  const y = (v: number): number => Math.round(v * sy);
+  const f = (v: number): number => Math.max(8, Math.round(v * sy)); // legible font floor
+
   const lines: string[] = [
     '^XA',
-    '^PW800',           // 100mm × 8 dpt
-    '^LL400',           // 50mm × 8 dpt
+    `^PW${pw}`,
+    `^LL${ll}`,
     '^CI28',            // UTF-8 character set
 
+    // ── Media handling (only when a profile is known) ──────────────────────
+    ...(media
+      ? [
+          ...(mediaTrackingCommand(media.mediaType) ? [mediaTrackingCommand(media.mediaType) as string] : []),
+          ...(media.speed   != null ? [`^PR${media.speed}`] : []),
+          ...(media.density != null ? [`^MD${media.density}`] : []),
+        ]
+      : []),
+
     // ── Top separator ──────────────────────────────────────────────────────
-    '^FO0,5^GB800,3,3^FS',
+    `^FO0,${y(5)}^GB${x(800)},${y(3)},${y(3)}^FS`,
 
     // ── Tenant name (small, if provided) ──────────────────────────────────
     ...(tenantLine
-      ? [`^FO20,12^A0N,20,20^FD${tenantLine}^FS`]
+      ? [`^FO${x(20)},${y(12)}^A0N,${f(20)},${f(20)}^FD${tenantLine}^FS`]
       : []),
 
     // ── Product name (large, bold) ─────────────────────────────────────────
-    // A0 = scalable font; N = normal orientation; 36,36 = height,width in dots
-    `^FO20,${tenantLine ? 36 : 15}^A0N,36,36^FD${productName}^FS`,
+    `^FO${x(20)},${y(tenantLine ? 36 : 15)}^A0N,${f(36)},${f(36)}^FD${productName}^FS`,
 
     // ── Separator ─────────────────────────────────────────────────────────
-    '^FO0,82^GB800,2,2^FS',
+    `^FO0,${y(82)}^GB${x(800)},${y(2)},${y(2)}^FS`,
 
     // ── Fabrication date ──────────────────────────────────────────────────
-    `^FO20,90^A0N,24,24^FDFabrication: ${producedStr}^FS`,
+    `^FO${x(20)},${y(90)}^A0N,${f(24)},${f(24)}^FDFabrication: ${producedStr}^FS`,
 
     // ── DLC date — highlighted via Field Reverse (^FR) ────────────────────
-    // ^FR inverts the colour of the next ^FD field (white on black)
-    '^FO0,125^GB800,70,70^FS',
-    '^FO20,135^FR^A0N,40,40^FD\xC0 consommer avant :^FS',
-    `^FO20,180^FR^A0N,50,50^FD${expiresStr}^FS`,
+    `^FO0,${y(125)}^GB${x(800)},${y(70)},${y(70)}^FS`,
+    `^FO${x(20)},${y(135)}^FR^A0N,${f(40)},${f(40)}^FD\xC0 consommer avant :^FS`,
+    `^FO${x(20)},${y(180)}^FR^A0N,${f(50)},${f(50)}^FD${expiresStr}^FS`,
 
     // ── Separator ─────────────────────────────────────────────────────────
-    '^FO0,200^GB800,2,2^FS',
+    `^FO0,${y(200)}^GB${x(800)},${y(2)},${y(2)}^FS`,
 
     // ── Lot number (if provided) ───────────────────────────────────────────
     ...(data.lotNumber
-      ? [`^FO20,210^A0N,24,24^FDLot: ${escapeZpl(data.lotNumber)}^FS`]
+      ? [`^FO${x(20)},${y(210)}^A0N,${f(24)},${f(24)}^FDLot: ${escapeZpl(data.lotNumber)}^FS`]
       : []),
 
     // ── Bottom separator ───────────────────────────────────────────────────
-    '^FO0,245^GB800,2,2^FS',
+    `^FO0,${y(245)}^GB${x(800)},${y(2)},${y(2)}^FS`,
 
     // ── Barcode — Code 128 of the lot number (if provided) ────────────────
     ...(data.lotNumber
       ? [
-          `^FO20,255^BY2^BCN,60,Y,N,N^FD${escapeZpl(data.lotNumber)}^FS`,
+          `^FO${x(20)},${y(255)}^BY${Math.max(1, Math.round(2 * sx))}^BCN,${f(60)},Y,N,N^FD${escapeZpl(data.lotNumber)}^FS`,
         ]
       : []),
 
