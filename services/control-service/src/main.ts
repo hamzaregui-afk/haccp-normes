@@ -26,7 +26,9 @@ async function bootstrap() {
   app.use(idempotencyMiddleware);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(new AllExceptionsFilter());
-  app.setGlobalPrefix('api/v1');
+  // ARCH-DECISION: exclude /internal/** from the versioned prefix so service-to-service
+  // calls (report-service → control-service) use a stable path not forwarded by the gateway.
+  app.setGlobalPrefix('api/v1', { exclude: ['internal/(.*)'] });
   // ARCH-DECISION: origin:true reflects the actual request Origin back in
   // Access-Control-Allow-Origin. Microservices are internal to the Docker
   // network — only nginx (port 80/3001) is reachable from the internet.

@@ -34,6 +34,20 @@ describe('generateReportPdf', () => {
     expect(enriched.length).toBeGreaterThan(plain.length);
   });
 
+  it('embeds the control-summary section when provided', async () => {
+    const plain    = await generateReportPdf(baseReport);
+    const enriched = await generateReportPdf(baseReport, {
+      controlSummary: { total: 40, completed: 34, overdue: 3 },
+    });
+    expect(enriched.length).toBeGreaterThan(plain.length);
+  });
+
+  it('skips the control section when total is 0', async () => {
+    const plain    = await generateReportPdf(baseReport);
+    const zero     = await generateReportPdf(baseReport, { controlSummary: { total: 0, completed: 0, overdue: 0 } });
+    expect(zero.length).toBeLessThanOrEqual(plain.length + 8);
+  });
+
   it('does not throw and stays metadata-only when nonConformities is empty', async () => {
     const plain    = await generateReportPdf(baseReport);
     const emptyEnr = await generateReportPdf(baseReport, { nonConformities: [] });

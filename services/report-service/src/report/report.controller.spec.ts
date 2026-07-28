@@ -70,6 +70,7 @@ function makeReportServiceMock() {
     update:      jest.fn().mockResolvedValue(UPDATED_REPORT),
     remove:      jest.fn().mockResolvedValue(DELETED_REPORT),
     fetchNonConformities: jest.fn().mockResolvedValue([]),
+    fetchControlSummary:  jest.fn().mockResolvedValue(null),
   };
 }
 

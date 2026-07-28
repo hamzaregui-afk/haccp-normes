@@ -43,9 +43,17 @@ export interface NonConformityRow {
   createdAt:   string | Date;
 }
 
+/** Server-side aggregated control-execution counts (exact, no truncation). */
+export interface ControlSummary {
+  total:     number;
+  completed: number;
+  overdue:   number;
+}
+
 /** Real module data fetched by report.service and embedded into the PDF. */
 export interface ReportEnrichment {
   nonConformities?: NonConformityRow[];
+  controlSummary?:  ControlSummary | null;
 }
 
 const FR_DATE = (d: Date): string => d.toLocaleDateString('fr-FR');
@@ -98,6 +106,31 @@ function buildNonConformitySection(rows: NonConformityRow[]): Content[] {
     ...(rows.length > 200
       ? [{ text: `… et ${rows.length - 200} autres non affichées.`, style: 'disclaimer' } as Content]
       : []),
+  ];
+}
+
+/**
+ * Build the "Contrôles HACCP" summary section from server-side aggregated counts.
+ * Returns [] when there is nothing meaningful to show.
+ */
+function buildControlSection(summary: ControlSummary | null | undefined): Content[] {
+  if (!summary || summary.total === 0) return [];
+  const rate = Math.round((summary.completed / summary.total) * 100);
+
+  return [
+    { text: '\nContrôles HACCP', style: 'sectionTitle' } as Content,
+    {
+      style: 'infoTable',
+      table: {
+        widths: [200, '*'],
+        body:   [
+          [{ text: 'Contrôles planifiés', style: 'label' }, { text: String(summary.total), style: 'value' }],
+          [{ text: 'Contrôles réalisés', style: 'label' }, { text: `${summary.completed} (${rate}%)`, style: 'value' }],
+          [{ text: 'Contrôles en retard', style: 'label' }, { text: String(summary.overdue), style: 'value' }],
+        ],
+      },
+      layout: 'lightHorizontalLines',
+    } as Content,
   ];
 }
 
@@ -232,7 +265,8 @@ export function generateReportPdf(report: ReportRecord, enrichment?: ReportEnric
           ]
         : []),
 
-      // ── Real module data — non-conformities (when provided) ──────────────────
+      // ── Real module data — control summary + non-conformities (when provided) ─
+      ...buildControlSection(enrichment?.controlSummary),
       ...buildNonConformitySection(enrichment?.nonConformities ?? []),
 
       // ── Footer note ──────────────────────────────────────────────────────────
