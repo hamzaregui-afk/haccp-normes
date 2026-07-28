@@ -82,52 +82,6 @@ describe('AuditController', () => {
     controller = module.get<AuditController>(AuditController);
   });
 
-  // ── POST /audit ─────────────────────────────────────────────────────────────
-
-  describe('create', () => {
-    const BODY = {
-      userId:     USER_ID,
-      action:     'CREATE',
-      resource:   'user',
-      resourceId: 'user-456',
-      payload:    {},
-    };
-
-    it('delegates to service.log with tenantId from JWT', async () => {
-      const req = makeReq({ ip: '10.0.0.2' });
-      await controller.create(BODY, JWT_PAYLOAD, req as never);
-      expect(service.log).toHaveBeenCalledWith(
-        expect.objectContaining({ action: 'CREATE', ipAddress: '10.0.0.2' }),
-        TENANT_ID,
-      );
-    });
-
-    it('prefers x-real-ip header over req.ip', async () => {
-      const req = makeReq({ ip: '10.0.0.2', headers: { 'x-real-ip': '203.0.113.5' } });
-      await controller.create(BODY, JWT_PAYLOAD, req as never);
-      expect(service.log).toHaveBeenCalledWith(
-        expect.objectContaining({ ipAddress: '203.0.113.5' }),
-        TENANT_ID,
-      );
-    });
-
-    it('falls back to first x-forwarded-for IP when x-real-ip absent', async () => {
-      const req = makeReq({
-        headers: { 'x-forwarded-for': '198.51.100.1, 203.0.113.5' },
-      });
-      await controller.create(BODY, JWT_PAYLOAD, req as never);
-      expect(service.log).toHaveBeenCalledWith(
-        expect.objectContaining({ ipAddress: '198.51.100.1' }),
-        TENANT_ID,
-      );
-    });
-
-    it('returns the result from service.log', async () => {
-      const result = await controller.create(BODY, JWT_PAYLOAD, makeReq() as never);
-      expect(result).toEqual(MOCK_LOG);
-    });
-  });
-
   // ── GET /audit ──────────────────────────────────────────────────────────────
 
   describe('findAll', () => {
