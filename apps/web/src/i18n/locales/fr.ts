@@ -125,6 +125,10 @@ const fr = {
 
   // ── Dashboard ─────────────────────────────────────────────────────────────────
   dashboard: {
+    printingSection:  'Impression',
+    printJobsToday:   'Impressions du jour',
+    printJobsFailed:  'Impressions échouées',
+    printSuccessRate: 'Taux de réussite',
     title:           'Vue d\'ensemble',
     subtitle:        'Tableau de bord HACCP',
     controlsToday:   'Contrôles du jour',
@@ -178,6 +182,67 @@ const fr = {
 
   // ── Controls ──────────────────────────────────────────────────────────────────
   controls: {
+    checklist: {
+      executionTitle:         'Exécution du contrôle',
+      control:                'Contrôle',
+      progressPoints:         '{{done}} / {{total}} points',
+      compliant:              'Conforme',
+      nonCompliant:           'Non conforme',
+      resultCompliant:        'Résultat : conforme',
+      resultNonCompliant:     'Résultat : non conforme',
+      successCompliant:       'Contrôle enregistré — conforme.',
+      successNonCompliant:    'Contrôle enregistré — non conforme.',
+      savedSuccess:           'Contrôle enregistré avec succès.',
+      measured:               'Mesuré',
+      measuredValue:          'Valeur mesurée',
+      valuePlaceholder:       'Saisir une valeur',
+      textPlaceholder:        'Saisir le résultat',
+      notesPh:                'Notes (optionnel)',
+      range:                  'Plage attendue',
+      outOfRange:             'Hors plage',
+      yesCompliant:           'Oui (conforme)',
+      no:                     'Non',
+      takePhoto:              'Prendre une photo',
+      addPhoto:               'Ajouter une photo',
+      openCamera:             'Ouvrir la caméra',
+      uploadingPhoto:         'Envoi de la photo…',
+      signHere:               'Signez ici',
+      clearSignature:         'Effacer la signature',
+      completedAt:            'Terminé le',
+      correctiveAction:       'Action corrective',
+      additionalNotes:        'Notes complémentaires',
+      additionalNotesOptional:'Notes complémentaires (optionnel)',
+      ncDetected:             'Non-conformité détectée',
+      ncRequired:             'Une non-conformité doit être renseignée.',
+      ncComment:              'Commentaire de non-conformité',
+      ncCommentPh:            'Décrivez la non-conformité…',
+      addNcComment:           'Ajouter un commentaire',
+      ncPhoto:                'Photo de la non-conformité',
+      noOptions:              'Aucune option',
+      fillRequired:           'Veuillez renseigner les champs requis.',
+      validate:               'Valider',
+      validateNc:             'Valider la non-conformité',
+      validating:             'Validation…',
+      cancel:                 'Annuler',
+    },
+    editor: {
+      subtitle:      'Définissez les points de contrôle de cette checklist.',
+      itemLabel:     'Libellé du point',
+      itemLabelPh:   'Ex. Température du réfrigérateur',
+      itemType:      'Type',
+      unit:          'Unité',
+      unitPh:        '°C, kg, %…',
+      minLimit:      'Limite min',
+      maxLimit:      'Limite max',
+      options:       'Options',
+      optionsHint:   'Séparez les options par une virgule.',
+      photoHint:     'Une photo sera demandée à l\'exécution.',
+      signatureHint: 'Une signature sera demandée à l\'exécution.',
+      dateHint:      'Une date sera demandée à l\'exécution.',
+      required:      'Obligatoire',
+      requiredHint:  'Ce point devra être renseigné.',
+      required_badge:'Requis',
+    },
     title:      'Contrôle',
     subtitle:   'Planification et suivi des tâches de contrôle HACCP',
     tasks:      'Tâches',
@@ -241,6 +306,7 @@ const fr = {
       MONTHLY:      'Mensuelle',
       ON_RECEPTION: 'À la réception',
       ON_DEMAND:    'À la demande',
+      CUSTOM:       'Personnalisée',
     },
     // Legacy alias
     freq: {
@@ -283,6 +349,8 @@ const fr = {
       manageChecklist:'Gérer la checklist',
       delete:         'Supprimer',
       createSchedule: 'Nouvelle planification',
+      createScheduleBtn: 'Créer la planification',
+      back:              'Retour',
       deactivate:     'Désactiver',
     },
     // Plan-task form
@@ -506,6 +574,16 @@ const fr = {
 
   // ── DLC ───────────────────────────────────────────────────────────────────────
   dlc: {
+    printModal: {
+      title:         'Imprimer l\'étiquette DLC',
+      selectPrinter: 'Sélectionner une imprimante',
+      noPrinters:    'Aucune imprimante configurée.',
+      copies:        'Nombre de copies',
+      print:         'Imprimer',
+      cancel:        'Annuler',
+      success:       'Impression envoyée.',
+      error:         'Échec de l\'impression.',
+    },
     title:           'DLC',
     subtitle:        'Gestion des dates limites de consommation',
     newLabel:        'Nouveau label DLC',
@@ -883,6 +961,27 @@ const fr = {
 
   // ── Products ──────────────────────────────────────────────────────────────────
   products: {
+    form: {
+      code:                'Code',
+      codePlaceholder:     'PR-001',
+      name:                'Nom',
+      namePlaceholder:     'Camembert AOP',
+      category:            'Catégorie',
+      categoryPlaceholder: 'Produits laitiers',
+      packaging:           'Conditionnement',
+      packagingPlaceholder:'Barquette 250g',
+      dlcDays:             'DLC (jours)',
+      dlcPlaceholder:      '7',
+      tempStorage:         'Température de stockage (°C)',
+      tempPlaceholder:     '4',
+      supplier:            'Fournisseur',
+      supplierPlaceholder: 'Sélectionner un fournisseur',
+      errors: {
+        code:     'Le code est requis.',
+        name:     'Le nom est requis.',
+        category: 'La catégorie est requise.',
+      },
+    },
     title:      'Produits',
     subtitle:   'Catalogue des produits',
     newProduct: 'Nouveau produit',
@@ -1453,6 +1552,13 @@ const fr = {
 
   // ── Documents (GED) ───────────────────────────────────────────────────────────
   documents: {
+    tracabilityPhotosTab: {
+      emptyTitle:  'Aucune photo de traçabilité',
+      emptyDesc:   'Les photos prises lors des enregistrements de traçabilité apparaîtront ici.',
+      photoCount:  '{{count}} photo(s)',
+      lot:         'Lot',
+      photoAlt:    'Photo de traçabilité',
+    },
     title:    'GED — Documents',
     subtitle: 'Gestion électronique des documents HACCP',
     loading:  'Chargement…',
