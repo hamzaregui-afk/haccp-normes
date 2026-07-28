@@ -7,7 +7,7 @@ import { Prisma, ReportStatus } from '@prisma/client';
 import { toApiResponse, toPaginationMeta } from '@haccp/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { env } from '../config/env';
-import type { NonConformityRow, ControlSummary } from './pdf/report-pdf.generator';
+import type { NonConformityRow, ControlSummary, DlcSummary } from './pdf/report-pdf.generator';
 import {
   type CreateReportDto,
   type UpdateReportDto,
@@ -110,6 +110,27 @@ export class ReportService {
       );
       if (!res.ok) return null;
       const json = (await res.json()) as { data?: ControlSummary };
+      return json.data ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  // ─── fetchDlcSummary ──────────────────────────────────────────────────────────
+  // Server-side aggregated DLC counts from dlc-service. Graceful: null on any failure.
+  async fetchDlcSummary(tenantId: string): Promise<DlcSummary | null> {
+    const base = env.DLC_SERVICE_URL;
+    if (!base) return null;
+    try {
+      const res = await fetch(
+        `${base}/internal/dlc/summary?tenantId=${encodeURIComponent(tenantId)}`,
+        {
+          headers: { 'x-internal-secret': env.INTERNAL_SERVICE_SECRET },
+          signal:  AbortSignal.timeout(5_000),
+        },
+      );
+      if (!res.ok) return null;
+      const json = (await res.json()) as { data?: DlcSummary };
       return json.data ?? null;
     } catch {
       return null;

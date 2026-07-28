@@ -50,10 +50,19 @@ export interface ControlSummary {
   overdue:   number;
 }
 
+/** Server-side aggregated DLC (shelf-life) counts. */
+export interface DlcSummary {
+  total:         number;
+  expiringToday: number;
+  expiringSoon:  number;
+  expired:       number;
+}
+
 /** Real module data fetched by report.service and embedded into the PDF. */
 export interface ReportEnrichment {
   nonConformities?: NonConformityRow[];
   controlSummary?:  ControlSummary | null;
+  dlcSummary?:      DlcSummary | null;
 }
 
 const FR_DATE = (d: Date): string => d.toLocaleDateString('fr-FR');
@@ -127,6 +136,27 @@ function buildControlSection(summary: ControlSummary | null | undefined): Conten
           [{ text: 'Contrôles planifiés', style: 'label' }, { text: String(summary.total), style: 'value' }],
           [{ text: 'Contrôles réalisés', style: 'label' }, { text: `${summary.completed} (${rate}%)`, style: 'value' }],
           [{ text: 'Contrôles en retard', style: 'label' }, { text: String(summary.overdue), style: 'value' }],
+        ],
+      },
+      layout: 'lightHorizontalLines',
+    } as Content,
+  ];
+}
+
+/** Build the "DLC — Dates limites" summary section from server-side counts. */
+function buildDlcSection(summary: DlcSummary | null | undefined): Content[] {
+  if (!summary || summary.total === 0) return [];
+  return [
+    { text: '\nDLC — Dates limites de consommation', style: 'sectionTitle' } as Content,
+    {
+      style: 'infoTable',
+      table: {
+        widths: [200, '*'],
+        body:   [
+          [{ text: 'Étiquettes DLC actives', style: 'label' }, { text: String(summary.total), style: 'value' }],
+          [{ text: 'Expirent aujourd\'hui', style: 'label' }, { text: String(summary.expiringToday), style: 'value' }],
+          [{ text: 'Expirent sous 7 jours', style: 'label' }, { text: String(summary.expiringSoon), style: 'value' }],
+          [{ text: 'Déjà expirées', style: 'label' }, { text: String(summary.expired), style: 'value' }],
         ],
       },
       layout: 'lightHorizontalLines',
@@ -265,8 +295,9 @@ export function generateReportPdf(report: ReportRecord, enrichment?: ReportEnric
           ]
         : []),
 
-      // ── Real module data — control summary + non-conformities (when provided) ─
+      // ── Real module data — control + DLC summaries + non-conformities ────────
       ...buildControlSection(enrichment?.controlSummary),
+      ...buildDlcSection(enrichment?.dlcSummary),
       ...buildNonConformitySection(enrichment?.nonConformities ?? []),
 
       // ── Footer note ──────────────────────────────────────────────────────────

@@ -24,6 +24,8 @@ const envSchema = z.object({
   NONCONFORMITY_SERVICE_URL: z.string().url().optional(),
   // Optional — when set, reports embed the tenant's control-execution summary.
   CONTROL_SERVICE_URL:       z.string().url().optional(),
+  // Optional — when set, reports embed the tenant's DLC (shelf-life) summary.
+  DLC_SERVICE_URL:           z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

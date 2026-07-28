@@ -34,6 +34,14 @@ describe('generateReportPdf', () => {
     expect(enriched.length).toBeGreaterThan(plain.length);
   });
 
+  it('embeds the DLC-summary section when provided', async () => {
+    const plain    = await generateReportPdf(baseReport);
+    const enriched = await generateReportPdf(baseReport, {
+      dlcSummary: { total: 120, expiringToday: 4, expiringSoon: 15, expired: 2 },
+    });
+    expect(enriched.length).toBeGreaterThan(plain.length);
+  });
+
   it('embeds the control-summary section when provided', async () => {
     const plain    = await generateReportPdf(baseReport);
     const enriched = await generateReportPdf(baseReport, {

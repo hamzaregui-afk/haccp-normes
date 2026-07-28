@@ -67,11 +67,13 @@ export class ReportController {
     // (returns [] on any failure) so PDF generation is never blocked.
     const includeNc = /HACCP|HYGIENE|NC|NONCONF|CONFORMIT/i.test(report.type);
     const includeControls = /HACCP|HYGIENE|CONTROL|CONTROLE|CONTRÔLE/i.test(report.type);
-    const [nonConformities, controlSummary] = await Promise.all([
+    const includeDlc = /HACCP|HYGIENE|DLC|TEMPERATURE|TRACAB/i.test(report.type);
+    const [nonConformities, controlSummary, dlcSummary] = await Promise.all([
       includeNc ? this.reportService.fetchNonConformities(user.tenantId) : Promise.resolve([]),
       includeControls ? this.reportService.fetchControlSummary(user.tenantId) : Promise.resolve(null),
+      includeDlc ? this.reportService.fetchDlcSummary(user.tenantId) : Promise.resolve(null),
     ]);
-    const pdfBuffer = await generateReportPdf(report, { nonConformities, controlSummary });
+    const pdfBuffer = await generateReportPdf(report, { nonConformities, controlSummary, dlcSummary });
 
     // Audit the export action so inspectors can see who downloaded which report
     void emitAuditEvent({
