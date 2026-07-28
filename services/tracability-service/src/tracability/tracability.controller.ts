@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -12,6 +13,19 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+
+// Traceability evidence is photos only — reject non-image types (SVG excluded: it
+// can carry active markup and is re-served by MinIO with its stored Content-Type).
+const PHOTO_MIME_ALLOWLIST = new Set<string>(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
+
+function photoFilter(
+  _req: unknown,
+  file: { mimetype: string },
+  cb: (error: Error | null, acceptFile: boolean) => void,
+): void {
+  if (PHOTO_MIME_ALLOWLIST.has(file.mimetype)) cb(null, true);
+  else cb(new BadRequestException(`Type d'image non autorisé : ${file.mimetype}`), false);
+}
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { JwtPayload } from '@haccp/shared-types';
 import { emitAuditEvent, publishDomainEvent } from '@haccp/shared-utils';
@@ -135,7 +149,10 @@ export class TracabilityController {
   @Roles(...WRITE_ROLES)
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload a photo for a tracability record' })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', {
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB — was unbounded (audit)
+    fileFilter: photoFilter,
+  }))
   async addPhoto(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
