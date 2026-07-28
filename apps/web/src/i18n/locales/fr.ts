@@ -31,6 +31,12 @@ const fr = {
 
   // ── Common ────────────────────────────────────────────────────────────────────
   common: {
+    openMenu:        'Ouvrir le menu',
+    notifications:   'Notifications',
+    typeToFilter:    'Tapez pour filtrer…',
+    noResults:       'Aucun résultat',
+    filteredCount:   '{{count}} résultat(s)',
+    optionsExamplePh:'Ex. Option 1, Option 2, Option 3',
     loading:    'Chargement…',
     error:      'Une erreur est survenue.',
     retry:      'Réessayer',
@@ -891,6 +897,7 @@ const fr = {
       emailPlaceholder:    'prenom.nom@exemple.fr',
       password:            'Mot de passe',
       role:                'Rôle',
+      status:              'Statut',
       showPassword:        'Afficher le mot de passe',
       hidePassword:        'Masquer le mot de passe',
       validation: {
@@ -898,6 +905,7 @@ const fr = {
         emailRequired:   'L\'email est requis.',
         emailInvalid:    'Adresse e-mail invalide.',
         roleRequired:    'Le rôle est requis.',
+        statusRequired:  'Le statut est requis.',
         passwordRequired:'Le mot de passe est requis.',
         passwordMin:     'Le mot de passe doit contenir au moins 8 caractères.',
         confirmRequired: 'La confirmation est requise.',
@@ -1778,6 +1786,13 @@ const fr = {
     ncCreated:   'Nouvelle non-conformité',
     taskCompleted: 'Tâche de contrôle complétée',
     reportValidated: 'Rapport validé',
+    panel:       'Panneau des notifications',
+    unreadBadge: 'notifications non lues',
+    unreadCount: '{{count}} non lue(s)',
+  },
+  sidebar: {
+    closeMenu: 'Fermer le menu',
+    logout:    'Déconnexion',
   },
 } as const;
 
