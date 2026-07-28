@@ -254,6 +254,25 @@ export class NotificationConsumer {
     for (const assigneeId of assigneeIds) {
       this.gateway.emitToUser(assigneeId, 'notification:tasks-overdue', body);
     }
+
+    // ARCH-DECISION: Also push to mobile. The field operators who own overdue tasks
+    // have no socket client, so the WebSocket emit above never reaches them — this
+    // was a MAJOR gap (the alert most relevant to operators was undeliverable).
+    // Fire-and-forget: a push failure must never break event processing.
+    const pushMsg = {
+      title: 'Contrôles en retard',
+      body:  count > 1 ? `${count} contrôles sont en retard` : 'Un contrôle est en retard',
+      data:  { type: 'tasks-overdue', taskIds: data.payload['taskIds'], eventId: data.eventId },
+    };
+    if (assigneeIds.length > 0) {
+      for (const assigneeId of assigneeIds) {
+        void this.push.pushToUser(data.tenantId, assigneeId, pushMsg)
+          .catch((err: unknown) => this.logger.warn(`[tasks.overdue] push failed: ${String(err)}`));
+      }
+    } else {
+      void this.push.pushToRoles(data.tenantId, ['OPERATOR', 'MANAGER', 'ADMIN'], pushMsg)
+        .catch((err: unknown) => this.logger.warn(`[tasks.overdue] push failed: ${String(err)}`));
+    }
   }
 
   // ─── report.report.validated ──────────────────────────────────────────────
@@ -348,6 +367,16 @@ export class NotificationConsumer {
       eventId:   data.eventId,
       timestamp: data.timestamp,
     });
+
+    // Push to mobile too — DLC expiry is a field alert and the mobile app has no
+    // socket client (WebSocket alone never reaches operators). Fire-and-forget.
+    void this.push
+      .pushToRoles(data.tenantId, ['OPERATOR', 'MANAGER', 'ADMIN'], {
+        title: 'DLC — expiration aujourd\'hui',
+        body:  count > 1 ? `${count} étiquettes expirent aujourd'hui` : 'Une étiquette expire aujourd\'hui',
+        data:  { type: 'dlc-expiring-today', eventId: data.eventId },
+      })
+      .catch((err: unknown) => this.logger.warn(`[dlc.expiring-today] push failed: ${String(err)}`));
   }
 
   // ─── printing.job.failed ──────────────────────────────────────────────────
