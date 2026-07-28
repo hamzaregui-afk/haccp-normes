@@ -474,8 +474,11 @@ export default function DashboardPage() {
   const ncChartQuery = useQuery({
     queryKey: ['nc.chart.monthly', tenantId],
     queryFn: async () => {
+      // Fetch the 500 most-recent NCs (endpoint max) so the 6-month chart is not
+      // undercounted. The list has no date filter; 500 covers the window for all but
+      // extreme-volume tenants (server-side monthly aggregation is the next step).
       const { data } = await api.get<ApiResponse<NcItem[]>>(
-        '/api/v1/nonconformities?limit=100',
+        '/api/v1/nonconformities?limit=500',
       );
       return data.data;
     },
@@ -485,9 +488,16 @@ export default function DashboardPage() {
   const complianceChartQuery = useQuery({
     queryKey: ['controls.chart.monthly', tenantId],
     queryFn: async () => {
-      // fetch up to 200 tasks to cover 6-month compliance history
+      // ARCH-DECISION: The tasks list is ordered scheduledAt ASC, so a bare ?limit=200
+      // returned the OLDEST 200 tasks → the last-6-month compliance trend was empty/wrong
+      // for any established tenant. Filter to the last-6-month window server-side (the
+      // endpoint supports `from`) and raise the limit to the endpoint max (500).
+      const from = new Date();
+      from.setMonth(from.getMonth() - 6);
+      from.setDate(1);
+      from.setHours(0, 0, 0, 0);
       const { data } = await api.get<ApiResponse<ControlTask[]>>(
-        '/api/v1/controls/tasks?limit=200',
+        `/api/v1/controls/tasks?from=${from.toISOString()}&limit=500`,
       );
       return data.data;
     },
@@ -498,8 +508,10 @@ export default function DashboardPage() {
   const activeSchedulesQuery = useQuery({
     queryKey: ['controls.schedules.active-count', tenantId],
     queryFn: async () => {
+      // Was fetching the default page (20) → the active count was capped at 20.
+      // Fetch up to the endpoint max (500) so the count is correct.
       const { data } = await api.get<{ data: { isActive: boolean }[] }>(
-        '/api/v1/controls/schedules',
+        '/api/v1/controls/schedules?limit=500',
       );
       return (data.data ?? []).filter((s) => s.isActive).length;
     },
@@ -529,8 +541,11 @@ export default function DashboardPage() {
     queryKey: ['print-jobs.today.stats', tenantId],
     queryFn: async () => {
       const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      // The print-jobs endpoint caps limit at 100 — requesting 200 was rejected (400),
+      // so this KPI never rendered. Use the max (100); today's jobs are then filtered
+      // client-side (jobs are returned most-recent first).
       const { data } = await api.get<{ data: Array<{ status: string; createdAt: string }> }>(
-        `/api/v1/print-jobs?limit=200`,
+        `/api/v1/print-jobs?limit=100`,
       );
       const jobs      = (data.data ?? []).filter((j) => j.createdAt.startsWith(today));
       const total     = jobs.length;
