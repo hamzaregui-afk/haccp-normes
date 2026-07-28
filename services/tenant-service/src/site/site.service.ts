@@ -57,8 +57,13 @@ export class SiteService {
   async remove(id: string, tenantId: string) {
     const site = await this.prisma.site.findFirst({ where: { id, tenantId } });
     if (!site) throw new NotFoundException(`Site ${id} not found`);
-    // ARCH-DECISION: Double-scoped where for defense-in-depth.
-    await this.prisma.site.delete({ where: { id, tenantId } });
+    // ARCH-DECISION: Zone→Site is ON DELETE RESTRICT — delete child zones first
+    // (else the FK violation surfaces as a 500), then the site, atomically.
+    // Double-scoped where on the site delete for defense-in-depth.
+    await this.prisma.$transaction([
+      this.prisma.zone.deleteMany({ where: { siteId: id } }),
+      this.prisma.site.delete({ where: { id, tenantId } }),
+    ]);
     return toApiResponse(null, undefined, 'Site deleted');
   }
 

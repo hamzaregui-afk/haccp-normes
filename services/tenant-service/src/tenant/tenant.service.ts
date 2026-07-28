@@ -128,7 +128,13 @@ export class TenantService {
     });
     if (!site) throw new NotFoundException(`Site ${siteId} not found for tenant ${tenantId}`);
 
-    await this.prisma.site.delete({ where: { id: siteId } });
+    // ARCH-DECISION: Zone→Site is ON DELETE RESTRICT, so a site with zones cannot be
+    // deleted directly (FK violation surfaced as a 500). Remove the child zones first,
+    // then the site, atomically.
+    await this.prisma.$transaction([
+      this.prisma.zone.deleteMany({ where: { siteId } }),
+      this.prisma.site.delete({ where: { id: siteId } }),
+    ]);
     return toApiResponse(null, undefined, 'Site supprimé');
   }
 }

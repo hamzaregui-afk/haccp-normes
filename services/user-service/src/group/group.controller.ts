@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import type { JwtPayload } from '@haccp/shared-types';
 import { emitAuditEvent, extractResourceId } from '@haccp/shared-utils';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -47,6 +47,24 @@ export class GroupController {
     return result;
   }
 
+  @Patch(':id')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
+  async update(@Param('id') id: string, @Body() body: unknown, @CurrentUser() user: JwtPayload) {
+    const dto    = CreateGroupDtoSchema.parse(body);
+    const result = await this.groupService.update(id, dto, user.tenantId);
+
+    void emitAuditEvent({
+      userId:     user.sub,
+      action:     'UPDATE',
+      resource:   'groups',
+      resourceId: id,
+      tenantId:   user.tenantId,
+      payload:    { name: dto.name },
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
+
+    return result;
+  }
+
   @Post(':id/members')
   @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
   async addMember(@Param('id') id: string, @Body() body: unknown, @CurrentUser() user: JwtPayload) {
@@ -87,7 +105,7 @@ export class GroupController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
   async remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     const result = await this.groupService.remove(id, user.tenantId);
 

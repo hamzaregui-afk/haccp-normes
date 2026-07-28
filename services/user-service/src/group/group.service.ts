@@ -48,6 +48,21 @@ export class GroupService {
     return toApiResponse(group, undefined, 'Group created');
   }
 
+  async update(id: string, dto: CreateGroupDto, tenantId: string) {
+    await this.findOne(id, tenantId); // 404 if not found or wrong tenant
+    // Reject a rename that collides with another group in the same tenant.
+    const clash = await this.prisma.group.findFirst({
+      where: { name: dto.name, tenantId, id: { not: id } },
+    });
+    if (clash) throw new ConflictException(`Group "${dto.name}" already exists`);
+
+    const group = await this.prisma.group.update({
+      where: { id, tenantId }, // double-scoped for defense-in-depth
+      data:  { name: dto.name },
+    });
+    return toApiResponse(group, undefined, 'Group updated');
+  }
+
   async addMember(groupId: string, dto: AddMemberDto, tenantId: string) {
     await this.findOne(groupId, tenantId);
 

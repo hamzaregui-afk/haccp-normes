@@ -67,7 +67,7 @@ export class ProductController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN')
   async remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     const result = await this.productService.remove(id, user.tenantId);
 

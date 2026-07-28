@@ -33,9 +33,12 @@ function makePrismaMock() {
       delete:    jest.fn(),
     },
     zone: {
-      findFirst: jest.fn(),
-      create:    jest.fn(),
+      findFirst:  jest.fn(),
+      create:     jest.fn(),
+      deleteMany: jest.fn(),
     },
+    // remove() deletes child zones + the site atomically via $transaction([...]).
+    $transaction: jest.fn().mockImplementation((ops: Promise<unknown>[]) => Promise.all(ops)),
   };
 }
 
