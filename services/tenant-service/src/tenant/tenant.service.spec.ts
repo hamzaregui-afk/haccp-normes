@@ -29,6 +29,10 @@ function makePrismaMock() {
       create:    jest.fn(),
       update:    jest.fn(),
     },
+    // update() syncs the plan onto the subscription when it changes.
+    tenantSubscription: {
+      updateMany: jest.fn(),
+    },
   };
 }
 

@@ -82,6 +82,20 @@ export class TenantService {
   async update(id: string, dto: UpdateTenantDto) {
     await this.findOne(id);
     const tenant = await this.prisma.tenant.update({ where: { id }, data: dto });
+
+    // ARCH-DECISION: `plan` is denormalised onto BOTH Tenant and TenantSubscription.
+    // Changing it here previously updated only Tenant.plan, leaving the subscription
+    // to silently diverge (audit MAJOR). Keep them in sync (the reverse direction —
+    // subscription → tenant — is already handled by SubscriptionService). updateMany
+    // is a safe no-op if the tenant has no subscription yet. Enabled modules are left
+    // untouched so an admin's manual toggles are never reset by a plan edit.
+    if (dto.plan) {
+      await this.prisma.tenantSubscription.updateMany({
+        where: { tenantId: id },
+        data:  { plan: dto.plan },
+      });
+    }
+
     return toApiResponse(tenant);
   }
 
