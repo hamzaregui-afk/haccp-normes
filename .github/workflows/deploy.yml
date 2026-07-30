@@ -118,17 +118,23 @@ jobs:
           SUPERADMIN_HASH: ${{ env.SUPERADMIN_HASH }}
           SUPERADMIN_EMAIL: ${{ secrets.SUPERADMIN_EMAIL || 'superadmin@haccp.com' }}
           SUPERADMIN_PASSWORD: ${{ secrets.SUPERADMIN_PASSWORD || 'Admin@HACCP2024!' }}
+          # ARCH-DECISION: The chosen action is passed via env (not inlined as ${{ }}
+          # inside the script below). GitHub treats a `script:` value containing any
+          # ${{ }} as ONE templated expression capped at 21000 chars; as the deploy
+          # script grew, main-sync's exceeded it and the workflow failed to parse.
+          # Keeping the script free of ${{ }} makes it a plain block scalar (no cap).
+          ACTION_INPUT: ${{ github.event.inputs.action || 'full-deploy' }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: root
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: SUPERADMIN_HASH,SUPERADMIN_EMAIL,SUPERADMIN_PASSWORD
+          envs: SUPERADMIN_HASH,SUPERADMIN_EMAIL,SUPERADMIN_PASSWORD,ACTION_INPUT
           script_stop: true
           timeout: 60m
           command_timeout: 60m
           script: |
             set -e
-            ACTION="${{ github.event.inputs.action || 'full-deploy' }}"
+            ACTION="${ACTION_INPUT:-full-deploy}"
             echo "=== Action: $ACTION ==="
 
             echo "=== Freeing Docker build cache ==="
@@ -499,7 +505,7 @@ jobs:
               docker cp infrastructure/scripts/create-superadmin.js haccp-auth:/tmp/create-superadmin.js
               docker exec \
                 -e SUPERADMIN_EMAIL="${SUPERADMIN_EMAIL:-superadmin@haccp.com}" \
-                -e SUPERADMIN_PASSWORD="${{ secrets.SUPERADMIN_PASSWORD || 'Admin@HACCP2024!' }}" \
+                -e SUPERADMIN_PASSWORD="${SUPERADMIN_PASSWORD:-Admin@HACCP2024!}" \
                 haccp-auth node /tmp/create-superadmin.js || true
               echo "=== Services restarted ==="
               exit 0
