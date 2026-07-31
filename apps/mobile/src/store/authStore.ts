@@ -6,10 +6,9 @@ const SECURE_REFRESH_TOKEN_KEY = 'haccp_jwt_refresh_token';
 
 // ARCH-DECISION: The mobile app stores both the access token and the refresh
 // token in SecureStore. The access token is short-lived (15 min); the refresh
-// token is long-lived and persisted so that it is available for future silent
-// refresh implementations without requiring a full re-login. The actual silent
-// refresh logic is not yet wired up — on expiry the user is still redirected to
-// the login screen — but the token is persisted so the upgrade path is trivial.
+// token is long-lived and persisted. Silent refresh IS wired up: the axios 401
+// interceptor in api/client.ts performs a single-flight refresh-token rotation and
+// retries the request, only falling back to logout when the refresh itself fails.
 export interface JwtPayload {
   sub: string;
   email: string;

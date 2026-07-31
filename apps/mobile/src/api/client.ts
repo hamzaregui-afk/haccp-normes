@@ -10,7 +10,7 @@ import { useAuthStore, type JwtPayload } from '../store/authStore';
 //
 // The gateway URL is set via EXPO_PUBLIC_API_BASE_URL (read at build time by Expo).
 // Default is the Android emulator loopback alias (10.0.2.2 → host localhost).
-// In production, set EXPO_PUBLIC_API_BASE_URL=https://api.normeshaccp.com
+// In production, EXPO_PUBLIC_API_BASE_URL=https://app.normes-haccp.com (see eas.json).
 //
 // ARCH-DECISION: We declare `process` narrowly here instead of installing
 // @types/node. Metro/Expo injects EXPO_PUBLIC_* variables via its own

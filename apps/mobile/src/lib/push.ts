@@ -30,6 +30,16 @@ let registeredToken: string | null = null;
 /** Request permission, obtain the Expo push token, and register it with the API. */
 export async function registerForPush(): Promise<void> {
   try {
+    // Android 8+ requires an explicit notification channel or notifications are
+    // silently dropped / shown at minimal importance. Register one up front.
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name:             'Alertes HACCP',
+        importance:       Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+      });
+    }
+
     const existing = await Notifications.getPermissionsAsync();
     let status = existing.status;
     if (status !== 'granted') {
