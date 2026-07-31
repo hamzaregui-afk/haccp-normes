@@ -1,5 +1,6 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { onlineManager, useMutation, useQuery } from '@tanstack/react-query';
+import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import {
@@ -44,13 +45,32 @@ interface LocalPhoto { uri: string; name: string; type: string; }
 
 const MAX_PHOTOS = 5;
 
+// Persistent directory for NC evidence photos (survives OS cache eviction).
+const NC_PHOTO_DIR = `${FileSystem.documentDirectory ?? ''}nc-photos/`;
+
 // ARCH-DECISION: The backend NC-photo endpoint takes ONE file per request
 // (POST /nonconformities/:id/photos, field "file"). We therefore upload photos
 // sequentially AFTER the NC is created (we need its id). Photo failures are
 // non-fatal — the NC already exists — so we count them and warn, never rollback.
-function toLocalPhoto(asset: ImagePicker.ImagePickerAsset): LocalPhoto {
+//
+// ARCH-DECISION: An NC created OFFLINE is queued (persisted to AsyncStorage) and
+// replayed later — possibly days after. ImagePicker returns a TRANSIENT cache URI
+// that the OS can evict before replay, silently losing the evidence photo (audit
+// MAJOR). We therefore COPY each picked image into the app's documentDirectory
+// (persistent) up front and queue that stable path instead. Falls back to the
+// original URI if the copy fails — never worse than before.
+async function persistPhoto(asset: ImagePicker.ImagePickerAsset): Promise<LocalPhoto> {
   const name = asset.fileName ?? asset.uri.split('/').pop() ?? `nc-photo-${Date.now()}.jpg`;
-  return { uri: asset.uri, name, type: asset.mimeType ?? 'image/jpeg' };
+  const type = asset.mimeType ?? 'image/jpeg';
+  try {
+    if (!FileSystem.documentDirectory) return { uri: asset.uri, name, type };
+    await FileSystem.makeDirectoryAsync(NC_PHOTO_DIR, { intermediates: true });
+    const dest = `${NC_PHOTO_DIR}${Date.now()}-${Math.round(Math.random() * 1e9)}-${name}`;
+    await FileSystem.copyAsync({ from: asset.uri, to: dest });
+    return { uri: dest, name, type };
+  } catch {
+    return { uri: asset.uri, name, type };
+  }
 }
 
 // ── Severity config ───────────────────────────────────────────────────────────
@@ -95,10 +115,13 @@ export function NCFormScreen(_props: Props) {
   const [photos,           setPhotos]           = useState<LocalPhoto[]>([]);
 
   // ── Photo attachment ───────────────────────────────────────────────────────
-  const addAssets = (assets: ImagePicker.ImagePickerAsset[]) => {
+  const addAssets = async (assets: ImagePicker.ImagePickerAsset[]) => {
+    const room = MAX_PHOTOS - photos.length;
+    if (room <= 0) return;
+    const persisted = await Promise.all(assets.slice(0, room).map(persistPhoto));
     setPhotos((prev) => {
-      const room = MAX_PHOTOS - prev.length;
-      return room <= 0 ? prev : [...prev, ...assets.slice(0, room).map(toLocalPhoto)];
+      const r = MAX_PHOTOS - prev.length;
+      return r <= 0 ? prev : [...prev, ...persisted.slice(0, r)];
     });
   };
 
@@ -110,7 +133,7 @@ export function NCFormScreen(_props: Props) {
       return;
     }
     const res = await ImagePicker.launchCameraAsync({ quality: 0.6 });
-    if (!res.canceled) addAssets(res.assets);
+    if (!res.canceled) await addAssets(res.assets);
   };
 
   const choosePhoto = async () => {
@@ -125,7 +148,7 @@ export function NCFormScreen(_props: Props) {
       allowsMultipleSelection: true,
       selectionLimit: MAX_PHOTOS - photos.length,
     });
-    if (!res.canceled) addAssets(res.assets);
+    if (!res.canceled) await addAssets(res.assets);
   };
 
   const removePhoto = (uri: string) => setPhotos((prev) => prev.filter((p) => p.uri !== uri));

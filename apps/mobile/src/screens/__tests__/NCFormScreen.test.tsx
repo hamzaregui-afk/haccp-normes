@@ -70,6 +70,14 @@ jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync:            jest.fn().mockResolvedValue({ canceled: true, assets: [] }),
 }));
 
+// The screen copies picked photos into persistent storage via expo-file-system.
+// Stub it so the native module is never loaded under jest (avoids leaked handles).
+jest.mock('expo-file-system', () => ({
+  documentDirectory: 'file:///doc/',
+  makeDirectoryAsync: jest.fn().mockResolvedValue(undefined),
+  copyAsync:          jest.fn().mockResolvedValue(undefined),
+}));
+
 // ── Import under test ─────────────────────────────────────────────────────────
 
 import { NCFormScreen } from '../NCFormScreen';
