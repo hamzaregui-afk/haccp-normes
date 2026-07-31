@@ -72,14 +72,15 @@ function useReportStats() {
   });
 }
 
-function useReports(page: number, status: string, type: string) {
+function useReports(page: number, status: string, type: string, period: string) {
   const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['reports', tenantId, page, status, type],
+    queryKey: ['reports', tenantId, page, status, type, period],
     queryFn: async () => {
       const p = new URLSearchParams({ page: String(page), limit: '20' });
       if (status) p.set('status', status);
       if (type)   p.set('type', type);
+      if (period) p.set('period', period);
       const { data } = await api.get<ApiResponse<Report[]>>(`/api/v1/reports?${p}`);
       return data;
     },
@@ -139,6 +140,7 @@ export default function ReportsPage() {
   const [page, setPage]               = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter]     = useState('');
+  const [periodFilter, setPeriodFilter] = useState('');
   const [modalOpen, setModalOpen]       = useState(false);
   const [form, setForm]                 = useState<CreateReportValues>(INITIAL_FORM);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -189,7 +191,7 @@ export default function ReportsPage() {
   }
 
   const { data: stats }              = useReportStats();
-  const { data, isLoading, isError } = useReports(page, statusFilter, typeFilter);
+  const { data, isLoading, isError } = useReports(page, statusFilter, typeFilter, periodFilter);
 
   const createMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => api.post('/api/v1/reports', body),
@@ -278,6 +280,15 @@ export default function ReportsPage() {
               placeholder={t('reports.filter.allTypes')}
               options={typeFilterOptions}
               className="w-52"
+            />
+
+            {/* Period filter (month) */}
+            <input
+              type="month"
+              value={periodFilter}
+              onChange={(e) => { setPeriodFilter(e.target.value); setPage(1); }}
+              aria-label={t('reports.filter.period')}
+              className="h-9 w-40 rounded-lg border border-gray-200 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-medium"
             />
           </div>
 

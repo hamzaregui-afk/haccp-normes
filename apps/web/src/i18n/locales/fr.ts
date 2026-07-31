@@ -540,6 +540,7 @@ const fr = {
     filter: {
       allStatuses: 'Tous les statuts',
       allTypes:    'Tous les types',
+      period:      'Filtrer par mois',
     },
     // Stat cards
     stats: {
