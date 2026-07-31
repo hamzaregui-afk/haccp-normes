@@ -29,6 +29,12 @@ const ar = {
   },
 
   common: {
+    openMenu:        'فتح القائمة',
+    notifications:   'الإشعارات',
+    typeToFilter:    'اكتب للتصفية…',
+    noResults:       'لا نتائج',
+    filteredCount:   '{{count}} نتيجة',
+    optionsExamplePh:'مثال: خيار 1، خيار 2، خيار 3',
     loading:    'جارٍ التحميل…',
     error:      'حدث خطأ.',
     retry:      'إعادة المحاولة',
@@ -93,6 +99,10 @@ const ar = {
   },
 
   dashboard: {
+    printingSection:  'الطباعة',
+    printJobsToday:   'طبعات اليوم',
+    printJobsFailed:  'طبعات فاشلة',
+    printSuccessRate: 'معدل النجاح',
     title:           'نظرة عامة',
     subtitle:        'لوحة تحكم HACCP',
     controlsToday:   'مراقبات اليوم',
@@ -335,6 +345,16 @@ const ar = {
   },
 
   dlc: {
+    printModal: {
+      title:         'طباعة ملصق DLC',
+      selectPrinter: 'اختر طابعة',
+      noPrinters:    'لا توجد طابعة مُهيّأة.',
+      copies:        'عدد النسخ',
+      print:         'طباعة',
+      cancel:        'إلغاء',
+      success:       'تم إرسال الطباعة.',
+      error:         'فشلت الطباعة.',
+    },
     title:           'تواريخ الصلاحية',
     subtitle:        'إدارة تواريخ انتهاء الصلاحية',
     newLabel:        'ملصق DLC جديد',
@@ -656,7 +676,14 @@ const ar = {
     },
   },
 
+  sidebar: {
+    closeMenu: 'إغلاق القائمة',
+    logout:    'تسجيل الخروج',
+  },
   notifications: {
+    panel:       'لوحة الإشعارات',
+    unreadBadge: 'إشعارات غير مقروءة',
+    unreadCount: '{{count}} غير مقروء',
     title:       'الإشعارات',
     markAllRead: 'تعليم الكل كمقروء',
     none:        'لا توجد إشعارات',

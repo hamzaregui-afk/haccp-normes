@@ -28,6 +28,12 @@ const en = {
   },
 
   common: {
+    openMenu:        'Open menu',
+    notifications:   'Notifications',
+    typeToFilter:    'Type to filter…',
+    noResults:       'No results',
+    filteredCount:   '{{count}} result(s)',
+    optionsExamplePh:'e.g. Option 1, Option 2, Option 3',
     loading:    'Loading…',
     error:      'An error occurred.',
     retry:      'Retry',
@@ -92,6 +98,10 @@ const en = {
   },
 
   dashboard: {
+    printingSection:  'Printing',
+    printJobsToday:   'Prints today',
+    printJobsFailed:  'Failed prints',
+    printSuccessRate: 'Success rate',
     title:           'Overview',
     subtitle:        'HACCP Dashboard',
     controlsToday:   'Today\'s controls',
@@ -334,6 +344,16 @@ const en = {
   },
 
   dlc: {
+    printModal: {
+      title:         'Print DLC label',
+      selectPrinter: 'Select a printer',
+      noPrinters:    'No printer configured.',
+      copies:        'Number of copies',
+      print:         'Print',
+      cancel:        'Cancel',
+      success:       'Print sent.',
+      error:         'Printing failed.',
+    },
     title:           'Use-by dates',
     subtitle:        'Use-by date management',
     newLabel:        'New DLC label',
@@ -655,7 +675,14 @@ const en = {
     },
   },
 
+  sidebar: {
+    closeMenu: 'Close menu',
+    logout:    'Log out',
+  },
   notifications: {
+    panel:       'Notifications panel',
+    unreadBadge: 'unread notifications',
+    unreadCount: '{{count}} unread',
     title:       'Notifications',
     markAllRead: 'Mark all as read',
     none:        'No notifications',
