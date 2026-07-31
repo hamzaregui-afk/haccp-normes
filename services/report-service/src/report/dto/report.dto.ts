@@ -38,6 +38,7 @@ export const ReportQuerySchema = z.object({
   limit:  z.coerce.number().min(1).max(100).default(20),
   status: z.string().optional(),
   type:   z.string().optional(),
+  period: z.string().optional(),
 });
 
 export type ReportQuery = z.infer<typeof ReportQuerySchema>;

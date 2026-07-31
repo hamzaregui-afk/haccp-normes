@@ -20,6 +20,7 @@ enum ReportStatus {
 model Report {
   id          String       @id @default(cuid())
   type        String                              // MONTHLY_HYGIENE | ANNUAL_HACCP | …
+  period      String?                              // reporting period, e.g. '2026-01' (for monthly filtering)
   status      ReportStatus @default(PENDING)
   tenantId    String       @map("tenant_id")
   fileUrl     String?      @map("file_url")       // MinIO presigned URL after generation

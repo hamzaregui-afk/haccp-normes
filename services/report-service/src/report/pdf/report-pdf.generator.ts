@@ -24,6 +24,7 @@ const fonts: TFontDictionary = {
 export interface ReportRecord {
   id:          string;
   type:        string;
+  period:      string | null;
   status:      string;
   tenantId:    string;
   fileUrl:     string | null;
@@ -254,6 +255,12 @@ export function generateReportPdf(report: ReportRecord, enrichment?: ReportEnric
               { text: 'Type', style: 'label' },
               { text: report.type.replace(/_/g, ' '), style: 'value' },
             ],
+            ...(report.period
+              ? [[
+                  { text: 'Période', style: 'label' },
+                  { text: report.period, style: 'value' },
+                ]]
+              : []),
             [
               { text: 'Date de génération', style: 'label' },
               { text: FR_DATE(report.generatedAt), style: 'value' },

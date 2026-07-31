@@ -3,6 +3,7 @@ import { generateReportPdf, type ReportRecord, type NonConformityRow } from './r
 const baseReport: ReportRecord = {
   id:          'clxreport0001testidabc12',
   type:        'MONTHLY_HYGIENE',
+  period:      null,
   status:      'VALIDATED',
   tenantId:    'clxtenant001testidabc123',
   fileUrl:     null,

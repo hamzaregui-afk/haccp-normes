@@ -21,13 +21,14 @@ export class ReportService {
   // ─── findAll ─────────────────────────────────────────────────────────────────
 
   async findAll(tenantId: string, query: ReportQuery) {
-    const { page, limit, status, type } = query;
+    const { page, limit, status, type, period } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.ReportWhereInput = {
       tenantId,
       ...(status ? { status: status as ReportStatus } : {}),
       ...(type   ? { type }                           : {}),
+      ...(period ? { period }                         : {}),
     };
 
     const [reports, total] = await this.prisma.$transaction([
@@ -145,6 +146,7 @@ export class ReportService {
         type:     dto.type,
         status:   'PENDING',
         tenantId,
+        ...(dto.period ? { period: dto.period } : {}),
       },
     });
     return toApiResponse(report, undefined, 'Report created successfully');
