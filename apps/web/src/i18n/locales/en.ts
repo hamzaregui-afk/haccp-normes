@@ -506,6 +506,27 @@ const en = {
   },
 
   products: {
+    form: {
+      code:                'Code',
+      codePlaceholder:     'PR-001',
+      name:                'Name',
+      namePlaceholder:     'Camembert AOP',
+      category:            'Category',
+      categoryPlaceholder: 'Dairy products',
+      packaging:           'Packaging',
+      packagingPlaceholder:'250 g tray',
+      dlcDays:             'Use-by (days)',
+      dlcPlaceholder:      '7',
+      tempStorage:         'Storage temperature (°C)',
+      tempPlaceholder:     '4',
+      supplier:            'Supplier',
+      supplierPlaceholder: 'Select a supplier',
+      errors: {
+        code:     'Code is required.',
+        name:     'Name is required.',
+        category: 'Category is required.',
+      },
+    },
     title:      'Products',
     subtitle:   'Product catalogue',
     newProduct: 'New product',

@@ -507,6 +507,27 @@ const ar = {
   },
 
   products: {
+    form: {
+      code:                'الرمز',
+      codePlaceholder:     'PR-001',
+      name:                'الاسم',
+      namePlaceholder:     'كامامبير AOP',
+      category:            'الفئة',
+      categoryPlaceholder: 'منتجات الألبان',
+      packaging:           'التعبئة',
+      packagingPlaceholder:'علبة 250غ',
+      dlcDays:             'الصلاحية (أيام)',
+      dlcPlaceholder:      '7',
+      tempStorage:         'درجة حرارة التخزين (°م)',
+      tempPlaceholder:     '4',
+      supplier:            'المورّد',
+      supplierPlaceholder: 'اختر مورّدًا',
+      errors: {
+        code:     'الرمز مطلوب.',
+        name:     'الاسم مطلوب.',
+        category: 'الفئة مطلوبة.',
+      },
+    },
     title:      'المنتجات',
     subtitle:   'كتالوج المنتجات',
     newProduct: 'منتج جديد',
