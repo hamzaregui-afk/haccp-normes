@@ -2,7 +2,7 @@
   "expo": {
     "name": "NORMES HACCP",
     "slug": "normes-haccp",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.normeshaccp.app",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "infoPlist": {
         "NSCameraUsageDescription": "NORMES HACCP utilise votre caméra pour prendre des photos lors des contrôles qualité et de sécurité alimentaire.",
         "NSPhotoLibraryUsageDescription": "NORMES HACCP accède à votre photothèque pour joindre des photos aux non-conformités et aux contrôles.",
@@ -35,7 +35,7 @@
         "backgroundColor": "#1A3D2B"
       },
       "package": "com.normeshaccp.app",
-      "versionCode": 2,
+      "versionCode": 3,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
