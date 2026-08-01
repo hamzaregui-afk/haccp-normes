@@ -43,10 +43,10 @@ export function MainNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        headerStyle: { backgroundColor: '#1A3D2B' },
+        headerStyle: { backgroundColor: '#0A0F3F' },
         headerTintColor: '#fff',
         headerTitleStyle: { fontWeight: '700' },
-        tabBarStyle: { backgroundColor: '#1A3D2B', borderTopColor: '#2D6A4F' },
+        tabBarStyle: { backgroundColor: '#0A0F3F', borderTopColor: '#5AA4C8' },
         tabBarActiveTintColor: '#B5833A',
         tabBarInactiveTintColor: 'rgba(255,255,255,0.5)',
         tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,

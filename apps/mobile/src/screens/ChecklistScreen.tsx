@@ -283,7 +283,7 @@ export function ChecklistScreen({ route, navigation }: Props) {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#2D6A4F" />
+        <ActivityIndicator size="large" color="#5AA4C8" />
         <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
@@ -361,7 +361,7 @@ ChecklistScreen.displayName = 'ChecklistScreen';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F0',
+    backgroundColor: '#F0F0F0',
   },
   scrollContent: {
     padding: 16,
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F5F0',
+    backgroundColor: '#F0F0F0',
     padding: 20,
   },
   loadingText: {
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1A3D2B',
+    color: '#0A0F3F',
     marginBottom: 12,
   },
   checkpointRow: {
@@ -449,7 +449,7 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
   },
   submitButton: {
-    backgroundColor: '#2D6A4F',
+    backgroundColor: '#5AA4C8',
     borderRadius: 10,
     paddingVertical: 15,
     alignItems: 'center',
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1A3D2B',
+    color: '#0A0F3F',
     marginBottom: 10,
   },
   modalBody: {

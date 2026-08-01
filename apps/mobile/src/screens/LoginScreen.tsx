@@ -136,7 +136,7 @@ export function LoginScreen(_props: Props) {
             testID="login-button"
           >
             {loading ? (
-              <ActivityIndicator color="#1A3D2B" />
+              <ActivityIndicator color="#0A0F3F" />
             ) : (
               <Text style={styles.buttonText}>{t('auth.loginButton')}</Text>
             )}
@@ -159,7 +159,7 @@ LoginScreen.displayName = 'LoginScreen';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A3D2B',
+    backgroundColor: '#0A0F3F',
   },
   inner: {
     flex: 1,
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1A3D2B',
+    color: '#0A0F3F',
     marginBottom: 20,
     textAlign: 'center',
   },

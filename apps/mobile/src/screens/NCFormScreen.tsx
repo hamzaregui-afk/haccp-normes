@@ -104,8 +104,11 @@ export function NCFormScreen(_props: Props) {
   const hasToken = !!useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
   // ARCH-DECISION: Explicit whitelist is safer than blacklist (role !== VIEWER).
+  // Must mirror the backend nonconformity CREATE_ROLES exactly, else the role
+  // sees an enabled submit button and hits a 403 on POST. QUALITY_OFFICER is
+  // deliberately EXCLUDED (NC create = ❌ for QUALITY_OFFICER per the RBAC matrix).
   // SUPER_ADMIN can also create NCs in any tenant via cross-tenant JWT.
-  const canSubmit = ['OPERATOR', 'ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'SUPER_ADMIN'].includes(user?.role ?? '');
+  const canSubmit = ['OPERATOR', 'ADMIN', 'MANAGER', 'SUPER_ADMIN'].includes(user?.role ?? '');
 
   const [description,      setDescription]      = useState('');
   const [correctiveAction, setCorrectiveAction] = useState('');
@@ -377,7 +380,7 @@ NCFormScreen.displayName = 'NCFormScreen';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F0',
+    backgroundColor: '#F0F0F0',
   },
   content: {
     padding: 20,
@@ -386,7 +389,7 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A3D2B',
+    color: '#0A0F3F',
     marginBottom: 20,
   },
   label: {
@@ -449,8 +452,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   categoryBtnActive: {
-    backgroundColor: '#1A3D2B',
-    borderColor: '#1A3D2B',
+    backgroundColor: '#0A0F3F',
+    borderColor: '#0A0F3F',
   },
   categoryBtnText: {
     fontSize: 13,

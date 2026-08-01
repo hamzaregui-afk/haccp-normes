@@ -283,13 +283,13 @@ export function AgendaScreen({ navigation }: Props) {
             <RefreshControl
               refreshing={isFetching}
               onRefresh={refetch}
-              colors={['#2D6A4F']}
-              tintColor="#2D6A4F"
+              colors={['#5AA4C8']}
+              tintColor="#5AA4C8"
             />
           }
           ListEmptyComponent={
             isFetching ? (
-              <ActivityIndicator size="large" color="#2D6A4F" />
+              <ActivityIndicator size="large" color="#5AA4C8" />
             ) : (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyIcon}>✅</Text>
@@ -315,10 +315,10 @@ AgendaScreen.displayName = 'AgendaScreen';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F0',
+    backgroundColor: '#F0F0F0',
   },
   header: {
-    backgroundColor: '#1A3D2B',
+    backgroundColor: '#0A0F3F',
     paddingTop: 16,
     paddingBottom: 12,
     paddingHorizontal: 20,
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   taskTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1A3D2B',
+    color: '#0A0F3F',
   },
   recurringBadge: {
     marginTop: 4,
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   startButton: {
-    backgroundColor: '#2D6A4F',
+    backgroundColor: '#5AA4C8',
     borderRadius: 8,
     paddingVertical: 10,
     alignItems: 'center',
@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   retryButton: {
-    backgroundColor: '#2D6A4F',
+    backgroundColor: '#5AA4C8',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,

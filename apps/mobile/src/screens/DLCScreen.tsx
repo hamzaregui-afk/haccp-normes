@@ -76,12 +76,12 @@ function buildLabelHtml(label: LabelData): string {
   .label {
     width: 90mm;
     margin: 10mm auto;
-    border: 2px solid #1A3D2B;
+    border: 2px solid #0A0F3F;
     border-radius: 6px;
     overflow: hidden;
   }
   .label-header {
-    background: #1A3D2B;
+    background: #0A0F3F;
     color: #B5833A;
     text-align: center;
     padding: 8px 12px;
@@ -93,7 +93,7 @@ function buildLabelHtml(label: LabelData): string {
   .product-name {
     font-size: 18px;
     font-weight: 700;
-    color: #1A3D2B;
+    color: #0A0F3F;
     margin-bottom: 10px;
     text-align: center;
   }
@@ -104,7 +104,7 @@ function buildLabelHtml(label: LabelData): string {
   .expiry-row td { border-top: 1px solid #eee; padding-top: 8px; margin-top: 4px; }
   .expiry-value { font-size: 20px !important; font-weight: 800 !important; color: #B5833A !important; }
   .label-footer {
-    background: #F5F5F0;
+    background: #F0F0F0;
     text-align: center;
     padding: 6px;
     font-size: 9px;
@@ -244,12 +244,12 @@ function PrinterPickerModal({ visible, printers, selected, onSelect, onClose }: 
 const pickerStyles = StyleSheet.create({
   overlay:          { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheet:            { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, paddingBottom: 36 },
-  title:            { fontSize: 16, fontWeight: '700', color: '#1A3D2B', marginBottom: 12 },
+  title:            { fontSize: 16, fontWeight: '700', color: '#0A0F3F', marginBottom: 12 },
   empty:            { fontSize: 14, color: '#6B7280', textAlign: 'center', paddingVertical: 12 },
   item:             { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 8, marginBottom: 4 },
   itemSelected:     { backgroundColor: '#E8F5EE' },
   itemText:         { fontSize: 15, color: '#374151' },
-  itemTextSelected: { fontWeight: '700', color: '#1A3D2B' },
+  itemTextSelected: { fontWeight: '700', color: '#0A0F3F' },
   cancel:           { marginTop: 12, alignItems: 'center', paddingVertical: 12 },
   cancelText:       { fontSize: 15, color: '#6B7280' },
 });
@@ -514,7 +514,7 @@ export function DLCScreen(_props: Props) {
         activeOpacity={0.85}
       >
         {networkPrinting ? (
-          <ActivityIndicator color="#1A3D2B" />
+          <ActivityIndicator color="#0A0F3F" />
         ) : (
           <>
             <Text style={styles.networkPrintBtnIcon}>🔌</Text>
@@ -546,7 +546,7 @@ function isApiError(err: unknown): err is { response?: { data?: { message?: unkn
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F0',
+    backgroundColor: '#F0F0F0',
   },
   content: {
     padding: 20,
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A3D2B',
+    color: '#0A0F3F',
     marginBottom: 20,
   },
   label: {
@@ -594,7 +594,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#2D6A4F',
+    borderColor: '#5AA4C8',
     padding: 16,
     alignItems: 'center',
     marginBottom: 20,
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
     color: '#B5833A',
   },
   printBtn: {
-    backgroundColor: '#1A3D2B',
+    backgroundColor: '#0A0F3F',
     borderRadius: 10,
     paddingVertical: 15,
     alignItems: 'center',
@@ -640,7 +640,7 @@ const styles = StyleSheet.create({
   networkPrintBtn: {
     backgroundColor: '#fff',
     borderWidth: 2,
-    borderColor: '#1A3D2B',
+    borderColor: '#0A0F3F',
     borderRadius: 10,
     paddingVertical: 13,
     alignItems: 'center',
@@ -653,7 +653,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   networkPrintBtnText: {
-    color: '#1A3D2B',
+    color: '#0A0F3F',
     fontSize: 15,
     fontWeight: '700',
   },

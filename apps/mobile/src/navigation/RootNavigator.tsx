@@ -36,7 +36,7 @@ function AppNavigator() {
 
   if (hydrating) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1A3D2B' }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0A0F3F' }}>
         <ActivityIndicator size="large" color="#B5833A" />
       </View>
     );
@@ -46,7 +46,7 @@ function AppNavigator() {
     <NavigationContainer>
       <Stack.Navigator
         screenOptions={{
-          headerStyle: { backgroundColor: '#1A3D2B' },
+          headerStyle: { backgroundColor: '#0A0F3F' },
           headerTintColor: '#fff',
           headerTitleStyle: { fontWeight: '700' },
         }}

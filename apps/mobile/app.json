@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1A3D2B"
+      "backgroundColor": "#0A0F3F"
     },
     "ios": {
       "supportsTablet": false,
@@ -32,7 +32,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1A3D2B"
+        "backgroundColor": "#0A0F3F"
       },
       "package": "com.normeshaccp.app",
       "versionCode": 3,

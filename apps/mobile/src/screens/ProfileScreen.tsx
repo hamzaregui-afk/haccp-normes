@@ -98,7 +98,7 @@ ProfileScreen.displayName = 'ProfileScreen';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F0',
+    backgroundColor: '#F0F0F0',
   },
   content: {
     padding: 16,
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#2D6A4F',
+    backgroundColor: '#5AA4C8',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1A3D2B',
+    color: '#0A0F3F',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 12,
