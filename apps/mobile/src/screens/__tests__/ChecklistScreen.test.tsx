@@ -9,23 +9,21 @@
  *  - Mock react-navigation so navigation.navigate() can be asserted.
  *  - Wrap renders in QueryClientProvider.
  *
- * Key challenge — entries state:
- *  The component initialises `entries` as a side-effect inside the template
- *  queryFn (setEntries is called from within the async queryFn). Since we mock
- *  useQuery to return data directly, the queryFn never runs automatically.
- *  Solution: setupQueriesWithEntries() uses mockImplementationOnce for the
- *  template query and calls queryFn() manually. controlClient.get is given a
- *  resolved mock so the async function completes; waitFor then lets the React
- *  state update propagate before assertions.
+ * Entries state:
+ *  The screen fetches the task once (GET /controls/tasks/:id) and initialises its
+ *  checkpoint `entries` inside a useEffect from the returned checklist
+ *  (checklistSnapshot ?? template.checklistJson). setupLoadedTask() returns TASK
+ *  from the mocked useQuery; waitFor then lets the useEffect state update
+ *  propagate before assertions.
  *
  * Tests cover:
- *  - Loading states (task loading, template loading)
- *  - Error states (task error, template error)
+ *  - Loading state (task loading)
+ *  - Error state (task query fails → "Impossible de charger le contrôle.")
  *  - Section title and submit button rendered when loaded
  *  - Checkpoint descriptions, "✓ OK" / "✗ NOK" buttons, °C TextInputs rendered
  *  - "Incomplet" Alert shown when submit pressed with unanswered checkpoints
  *  - Mutation NOT called when checkpoints are incomplete
- *  - Mutation called with correct DONE payload when all checkpoints answered
+ *  - Mutation called with a TaskResultSchema-shaped payload when all answered
  *  - Submit button shows ActivityIndicator and is disabled when isPending
  *  - NC modal shown after success with at least one FAIL checkpoint
  *  - NC modal "Non" → Alert("Succès") shown
@@ -82,15 +80,19 @@ import { useAuthStore } from '../../store/authStore';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
-const TASK = {
-  id:         'task-001',
-  title:      'Contrôle réception viande',
-  templateId: 'tpl-001',
-};
+// The checklist is stored server-side as `checklistJson: ChecklistItem[]` and
+// echoed on the task as `checklistSnapshot`. GET /controls/tasks/:id returns both;
+// the screen reads snapshot-first, template.checklistJson as fallback.
+const CHECKLIST_ITEMS = [
+  { id: 'c1', label: 'Température viande',    type: 'TEMPERATURE', required: true, unit: '°C' },
+  { id: 'c2', label: 'Aspect visuel produit', type: 'BOOLEAN',     required: true },
+];
 
-const TEMPLATE = {
-  id:          'tpl-001',
-  checkpoints: ['Température viande', 'Aspect visuel produit'],
+const TASK = {
+  id:                'task-001',
+  templateId:        'tpl-001',
+  checklistSnapshot: CHECKLIST_ITEMS,
+  template:          { id: 'tpl-001', name: 'Contrôle réception viande', checklistJson: CHECKLIST_ITEMS },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -122,40 +124,17 @@ function renderScreen() {
 }
 
 /**
- * Configures useQuery mocks for a fully-loaded screen WITH entries populated.
+ * Configures the (single) task useQuery mock for a fully-loaded screen.
  *
- * The template useQuery mock invokes queryFn() so that the component's
- * setEntries() side-effect fires. controlClient.get must be mocked to return
- * the template data for the async queryFn to resolve cleanly.
+ * The screen now issues ONE request (GET /controls/tasks/:id) and initialises its
+ * checkpoint entries from the returned checklist inside a useEffect — no separate
+ * template fetch, no queryFn side-effect. A stable mockReturnValue is enough:
+ * setEntries() re-renders and re-invokes useQuery, which keeps returning TASK.
  *
  * NOTE: call this BEFORE setting up mockUseMutation, so it doesn't override it.
  */
-function setupQueriesWithEntries() {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { controlClient } = require('../../api/client') as {
-    controlClient: { get: jest.Mock };
-  };
-  controlClient.get.mockResolvedValue({ data: { data: TEMPLATE } });
-
-  // ARCH-DECISION: a STABLE implementation keyed by queryKey (not mockReturnValueOnce).
-  // The template queryFn calls setEntries(), which re-renders the component and
-  // re-invokes useQuery — "once" mocks would be exhausted and fall back to the
-  // default loading state, leaving the screen stuck on the spinner. We key on the
-  // queryKey instead and fire the template queryFn exactly once (entries init).
-  let tplFnFired = false;
-  mockUseQuery.mockImplementation(
-    (opts: { queryKey?: unknown[]; queryFn?: () => Promise<unknown> }) => {
-      const key = Array.isArray(opts?.queryKey) ? opts.queryKey[0] : undefined;
-      if (key === 'template') {
-        if (!tplFnFired) {
-          tplFnFired = true;
-          void opts.queryFn?.();
-        }
-        return qr(TEMPLATE);
-      }
-      return qr(TASK);
-    },
-  );
+function setupLoadedTask() {
+  mockUseQuery.mockReturnValue(qr(TASK));
 }
 
 // ── Suite ─────────────────────────────────────────────────────────────────────
@@ -196,14 +175,6 @@ describe('ChecklistScreen', () => {
     ).toBeTruthy();
   });
 
-  it('shows loading state while the template is loading (task already resolved)', () => {
-    mockUseQuery
-      .mockReturnValueOnce(qr(TASK))
-      .mockReturnValueOnce(qr(undefined, { isLoading: true }));
-    renderScreen();
-    expect(screen.getByText('Chargement…')).toBeTruthy();
-  });
-
   // ── Error states ──────────────────────────────────────────────────────────────
 
   it('shows "Impossible de charger le contrôle." when the task query fails', () => {
@@ -212,28 +183,16 @@ describe('ChecklistScreen', () => {
     expect(screen.getByText('Impossible de charger le contrôle.')).toBeTruthy();
   });
 
-  it('shows "Impossible de charger le contrôle." when the template query fails', () => {
-    mockUseQuery
-      .mockReturnValueOnce(qr(TASK))
-      .mockReturnValueOnce(qr(undefined, { isError: true }));
-    renderScreen();
-    expect(screen.getByText('Impossible de charger le contrôle.')).toBeTruthy();
-  });
-
   // ── Loaded structure ──────────────────────────────────────────────────────────
 
   it('renders the "Points de contrôle" section title when loaded', () => {
-    mockUseQuery
-      .mockReturnValueOnce(qr(TASK))
-      .mockReturnValueOnce(qr(TEMPLATE));
+    setupLoadedTask();
     renderScreen();
     expect(screen.getByText('Points de contrôle')).toBeTruthy();
   });
 
   it('renders the "Soumettre le contrôle" button when loaded', () => {
-    mockUseQuery
-      .mockReturnValueOnce(qr(TASK))
-      .mockReturnValueOnce(qr(TEMPLATE));
+    setupLoadedTask();
     renderScreen();
     expect(screen.getByText('Soumettre le contrôle')).toBeTruthy();
   });
@@ -241,7 +200,7 @@ describe('ChecklistScreen', () => {
   // ── Checkpoint rows ───────────────────────────────────────────────────────────
 
   it('renders checkpoint descriptions after entries are initialised', async () => {
-    setupQueriesWithEntries();
+    setupLoadedTask();
     mockUseMutation.mockReturnValue(mr());
     renderScreen();
 
@@ -252,39 +211,39 @@ describe('ChecklistScreen', () => {
   });
 
   it('renders a "✓ OK" button for each checkpoint', async () => {
-    setupQueriesWithEntries();
+    setupLoadedTask();
     mockUseMutation.mockReturnValue(mr());
     renderScreen();
 
     await waitFor(() => {
-      expect(screen.getAllByText('✓ OK')).toHaveLength(TEMPLATE.checkpoints.length);
+      expect(screen.getAllByText('✓ OK')).toHaveLength(CHECKLIST_ITEMS.length);
     });
   });
 
   it('renders a "✗ NOK" button for each checkpoint', async () => {
-    setupQueriesWithEntries();
+    setupLoadedTask();
     mockUseMutation.mockReturnValue(mr());
     renderScreen();
 
     await waitFor(() => {
-      expect(screen.getAllByText('✗ NOK')).toHaveLength(TEMPLATE.checkpoints.length);
+      expect(screen.getAllByText('✗ NOK')).toHaveLength(CHECKLIST_ITEMS.length);
     });
   });
 
   it('renders a temperature TextInput with "°C" placeholder for each checkpoint', async () => {
-    setupQueriesWithEntries();
+    setupLoadedTask();
     mockUseMutation.mockReturnValue(mr());
     renderScreen();
 
     await waitFor(() => {
-      expect(screen.getAllByPlaceholderText('°C')).toHaveLength(TEMPLATE.checkpoints.length);
+      expect(screen.getAllByPlaceholderText('°C')).toHaveLength(CHECKLIST_ITEMS.length);
     });
   });
 
   // ── Submit validation (incomplete) ────────────────────────────────────────────
 
   it('fires an "Incomplet" Alert when submit is pressed with unanswered checkpoints', async () => {
-    setupQueriesWithEntries();
+    setupLoadedTask();
     mockUseMutation.mockReturnValue(mr());
     renderScreen();
 
@@ -302,7 +261,7 @@ describe('ChecklistScreen', () => {
 
   it('does NOT call the mutation when checkpoints are incomplete', async () => {
     const mockMutate = jest.fn();
-    setupQueriesWithEntries();
+    setupLoadedTask();
     mockUseMutation.mockReturnValue(mr(mockMutate));
     renderScreen();
 
@@ -316,7 +275,7 @@ describe('ChecklistScreen', () => {
 
   it('calls mutation with status COMPLETED and PASS results when all checkpoints are answered', async () => {
     const mockMutate = jest.fn();
-    setupQueriesWithEntries();
+    setupLoadedTask();
     mockUseMutation.mockReturnValue(mr(mockMutate));
     renderScreen();
 
@@ -326,15 +285,18 @@ describe('ChecklistScreen', () => {
     screen.getAllByText('✓ OK').forEach((btn) => fireEvent.press(btn));
     fireEvent.press(screen.getByText('Soumettre le contrôle'));
 
+    // Backend TaskResultSchema shape: { submittedAt, submittedBy, overallCompliant, items[] }.
     expect(mockMutate).toHaveBeenCalledWith(
       expect.objectContaining({
         taskId: 'task-001',
         payload: expect.objectContaining({
           status: 'COMPLETED',
           resultJson: expect.objectContaining({
-            checkpoints: expect.arrayContaining([
-              expect.objectContaining({ description: 'Température viande',    result: 'PASS' }),
-              expect.objectContaining({ description: 'Aspect visuel produit', result: 'PASS' }),
+            overallCompliant: true,
+            submittedBy:      'u1',
+            items: expect.arrayContaining([
+              expect.objectContaining({ id: 'c1', label: 'Température viande',    value: true, compliant: true, required: true }),
+              expect.objectContaining({ id: 'c2', label: 'Aspect visuel produit', value: true, compliant: true, required: true }),
             ]),
           }),
         }),
@@ -344,7 +306,7 @@ describe('ChecklistScreen', () => {
 
   it('includes a completedAt ISO timestamp in the mutation payload', async () => {
     const mockMutate = jest.fn();
-    setupQueriesWithEntries();
+    setupLoadedTask();
     mockUseMutation.mockReturnValue(mr(mockMutate));
     renderScreen();
 
@@ -352,16 +314,17 @@ describe('ChecklistScreen', () => {
     screen.getAllByText('✓ OK').forEach((btn) => fireEvent.press(btn));
     fireEvent.press(screen.getByText('Soumettre le contrôle'));
 
-    const call = mockMutate.mock.calls[0]?.[0] as { payload?: { resultJson?: { completedAt?: string } } };
-    expect(call?.payload?.resultJson?.completedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    const call = mockMutate.mock.calls[0]?.[0] as {
+      payload?: { completedAt?: string; resultJson?: { submittedAt?: string } };
+    };
+    expect(call?.payload?.completedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(call?.payload?.resultJson?.submittedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
   // ── isPending state ───────────────────────────────────────────────────────────
 
   it('hides "Soumettre le contrôle" text and shows a spinner when the mutation is pending', () => {
-    mockUseQuery
-      .mockReturnValueOnce(qr(TASK))
-      .mockReturnValueOnce(qr(TEMPLATE));
+    setupLoadedTask();
     mockUseMutation.mockReturnValue(mr(jest.fn(), true /* isPending */));
     renderScreen();
 
@@ -380,7 +343,7 @@ describe('ChecklistScreen', () => {
   async function renderWithNCModalOpen() {
     let capturedOnSuccess: (() => void) | undefined;
 
-    setupQueriesWithEntries();
+    setupLoadedTask();
     mockUseMutation.mockImplementation(
       ({ onSuccess }: { onSuccess?: () => void; onError?: () => void }) => {
         capturedOnSuccess = onSuccess;
@@ -454,7 +417,7 @@ describe('ChecklistScreen', () => {
   it('shows an error Alert when the mutation fails', async () => {
     let capturedOnError: (() => void) | undefined;
 
-    setupQueriesWithEntries();
+    setupLoadedTask();
     mockUseMutation.mockImplementation(
       ({ onError }: { onSuccess?: () => void; onError?: () => void }) => {
         capturedOnError = onError;

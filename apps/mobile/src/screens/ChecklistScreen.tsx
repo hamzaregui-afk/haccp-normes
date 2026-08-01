@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { onlineManager, useQuery, useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,29 +21,80 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+// ARCH-DECISION: CheckpointType mirrors TaskResultItemSchema.type in
+// control-service exactly. The checklist is stored server-side as
+// `checklistJson: ChecklistItem[]` — NOT a `checkpoints: string[]` array. The
+// screen previously read a non-existent `checkpoints` field and called `.map()`
+// on `undefined`, which threw inside the queryFn and surfaced as
+// "Impossible de charger le contrôle." on every control.
+type CheckpointType =
+  | 'BOOLEAN' | 'NUMBER' | 'TEXT' | 'TEMPERATURE'
+  | 'PHOTO' | 'SIGNATURE' | 'DATE' | 'SELECT';
+
+const VALID_CHECKPOINT_TYPES: readonly CheckpointType[] = [
+  'BOOLEAN', 'NUMBER', 'TEXT', 'TEMPERATURE', 'PHOTO', 'SIGNATURE', 'DATE', 'SELECT',
+];
+
+interface ChecklistItem {
+  id: string;
+  label: string;
+  type: CheckpointType;
+  unit?: string;
+  min?: number;
+  max?: number;
+  required: boolean;
+}
+
 interface CheckpointEntry {
-  description: string;
+  id: string;
+  description: string;   // = ChecklistItem.label — shown in CheckpointRow
+  type: CheckpointType;
+  unit?: string;
+  min?: number;
+  max?: number;
+  required: boolean;
   temperature: string;
   result: 'PASS' | 'FAIL' | null;
 }
 
-interface ControlTemplate {
+interface ControlTaskDetail {
   id: string;
-  checkpoints: string[];
-}
-
-interface TemplateResponse {
-  data: ControlTemplate;
-}
-
-interface ControlTask {
-  id: string;
-  title: string;
   templateId: string;
+  // findOneTask includes the frozen snapshot AND the live template's checklistJson.
+  // Read order mirrors the web ChecklistExecutionModal: snapshot first, template fallback.
+  checklistSnapshot?: unknown;
+  template?: { id: string; name: string; checklistJson?: unknown };
 }
 
 interface TaskResponse {
-  data: ControlTask;
+  data: ControlTaskDetail;
+}
+
+// Pure parser — tolerates any raw JSON shape and never throws (mirrors the web
+// ChecklistEditorPage parsing). A malformed/empty checklist yields [] rather than
+// crashing the screen.
+function parseChecklist(raw: unknown): ChecklistItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((entry, i) => {
+    const r = (entry ?? {}) as Record<string, unknown>;
+    const label =
+      typeof r['label'] === 'string'
+        ? r['label']
+        : typeof r['description'] === 'string'
+          ? r['description']
+          : '';
+    return {
+      id:       typeof r['id'] === 'string' ? r['id'] : `item-${i}`,
+      label,
+      type:     VALID_CHECKPOINT_TYPES.includes(r['type'] as CheckpointType)
+        ? (r['type'] as CheckpointType)
+        : 'TEXT',
+      unit:     typeof r['unit'] === 'string' ? r['unit'] : undefined,
+      min:      typeof r['min'] === 'number' ? r['min'] : undefined,
+      max:      typeof r['max'] === 'number' ? r['max'] : undefined,
+      required: r['required'] !== false,
+    };
+  });
 }
 
 // ── CheckpointRow ─────────────────────────────────────────────────────────────
@@ -106,11 +157,14 @@ export function ChecklistScreen({ route, navigation }: Props) {
   const canExecute = ['OPERATOR', 'ADMIN', 'MANAGER', 'SUPER_ADMIN'].includes(user?.role ?? '');
   const { taskId } = route.params;
   const [entries, setEntries] = useState<CheckpointEntry[]>([]);
-  const [templateLoaded, setTemplateLoaded] = useState(false);
+  const [initialised, setInitialised] = useState(false);
   const [showNCModal, setShowNCModal] = useState(false);
 
-  // Fetch the task to get templateId
-  const { data: task, isLoading: taskLoading, isError: taskError } = useQuery<ControlTask>({
+  // ARCH-DECISION: a single request. GET /controls/tasks/:id already includes the
+  // frozen `checklistSnapshot` AND the live `template.checklistJson`, so no separate
+  // template fetch is needed (mirrors the web ChecklistExecutionModal). This also
+  // removes the second request that previously read a non-existent field and 403/500'd.
+  const { data: task, isLoading, isError } = useQuery<ControlTaskDetail>({
     queryKey: ['task', taskId],
     queryFn: async () => {
       const res = await controlClient.get<TaskResponse>(`/api/v1/controls/tasks/${taskId}`);
@@ -118,23 +172,26 @@ export function ChecklistScreen({ route, navigation }: Props) {
     },
   });
 
-  // Fetch the template checkpoints once we have the task
-  const { isLoading: tplLoading, isError: tplError } = useQuery<ControlTemplate>({
-    queryKey: ['template', task?.templateId],
-    enabled: !!task?.templateId && !templateLoaded,
-    queryFn: async () => {
-      const res = await controlClient.get<TemplateResponse>(
-        `/api/v1/controls/templates/${task!.templateId}`,
-      );
-      const tpl = res.data.data;
-      // Initialise entries from template checkpoints
-      setEntries(
-        tpl.checkpoints.map((desc) => ({ description: desc, temperature: '', result: null })),
-      );
-      setTemplateLoaded(true);
-      return tpl;
-    },
-  });
+  // Initialise checkpoint entries once, from the task's checklist (snapshot first,
+  // live template as fallback). parseChecklist never throws on a malformed shape.
+  useEffect(() => {
+    if (!task || initialised) return;
+    const checklist = parseChecklist(task.checklistSnapshot ?? task.template?.checklistJson);
+    setEntries(
+      checklist.map((it) => ({
+        id:          it.id,
+        description: it.label,
+        type:        it.type,
+        unit:        it.unit,
+        min:         it.min,
+        max:         it.max,
+        required:    it.required,
+        temperature: '',
+        result:      null,
+      })),
+    );
+    setInitialised(true);
+  }, [task, initialised]);
 
   // ARCH-DECISION: mutationFn registered in queryClient.ts under
   // MUTATION_KEYS.controlSubmit so a completion done offline is paused,
@@ -167,21 +224,35 @@ export function ChecklistScreen({ route, navigation }: Props) {
       return;
     }
     const now = new Date().toISOString();
+    // ARCH-DECISION: resultJson MUST satisfy the backend TaskResultSchema
+    // ({ submittedAt, submittedBy, overallCompliant, items[] }). The screen
+    // previously sent { checkpoints, completedAt }, which Zod rejected with 400 —
+    // completions silently failed. overallCompliant = every REQUIRED item passed
+    // (matches the web execution modal); it drives the backend's auto-NC event.
+    const overallCompliant = entries.filter((e) => e.required).every((e) => e.result === 'PASS');
     submitMutation.mutate({
       taskId,
       payload: {
-        // ARCH-DECISION: 'COMPLETED' is the canonical status per TaskStatusSchema.
-        // The screen previously sent 'DONE' which Zod rejected with 400, leaving
-        // tasks never marked complete and the compliance KPI stuck at 0%.
+        // 'COMPLETED' is the canonical status per TaskStatusSchema.
         status: 'COMPLETED',
         completedAt: now,
         resultJson: {
-          checkpoints: entries.map((e) => ({
-            description: e.description,
-            temperature: e.temperature,
-            result: e.result,
+          submittedAt:      now,
+          submittedBy:      user?.sub ?? '',
+          overallCompliant,
+          items: entries.map((e) => ({
+            id:           e.id,
+            label:        e.description,
+            type:         e.type,
+            // PASS → true / FAIL → false / unanswered → null (schema allows null).
+            value:        e.result === null ? null : e.result === 'PASS',
+            unit:         e.unit,
+            min:          e.min,
+            max:          e.max,
+            compliant:    e.result === 'PASS',
+            required:     e.required,
+            measuredTemp: e.temperature || undefined,
           })),
-          completedAt: now,
         },
       },
     });
@@ -208,9 +279,6 @@ export function ChecklistScreen({ route, navigation }: Props) {
       { text: t('common.ok'), onPress: () => navigation.navigate('Main') },
     ]);
   };
-
-  const isLoading = taskLoading || tplLoading;
-  const isError = taskError || tplError;
 
   if (isLoading) {
     return (
