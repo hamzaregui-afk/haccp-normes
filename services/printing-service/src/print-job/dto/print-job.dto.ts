@@ -16,6 +16,12 @@ export const CreatePrintJobSchema = z.object({
   payload: z.record(z.unknown()),
   /** Number of copies to print. Defaults to 1. */
   copies: z.coerce.number().int().min(1).max(99).default(1),
+  // ── Context for automatic printer routing (PrinterAssignment.resolve) ─────────
+  // Used ONLY when no explicit printerId is given. All optional; when absent,
+  // resolution falls back to the tenant's default printer (previous behaviour).
+  zoneId: z.string().min(1).optional(),
+  siteId: z.string().min(1).optional(),
+  module: z.string().min(1).max(50).optional(),
 });
 
 export type CreatePrintJobDto = z.infer<typeof CreatePrintJobSchema>;

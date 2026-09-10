@@ -1,11 +1,12 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { toApiResponse, toPaginationMeta } from '@haccp/shared-types';
 import { publishDomainEvent } from '@haccp/shared-utils';
 import { PrismaService } from '../prisma/prisma.service';
 import { PrinterService } from '../printer/printer.service';
+import { PrinterAssignmentService } from '../printer-assignment/printer-assignment.service';
 import { TemplateService } from '../template/template.service';
 import { generateDlcZpl, renderTemplate, type LabelMedia } from '../printer/zpl.generator';
-import { sendZplOverTcp } from '../printer/tcp.printer';
+import { selectPrintProvider } from './providers';
 import type { CreatePrintJobDto, PrintJobQuery } from './dto/print-job.dto';
 import { Prisma } from '@prisma/client';
 import type { Printer } from '@prisma/client';
@@ -15,9 +16,10 @@ export class PrintJobService {
   private readonly logger = new Logger(PrintJobService.name);
 
   constructor(
-    private readonly prisma:    PrismaService,
-    private readonly printers:  PrinterService,
-    private readonly templates: TemplateService,
+    private readonly prisma:      PrismaService,
+    private readonly printers:    PrinterService,
+    private readonly assignments: PrinterAssignmentService,
+    private readonly templates:   TemplateService,
   ) {}
 
   // ── Public API ────────────────────────────────────────────────────────────────
@@ -73,10 +75,20 @@ export class PrintJobService {
    * so there is always an audit trail even if the printer is offline.
    */
   async create(dto: CreatePrintJobDto, tenantId: string, userId: string) {
-    // Resolve printer (explicit or default)
+    // Resolve the target printer:
+    //  • explicit printerId → that printer (tenant-scoped);
+    //  • otherwise → context-aware routing via PrinterAssignment.resolve
+    //    (ZONE > SITE > USER > MODULE), which falls back to the tenant's default
+    //    printer. Callers passing no context get the default printer — i.e. the
+    //    previous behaviour — so there is zero regression until assignments exist.
     const printer = dto.printerId
       ? (await this.printers.findOne(dto.printerId, tenantId)).data
-      : await this.printers.findDefault(tenantId);
+      : (await this.assignments.resolve(tenantId, {
+          zoneId: dto.zoneId,
+          siteId: dto.siteId,
+          userId,
+          module: dto.module,
+        })).data;
 
     // Create the job record in PENDING state
     const job = await this.prisma.printJob.create({
@@ -155,6 +167,26 @@ export class PrintJobService {
     status:       'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED',
     errorMessage?: string,
   ) {
+    // ── ATOMIC CLAIM ──────────────────────────────────────────────────────────
+    // The PENDING→PROCESSING transition is how the Local Print Agent CLAIMS a
+    // parked job. Guard it with a conditional updateMany (status: 'PENDING') so
+    // two agents polling the same printer cannot both claim and double-print —
+    // exactly one wins the row; the loser gets 409 Conflict.
+    if (status === 'PROCESSING') {
+      const claimed = await this.prisma.printJob.updateMany({
+        where: { id, tenantId, status: 'PENDING' },
+        data:  { status: 'PROCESSING' },
+      });
+      if (claimed.count === 0) {
+        const exists = await this.prisma.printJob.findFirst({
+          where: { id, tenantId }, select: { id: true },
+        });
+        if (!exists) throw new NotFoundException(`Tâche d'impression ${id} introuvable`);
+        throw new ConflictException('Tâche déjà réclamée par un autre agent');
+      }
+      return toApiResponse(null, undefined, 'Tâche réclamée');
+    }
+
     const existing = await this.prisma.printJob.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException(`Tâche d'impression ${id} introuvable`);
 
@@ -206,21 +238,35 @@ export class PrintJobService {
     let zpl: string;
 
     try {
-      // ── Step 2: Generate / render ZPL ──────────────────────────────────────
-      zpl = await this.resolveZpl(dto, tenantId);
+      // ── Step 2: Generate / render the ZPL (media sized to the resolved printer) ─
+      zpl = await this.resolveZpl(dto, tenantId, printer?.id);
 
-      // ── Non-TCP printers are served OUT-OF-BAND by a pulling client ───────────
-      // ARCH-DECISION: USB and BLUETOOTH printers are not reachable directly from
-      // the server. A client PULLS the stored ZPL, prints locally, then acks the
-      // job (→ COMPLETED) via PATCH /print-jobs/:id:
-      //   • USB       → the Local Print Agent on the client PC
-      //   • BLUETOOTH → the mobile app's native BT relay (Lot 7)
-      // We store the ZPL and LEAVE the job PENDING so that client can claim it.
-      // We must NEVER mark these COMPLETED here: there is no proof the label
-      // physically printed, and a false "Imprimé" corrupts the HACCP audit trail.
-      // (This replaces the old code that auto-completed Bluetooth jobs for a
-      // "mobile relay" that does not yet exist — an audit-integrity bug.)
-      if (printer && (printer.connectionType === 'USB' || printer.connectionType === 'BLUETOOTH')) {
+      // ── Step 3: Select the transport PROVIDER and dispatch ────────────────────
+      // ARCH-DECISION: a provider strategy replaces the old `if (connectionType)`
+      // ladder, so new backends (PrintNode = Lot 3) slot in without touching this
+      // method. Providers never touch the DB — we persist the outcome + event here.
+      const provider = selectPrintProvider(printer);
+
+      // No printer / no supporting provider → genuinely unprintable → FAILED
+      // (never a false success — HACCP audit integrity).
+      if (!provider || !printer) {
+        await this.prisma.printJob.update({
+          where: { id: jobId, tenantId },
+          data:  { status: 'FAILED', zpl, errorMessage: 'Aucune imprimante configurée pour ce contrôle' },
+        });
+        void publishDomainEvent({
+          eventType: 'printing.job.failed.v1',
+          tenantId,
+          payload:   { jobId, error: 'no_printer_configured' },
+        });
+        return;
+      }
+
+      const result = await provider.dispatch({ jobId, tenantId, printer, zpl });
+
+      if (result.outcome === 'PENDING') {
+        // Parked for an out-of-band pulling client (agent / BT relay). Store the
+        // ZPL and LEAVE PENDING — never COMPLETED here.
         await this.prisma.printJob.update({
           where: { id: jobId, tenantId },
           data:  { status: 'PENDING', zpl },
@@ -228,29 +274,20 @@ export class PrintJobService {
         return;
       }
 
-      // ── Unprintable configuration → explicit FAILURE (never a false success) ──
-      // No printer at all, or a NETWORK printer with no IP address. Keep the ZPL
-      // for retry/diagnosis and surface a clear, honest error to the operator.
-      if (!printer || printer.connectionType !== 'NETWORK' || !printer.ipAddress) {
-        const errorMessage = !printer
-          ? 'Aucune imprimante configurée pour ce contrôle'
-          : 'Imprimante réseau sans adresse IP configurée';
+      if (result.outcome === 'FAILED') {
         await this.prisma.printJob.update({
           where: { id: jobId, tenantId },
-          data:  { status: 'FAILED', zpl, errorMessage },
+          data:  { status: 'FAILED', zpl, errorMessage: result.errorMessage },
         });
         void publishDomainEvent({
           eventType: 'printing.job.failed.v1',
           tenantId,
-          payload:   { jobId, error: 'unprintable_printer_configuration' },
+          payload:   { jobId, error: result.errorMessage },
         });
         return;
       }
 
-      // ── Step 3: NETWORK printer → send ZPL over TCP ───────────────────────────
-      await sendZplOverTcp(printer.ipAddress, printer.port, zpl);
-
-      // ── Step 4: Mark completed ────────────────────────────────────────────
+      // ── COMPLETED (synchronous transport, e.g. network TCP) ───────────────────
       await this.prisma.printJob.update({
         where: { id: jobId, tenantId },
         data:  { status: 'COMPLETED', zpl, printedAt: new Date() },
@@ -259,7 +296,7 @@ export class PrintJobService {
       void publishDomainEvent({
         eventType: 'printing.job.completed.v1',
         tenantId,
-        payload:   { jobId, printerId: printer.id },
+        payload:   { jobId, printerId: printer.id, provider: provider.name },
       });
 
     } catch (err: unknown) {
@@ -331,7 +368,11 @@ export class PrintJobService {
    *  3. Otherwise → look up the default template for this labelType and render.
    *  4. If no template found → serialize payload as a minimal fallback label.
    */
-  private async resolveZpl(dto: CreatePrintJobDto, tenantId: string): Promise<string> {
+  private async resolveZpl(
+    dto: CreatePrintJobDto,
+    tenantId: string,
+    resolvedPrinterId?: string,
+  ): Promise<string> {
     const payload = dto.payload;
 
     // ── Explicit template ──────────────────────────────────────────────────────
@@ -346,7 +387,9 @@ export class PrintJobService {
 
     // ── Built-in DLC generator ────────────────────────────────────────────────
     if (dto.labelType === 'DLC') {
-      const media = await this.resolveMedia(dto.printerId, tenantId);
+      // Size the label to the actually-resolved printer's media profile (falls
+      // back to dto.printerId, then the tenant default) — not just dto.printerId.
+      const media = await this.resolveMedia(resolvedPrinterId ?? dto.printerId, tenantId);
       return generateDlcZpl(
         {
           productName: String(payload['productName'] ?? ''),

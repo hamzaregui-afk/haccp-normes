@@ -1,7 +1,9 @@
+import { ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrintJobService } from '../print-job.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PrinterService } from '../../printer/printer.service';
+import { PrinterAssignmentService } from '../../printer-assignment/printer-assignment.service';
 import { TemplateService } from '../../template/template.service';
 import type { CreatePrintJobDto } from '../dto/print-job.dto';
 
@@ -35,19 +37,21 @@ const DLC_DTO: CreatePrintJobDto = {
 };
 
 describe('PrintJobService — execution status (HACCP audit integrity)', () => {
-  let service:   PrintJobService;
-  let prisma:    ReturnType<typeof makePrisma>;
-  let printers:  { findOne: jest.Mock; findDefault: jest.Mock };
-  let templates: { findDefaultForType: jest.Mock };
+  let service:     PrintJobService;
+  let prisma:      ReturnType<typeof makePrisma>;
+  let printers:    { findOne: jest.Mock; findDefault: jest.Mock };
+  let assignments: { resolve: jest.Mock };
+  let templates:   { findDefaultForType: jest.Mock };
 
   function makePrisma() {
     return {
       printJob: {
-        create:    jest.fn().mockResolvedValue({ id: 'job1', status: 'PENDING' }),
-        update:    jest.fn().mockResolvedValue({}),
-        findFirst: jest.fn(),
-        findMany:  jest.fn(),
-        count:     jest.fn(),
+        create:     jest.fn().mockResolvedValue({ id: 'job1', status: 'PENDING' }),
+        update:     jest.fn().mockResolvedValue({}),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findFirst:  jest.fn(),
+        findMany:   jest.fn(),
+        count:      jest.fn(),
       },
       printer:      { findFirst: jest.fn().mockResolvedValue(null) },
       mediaProfile: { findFirst: jest.fn().mockResolvedValue(null) },
@@ -55,16 +59,18 @@ describe('PrintJobService — execution status (HACCP audit integrity)', () => {
   }
 
   beforeEach(async () => {
-    prisma    = makePrisma();
-    printers  = { findOne: jest.fn(), findDefault: jest.fn() };
-    templates = { findDefaultForType: jest.fn().mockResolvedValue(null) };
+    prisma      = makePrisma();
+    printers    = { findOne: jest.fn(), findDefault: jest.fn() };
+    assignments = { resolve: jest.fn().mockResolvedValue({ data: null }) };
+    templates   = { findDefaultForType: jest.fn().mockResolvedValue(null) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PrintJobService,
-        { provide: PrismaService,   useValue: prisma    as unknown as PrismaService },
-        { provide: PrinterService,  useValue: printers  as unknown as PrinterService },
-        { provide: TemplateService, useValue: templates as unknown as TemplateService },
+        { provide: PrismaService,            useValue: prisma      as unknown as PrismaService },
+        { provide: PrinterService,           useValue: printers    as unknown as PrinterService },
+        { provide: PrinterAssignmentService, useValue: assignments as unknown as PrinterAssignmentService },
+        { provide: TemplateService,          useValue: templates   as unknown as TemplateService },
       ],
     }).compile();
 
@@ -103,9 +109,9 @@ describe('PrintJobService — execution status (HACCP audit integrity)', () => {
     expect(lastStatus()).toBe('PENDING');
   });
 
-  it('no printer configured → FAILED, never a false COMPLETED', async () => {
+  it('no printer resolved → FAILED, never a false COMPLETED', async () => {
     const { printerId: _omit, ...noPrinterDto } = DLC_DTO;
-    printers.findDefault.mockResolvedValue(null);
+    assignments.resolve.mockResolvedValue({ data: null }); // no assignment, no tenant default
     await service.create(noPrinterDto, 't1', 'u1');
     await flush();
     expect(lastStatus()).toBe('FAILED');
@@ -116,5 +122,40 @@ describe('PrintJobService — execution status (HACCP audit integrity)', () => {
     await service.create(DLC_DTO, 't1', 'u1');
     await flush();
     expect(lastStatus()).toBe('FAILED');
+  });
+
+  it('no explicit printer → routes via PrinterAssignment.resolve (context-aware)', async () => {
+    // A resolved NETWORK printer prints synchronously → COMPLETED, proving the
+    // assignment resolver (zone/site/user/module) is wired into job creation.
+    assignments.resolve.mockResolvedValue({ data: { ...basePrinter, connectionType: 'NETWORK' } });
+    const { printerId: _omit, ...ctxDto } = DLC_DTO;
+    await service.create({ ...ctxDto, zoneId: 'zone-1' } as CreatePrintJobDto, 't1', 'u1');
+    await flush();
+    expect(assignments.resolve).toHaveBeenCalledWith(
+      't1',
+      expect.objectContaining({ zoneId: 'zone-1', userId: 'u1' }),
+    );
+    expect(sendZplOverTcp).toHaveBeenCalled();
+    expect(lastStatus()).toBe('COMPLETED');
+  });
+
+  // ── Atomic claim (Local Print Agent) ────────────────────────────────────────
+  describe('updateStatus — atomic claim', () => {
+    it('PENDING→PROCESSING claims via a conditional updateMany (winner)', async () => {
+      prisma.printJob.updateMany.mockResolvedValue({ count: 1 });
+      await expect(service.updateStatus('job1', 't1', 'PROCESSING')).resolves.toBeDefined();
+      expect(prisma.printJob.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ id: 'job1', tenantId: 't1', status: 'PENDING' }),
+        }),
+      );
+    });
+
+    it('a second claimant (updateMany count=0, job exists) gets a Conflict', async () => {
+      prisma.printJob.updateMany.mockResolvedValue({ count: 0 });
+      prisma.printJob.findFirst.mockResolvedValue({ id: 'job1' });
+      await expect(service.updateStatus('job1', 't1', 'PROCESSING'))
+        .rejects.toBeInstanceOf(ConflictException);
+    });
   });
 });
