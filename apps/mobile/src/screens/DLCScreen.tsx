@@ -288,7 +288,7 @@ export function DLCScreen(_props: Props) {
   const printers       = printersData ?? [];
   const defaultPrinter = printers.find((p) => p.isDefault) ?? printers[0];
   const effectivePrinterId = selectedPrinterId || defaultPrinter?.id || '';
-  const selectedPrinterName = printers.find((p) => p.id === effectivePrinterId)?.name ?? 'Aucune imprimante';
+  const selectedPrinterName = printers.find((p) => p.id === effectivePrinterId)?.name ?? t('dlc.noPrinterAvailable');
 
   const handleCalculateAndPrint = async () => {
     // Basic validation
@@ -493,8 +493,9 @@ export function DLCScreen(_props: Props) {
         )}
       </TouchableOpacity>
 
-      {/* Printer selector */}
-      <Text style={styles.label}>Imprimante réseau</Text>
+      {/* Printer selector — prints via the backend to whatever provider the
+          selected printer uses (PrintNode / réseau / agent local). */}
+      <Text style={styles.label}>{t('dlc.printerLabel')}</Text>
       <TouchableOpacity
         style={styles.printerSelector}
         onPress={() => setShowPrinterPicker(true)}
@@ -502,7 +503,7 @@ export function DLCScreen(_props: Props) {
       >
         <Text style={styles.printerSelectorIcon}>🖨️</Text>
         <Text style={styles.printerSelectorText} numberOfLines={1}>
-          {effectivePrinterId ? selectedPrinterName : 'Appuyer pour sélectionner…'}
+          {effectivePrinterId ? selectedPrinterName : t('dlc.selectPrinterHint')}
         </Text>
         <Text style={styles.printerSelectorChevron}>›</Text>
       </TouchableOpacity>
@@ -517,7 +518,7 @@ export function DLCScreen(_props: Props) {
           <ActivityIndicator color="#0A0F3F" />
         ) : (
           <>
-            <Text style={styles.networkPrintBtnIcon}>🔌</Text>
+            <Text style={styles.networkPrintBtnIcon}>🖨️</Text>
             <Text style={styles.networkPrintBtnText}>{t('dlc.printNetwork')}</Text>
           </>
         )}
