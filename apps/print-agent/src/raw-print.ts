@@ -1,6 +1,6 @@
 import net from 'net';
 import os from 'os';
-import { execSync } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
 import { log } from './logger';
 
 export interface PrinterInfo {
@@ -79,8 +79,11 @@ export function sendZplToWindowsPrinter(printerName: string, zpl: string): void 
   const tmp = require('os').tmpdir() as string;
   const file = `${tmp}\\haccp_label_${Date.now()}.zpl`;
   fs.writeFileSync(file, zpl, 'binary');
-  // RAW printing via print command — works with most ZPL-compatible drivers
-  execSync(`print /D:"${printerName}" "${file}"`, { timeout: 10_000 });
+  // RAW printing via print command — works with most ZPL-compatible drivers.
+  // SECURITY: use execFileSync (no shell) and pass the printer name as a distinct
+  // argv token, so a crafted printer name (quotes/&/backticks) cannot inject a
+  // shell command on the client host. The name comes from admin-editable data.
+  execFileSync('print', [`/D:${printerName}`, file], { timeout: 10_000 });
   try { fs.unlinkSync(file); } catch { /* best-effort cleanup */ }
 }
 
@@ -91,6 +94,8 @@ export function sendZplToLinuxPrinter(printerName: string, zpl: string): void {
   const tmp  = require('os').tmpdir() as string;
   const file = `${tmp}/haccp_label_${Date.now()}.zpl`;
   writeFileSync(file, zpl, 'binary');
-  execSync(`lpr -P "${printerName}" -o raw "${file}"`, { timeout: 10_000 });
+  // SECURITY: execFileSync (no shell) with the printer name as a distinct arg —
+  // prevents shell-command injection via a crafted printer name.
+  execFileSync('lpr', ['-P', printerName, '-o', 'raw', file], { timeout: 10_000 });
   try { unlinkSync(file); } catch { /* best-effort */ }
 }

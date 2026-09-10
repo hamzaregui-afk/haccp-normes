@@ -176,7 +176,7 @@ export default function PrintJobsPage() {
 
             {meta && meta.lastPage > 1 && (
               <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3">
-                <p className="text-sm text-gray-500">{meta.total} travail{meta.total > 1 ? 'x' : ''}</p>
+                <p className="text-sm text-gray-500">{meta.total} tâche{meta.total > 1 ? 's' : ''}</p>
                 <div className="flex gap-2">
                   <Button size="sm" variant="ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
                     {t('common.previous')}

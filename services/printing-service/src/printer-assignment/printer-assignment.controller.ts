@@ -24,7 +24,8 @@ import {
   ResolvePrinterQuerySchema,
 } from './dto/printer-assignment.dto';
 
-const ADMIN_ROLES = ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] as const;
+// RBAC matrix: printer/settings management = ADMIN/SUPER_ADMIN only (MANAGER excluded).
+const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN'] as const;
 const READ_ROLES  = ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'OPERATOR', 'VIEWER'] as const;
 
 @ApiTags('printer-assignments')

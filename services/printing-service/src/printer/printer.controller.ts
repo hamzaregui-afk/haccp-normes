@@ -19,7 +19,9 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { PrinterService } from './printer.service';
 import { CreatePrinterSchema, UpdatePrinterSchema, PrinterQuerySchema } from './dto/printer.dto';
 
-const ADMIN_ROLES  = ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] as const;
+// RBAC matrix: printer/settings management = ADMIN/SUPER_ADMIN only (MANAGER excluded,
+// matching template.controller.ts). MANAGER manages controls/groups, not infrastructure.
+const ADMIN_ROLES  = ['ADMIN', 'SUPER_ADMIN'] as const;
 const READ_ROLES   = ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'OPERATOR', 'VIEWER'] as const;
 
 @ApiTags('printers')

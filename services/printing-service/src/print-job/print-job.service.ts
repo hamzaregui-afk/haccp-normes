@@ -38,7 +38,19 @@ export class PrintJobService {
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
-        include: { printer: { select: { id: true, name: true, ipAddress: true } } },
+        // ARCH-DECISION: the Local Print Agent polls this list endpoint and branches
+        // on printer.connectionType + printer.port to decide how to print. Those
+        // fields MUST be projected here — previously only {id,name,ipAddress} were
+        // returned, so the agent read connectionType=undefined and threw
+        // "Unsupported connection type" on EVERY job (nothing ever printed on USB).
+        include: {
+          printer: {
+            select: {
+              id: true, name: true, ipAddress: true,
+              port: true, connectionType: true, protocol: true, connection: true,
+            },
+          },
+        },
       }),
       this.prisma.printJob.count({ where }),
     ]);
@@ -197,40 +209,45 @@ export class PrintJobService {
       // ── Step 2: Generate / render ZPL ──────────────────────────────────────
       zpl = await this.resolveZpl(dto, tenantId);
 
-      if (!printer || printer.connectionType !== 'NETWORK' || !printer.ipAddress) {
-        // ── USB → served by the LOCAL PRINT AGENT ──────────────────────────────
-        // ARCH-DECISION: The agent polls PENDING jobs (?status=PENDING), claims them
-        // (→ PROCESSING), prints the stored ZPL over USB, then acks (→ COMPLETED).
-        // The previous code marked USB jobs COMPLETED here immediately, so the agent
-        // (which only fetches PENDING) NEVER saw them and nothing ever printed on USB
-        // — a false "terminé" status (audit MAJOR). Fix: store the ZPL and LEAVE the
-        // job PENDING so the agent can claim, print, and complete it.
-        if (printer && printer.connectionType === 'USB') {
-          await this.prisma.printJob.update({
-            where: { id: jobId, tenantId },
-            data:  { status: 'PENDING', zpl },
-          });
-          return;
-        }
-
-        // ── Bluetooth / unconfigured → mobile relay ────────────────────────────
-        // The mobile client fetches the stored ZPL and pushes it to the device over
-        // Bluetooth, so the server-side leg is done: store the ZPL and mark COMPLETED.
+      // ── Non-TCP printers are served OUT-OF-BAND by a pulling client ───────────
+      // ARCH-DECISION: USB and BLUETOOTH printers are not reachable directly from
+      // the server. A client PULLS the stored ZPL, prints locally, then acks the
+      // job (→ COMPLETED) via PATCH /print-jobs/:id:
+      //   • USB       → the Local Print Agent on the client PC
+      //   • BLUETOOTH → the mobile app's native BT relay (Lot 7)
+      // We store the ZPL and LEAVE the job PENDING so that client can claim it.
+      // We must NEVER mark these COMPLETED here: there is no proof the label
+      // physically printed, and a false "Imprimé" corrupts the HACCP audit trail.
+      // (This replaces the old code that auto-completed Bluetooth jobs for a
+      // "mobile relay" that does not yet exist — an audit-integrity bug.)
+      if (printer && (printer.connectionType === 'USB' || printer.connectionType === 'BLUETOOTH')) {
         await this.prisma.printJob.update({
           where: { id: jobId, tenantId },
-          data:  { status: 'COMPLETED', zpl, printedAt: new Date() },
+          data:  { status: 'PENDING', zpl },
         });
-
-        void publishDomainEvent({
-          eventType: 'printing.job.completed.v1',
-          tenantId,
-          payload:   { jobId, channel: 'mobile-relay' },
-        });
-
         return;
       }
 
-      // ── Step 3: Send over TCP ─────────────────────────────────────────────
+      // ── Unprintable configuration → explicit FAILURE (never a false success) ──
+      // No printer at all, or a NETWORK printer with no IP address. Keep the ZPL
+      // for retry/diagnosis and surface a clear, honest error to the operator.
+      if (!printer || printer.connectionType !== 'NETWORK' || !printer.ipAddress) {
+        const errorMessage = !printer
+          ? 'Aucune imprimante configurée pour ce contrôle'
+          : 'Imprimante réseau sans adresse IP configurée';
+        await this.prisma.printJob.update({
+          where: { id: jobId, tenantId },
+          data:  { status: 'FAILED', zpl, errorMessage },
+        });
+        void publishDomainEvent({
+          eventType: 'printing.job.failed.v1',
+          tenantId,
+          payload:   { jobId, error: 'unprintable_printer_configuration' },
+        });
+        return;
+      }
+
+      // ── Step 3: NETWORK printer → send ZPL over TCP ───────────────────────────
       await sendZplOverTcp(printer.ipAddress, printer.port, zpl);
 
       // ── Step 4: Mark completed ────────────────────────────────────────────
