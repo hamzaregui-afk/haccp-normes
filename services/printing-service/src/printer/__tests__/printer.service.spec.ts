@@ -126,6 +126,22 @@ describe('PrinterService', () => {
         }),
       );
     });
+
+    it('recordHeartbeat sets ONLINE + lastActivityAt, tenant-scoped', async () => {
+      prismaMock.printer.updateMany.mockResolvedValue({ count: 1 });
+      await service.recordHeartbeat('p1', 'cltenant00000000000000000001');
+      const arg = prismaMock.printer.updateMany.mock.calls[0][0] as {
+        where: Record<string, unknown>; data: Record<string, unknown>;
+      };
+      expect(arg.where).toEqual({ id: 'p1', tenantId: 'cltenant00000000000000000001' });
+      expect(arg.data.connectionStatus).toBe('ONLINE');
+      expect(arg.data.lastActivityAt).toBeInstanceOf(Date);
+    });
+
+    it('recordHeartbeat throws NotFound for a foreign printer (0 rows updated)', async () => {
+      prismaMock.printer.updateMany.mockResolvedValue({ count: 0 });
+      await expect(service.recordHeartbeat('pX', 't1')).rejects.toBeInstanceOf(NotFoundException);
+    });
   });
 
   // ── findAll ───────────────────────────────────────────────────────────────────

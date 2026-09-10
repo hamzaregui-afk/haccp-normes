@@ -23,6 +23,8 @@ import { CreatePrinterSchema, UpdatePrinterSchema, PrinterQuerySchema } from './
 // matching template.controller.ts). MANAGER manages controls/groups, not infrastructure.
 const ADMIN_ROLES  = ['ADMIN', 'SUPER_ADMIN'] as const;
 const READ_ROLES   = ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'OPERATOR', 'VIEWER'] as const;
+// Heartbeat is sent by the Local Print Agent, which authenticates as OPERATOR.
+const HEARTBEAT_ROLES = ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'OPERATOR'] as const;
 
 @ApiTags('printers')
 @ApiBearerAuth()
@@ -109,6 +111,15 @@ export class PrinterController {
     }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
+  }
+
+  // PATCH /printers/:id/heartbeat — Local Print Agent reports it is online.
+  // Updates connectionStatus + lastActivityAt; no audit (high volume, low value).
+  @Patch(':id/heartbeat')
+  @Roles(...HEARTBEAT_ROLES)
+  @ApiOperation({ summary: 'Report printer liveness (Local Print Agent heartbeat)' })
+  heartbeat(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.printerService.recordHeartbeat(id, user.tenantId);
   }
 
   // DELETE /printers/:id

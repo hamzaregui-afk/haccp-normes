@@ -40,6 +40,8 @@ interface Printer {
   provider:             string | null;
   providerComputerId:   number | null;
   printNodePrinterId:   number | null;
+  connectionStatus:     string | null;
+  lastActivityAt:       string | null;
   defaultMediaProfileId:string | null;
   tenantId:             string;
   createdAt:            string;
@@ -641,7 +643,11 @@ export default function PrintersPage() {
                       <td className="px-4 py-3 font-mono text-xs text-gray-500">{target}</td>
                       <td className="px-4 py-3 text-xs text-gray-600">{siteLabel}{zoneLabel ? ` › ${zoneLabel}` : ''}</td>
                       <td className="px-4 py-3">
-                        {p.isActive ? (
+                        {p.lastActivityAt && Date.now() - new Date(p.lastActivityAt).getTime() < 180_000 ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                            <CheckCircle2 className="h-3 w-3" /> En ligne
+                          </span>
+                        ) : p.isActive ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
                             <CheckCircle2 className="h-3 w-3" /> {t('printers.active')}
                           </span>

@@ -33,12 +33,14 @@ export function loadConfig(): AgentConfig {
   }
 
   const cfg: AgentConfig = {
-    apiUrl:         process.env['HACCP_API_URL']    ?? 'http://localhost',
+    apiUrl:         process.env['HACCP_API_URL']    ?? 'https://app.normes-haccp.com',
     email:          process.env['HACCP_EMAIL']       ?? '',
     password:       process.env['HACCP_PASSWORD']    ?? '',
     pollIntervalMs: parseInt(process.env['POLL_INTERVAL_MS'] ?? '5000', 10),
     logLevel:       process.env['LOG_LEVEL']         ?? 'info',
-    printerId:      savedPrinterId,
+    // HACCP_PRINTER_ID (set in .env) enables HEADLESS operation — no interactive
+    // first-run prompt. Falls back to the id saved from a previous interactive run.
+    printerId:      process.env['HACCP_PRINTER_ID'] ?? savedPrinterId,
   };
 
   if (!cfg.email || !cfg.password) {

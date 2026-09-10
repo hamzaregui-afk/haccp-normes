@@ -126,6 +126,21 @@ export class PrinterService {
   }
 
   /**
+   * Called by the Local Print Agent to report liveness — sets the printer ONLINE
+   * and stamps lastActivityAt. Tenant-scoped (updateMany is a no-op for a foreign
+   * printer id → then 404). The UI derives "en ligne / hors ligne" from the
+   * freshness of lastActivityAt.
+   */
+  async recordHeartbeat(id: string, tenantId: string) {
+    const res = await this.prisma.printer.updateMany({
+      where: { id, tenantId },
+      data:  { connectionStatus: 'ONLINE', lastActivityAt: new Date() },
+    });
+    if (res.count === 0) throw new NotFoundException(`Imprimante ${id} introuvable`);
+    return toApiResponse(null, undefined, 'Heartbeat enregistré');
+  }
+
+  /**
    * Promote the given printer to the default for this tenant.
    * All other printers are demoted atomically before promoting.
    */

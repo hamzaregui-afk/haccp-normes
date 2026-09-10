@@ -171,6 +171,10 @@ async function executeJob(cfg: AgentConfig, job: PrintJob): Promise<void> {
 async function poll(cfg: AgentConfig, printerId: string): Promise<void> {
   log.debug(`Polling for pending jobs (printer ${printerId})…`);
 
+  // Heartbeat — report this printer is online so the web UI shows "En ligne".
+  // Best-effort: a heartbeat failure must never stop printing.
+  await apiPatch(cfg, `/api/v1/printers/${printerId}/heartbeat`, {}).catch(() => { /* non-fatal */ });
+
   let jobs: PrintJob[] = [];
   try {
     jobs = await apiGet<PrintJob[]>(
