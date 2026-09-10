@@ -9,6 +9,11 @@ const envSchema = z.object({
   INTERNAL_SERVICE_SECRET: z.string().min(1),
   AUDIT_SERVICE_URL:       z.string().url().default('http://audit-service:3019/api/v1'),
   ALLOWED_ORIGINS:         z.string().optional(),
+  // Lot 3: 32+ char secret used to AES-256-GCM encrypt per-tenant PrintNode API
+  // keys at rest. OPTIONAL — when absent, PrintNode features are disabled and the
+  // service still boots. Provision it (server env / GitHub secret) to enable
+  // PrintNode. Must never be committed.
+  ENCRYPTION_KEY:          z.string().min(32).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

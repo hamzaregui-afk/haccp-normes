@@ -87,6 +87,13 @@ model Printer {
   connectionStatus      PrinterStatus      @default(UNKNOWN) @map("connection_status")
   lastActivityAt        DateTime?          @map("last_activity_at")
 
+  // Lot 3: explicit dispatch provider ('PRINTNODE' | 'LOCAL_AGENT' | 'NETWORK').
+  // When set it OVERRIDES the connectionType-based provider selection; when null,
+  // selection falls back to connectionType (previous behaviour). Kept as a String
+  // (not a Prisma enum) so the migration stays additive with no CREATE TYPE churn.
+  provider           String? @map("provider")
+  printNodePrinterId Int?    @map("printnode_printer_id")
+
   jobs                PrintJob[]
   assignments         PrinterAssignment[]
   defaultMediaProfile MediaProfile?       @relation(fields: [defaultMediaProfileId], references: [id], onDelete: SetNull)
@@ -94,6 +101,21 @@ model Printer {
   @@index([tenantId])
   @@index([defaultMediaProfileId])
   @@map("printers")
+}
+
+// ── Per-tenant print provider configuration (Lot 3) ───────────────────────────
+// Holds a tenant's PrintNode API key, ENCRYPTED at rest (AES-256-GCM via
+// ENCRYPTION_KEY). The plaintext key is NEVER stored, logged, or returned to any
+// client — only printing-service decrypts it, server-side, at dispatch time.
+model PrintProviderConfig {
+  id                 String   @id @default(cuid())
+  tenantId           String   @unique @map("tenant_id")
+  printNodeApiKeyEnc String?  @map("printnode_api_key_enc") // AES-256-GCM ciphertext (base64); null = no key set
+  printNodeEnabled   Boolean  @default(false) @map("printnode_enabled")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("print_provider_configs")
 }
 
 // ── MediaProfile (Niveau 2) ───────────────────────────────────────────────────
