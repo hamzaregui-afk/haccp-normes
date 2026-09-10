@@ -6,7 +6,8 @@ import { PrinterService } from '../printer/printer.service';
 import { PrinterAssignmentService } from '../printer-assignment/printer-assignment.service';
 import { TemplateService } from '../template/template.service';
 import { generateDlcZpl, renderTemplate, type LabelMedia } from '../printer/zpl.generator';
-import { selectPrintProvider } from './providers';
+import { selectPrintProvider, type PrintDispatchInput } from './providers';
+import { PrintProviderConfigService } from '../print-provider-config/print-provider-config.service';
 import type { CreatePrintJobDto, PrintJobQuery } from './dto/print-job.dto';
 import { Prisma } from '@prisma/client';
 import type { Printer } from '@prisma/client';
@@ -16,10 +17,11 @@ export class PrintJobService {
   private readonly logger = new Logger(PrintJobService.name);
 
   constructor(
-    private readonly prisma:      PrismaService,
-    private readonly printers:    PrinterService,
-    private readonly assignments: PrinterAssignmentService,
-    private readonly templates:   TemplateService,
+    private readonly prisma:         PrismaService,
+    private readonly printers:       PrinterService,
+    private readonly assignments:    PrinterAssignmentService,
+    private readonly providerConfig: PrintProviderConfigService,
+    private readonly templates:      TemplateService,
   ) {}
 
   // ── Public API ────────────────────────────────────────────────────────────────
@@ -262,7 +264,27 @@ export class PrintJobService {
         return;
       }
 
-      const result = await provider.dispatch({ jobId, tenantId, printer, zpl });
+      // Assemble the dispatch input; PrintNode needs the tenant's decrypted key
+      // (fetched server-side here — never sent to any client).
+      const dispatchInput: PrintDispatchInput = { jobId, tenantId, printer, zpl };
+      if (provider.name === 'printnode') {
+        const apiKey = await this.providerConfig.getPrintNodeApiKey(tenantId);
+        if (!apiKey) {
+          await this.prisma.printJob.update({
+            where: { id: jobId, tenantId },
+            data:  { status: 'FAILED', zpl, errorMessage: 'PrintNode non configuré pour ce tenant' },
+          });
+          void publishDomainEvent({
+            eventType: 'printing.job.failed.v1',
+            tenantId,
+            payload:   { jobId, error: 'printnode_not_configured' },
+          });
+          return;
+        }
+        dispatchInput.printNode = { apiKey };
+      }
+
+      const result = await provider.dispatch(dispatchInput);
 
       if (result.outcome === 'PENDING') {
         // Parked for an out-of-band pulling client (agent / BT relay). Store the

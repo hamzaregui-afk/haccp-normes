@@ -30,6 +30,9 @@ export interface PrintDispatchInput {
   /** Always non-null: a provider is only selected once a printer supports it. */
   printer:  Printer;
   zpl:      string;
+  /** PrintNode dispatch credentials — populated by executePrint only for
+   *  PrintNode printers (the tenant's decrypted API key). Never logged. */
+  printNode?: { apiKey: string };
 }
 
 export type PrintDispatchResult =

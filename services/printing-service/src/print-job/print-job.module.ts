@@ -3,10 +3,11 @@ import { PrintJobController } from './print-job.controller';
 import { PrintJobService } from './print-job.service';
 import { PrinterModule } from '../printer/printer.module';
 import { PrinterAssignmentModule } from '../printer-assignment/printer-assignment.module';
+import { PrintProviderConfigModule } from '../print-provider-config/print-provider-config.module';
 import { TemplateModule } from '../template/template.module';
 
 @Module({
-  imports:     [PrinterModule, TemplateModule, PrinterAssignmentModule],
+  imports:     [PrinterModule, TemplateModule, PrinterAssignmentModule, PrintProviderConfigModule],
   controllers: [PrintJobController],
   providers:   [PrintJobService],
 })

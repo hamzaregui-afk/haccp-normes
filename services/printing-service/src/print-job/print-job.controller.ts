@@ -16,7 +16,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { PrintJobService } from './print-job.service';
-import { CreatePrintJobSchema, PrintJobQuerySchema, PrintJobStatusSchema } from './dto/print-job.dto';
+import { CreatePrintJobSchema, PrintJobQuerySchema, PrintJobStatusSchema, TestPrintSchema } from './dto/print-job.dto';
 import { z } from 'zod';
 
 const UpdateJobStatusSchema = z.object({
@@ -28,6 +28,8 @@ const UpdateJobStatusSchema = z.object({
 const PRINT_ROLES = ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'OPERATOR', 'QUALITY_OFFICER'] as const;
 // OPERATOR included so the local print agent (running as operator) can read its jobs
 const READ_ROLES  = ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'OPERATOR'] as const;
+// Test print is a settings/verify action → ADMIN/SUPER_ADMIN only.
+const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN'] as const;
 
 @ApiTags('print-jobs')
 @ApiBearerAuth()
@@ -68,6 +70,35 @@ export class PrintJobController {
       resource:   'print_jobs',
       resourceId: (result.data as { id: string }).id,
       payload:    { labelType: dto.labelType, copies: dto.copies },
+    }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
+
+    return result;
+  }
+
+  // POST /print-jobs/test — send a small test label to a printer to verify it works
+  @Post('test')
+  @Roles(...ADMIN_ROLES)
+  @ApiOperation({ summary: "Envoyer une étiquette de test à une imprimante" })
+  async testPrint(@Body() rawBody: unknown, @CurrentUser() user: JwtPayload) {
+    const { printerId } = TestPrintSchema.parse(rawBody);
+    const result = await this.printJobService.create(
+      {
+        printerId,
+        labelType: 'TEST',
+        payload: { title: 'NORMES HACCP', message: "Test d'impression", at: new Date().toISOString() },
+        copies: 1,
+      },
+      user.tenantId,
+      user.sub,
+    );
+
+    void emitAuditEvent({
+      tenantId:   user.tenantId,
+      userId:     user.sub,
+      action:     'CREATE',
+      resource:   'print_jobs',
+      resourceId: (result.data as { id: string }).id,
+      payload:    { labelType: 'TEST', printerId },
     }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;

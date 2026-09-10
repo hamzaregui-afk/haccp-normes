@@ -11,12 +11,13 @@ export type {
 } from './print-provider.interface';
 export { NetworkTcpProvider, LocalAgentProvider, PrintNodeProvider };
 
-// Most-specific / synchronous transports first. PrintNode is scaffolding
-// (supports() === false) until its per-tenant key config lands in Lot 3.
+// PrintNode FIRST: an explicit `printer.provider === 'PRINTNODE'` overrides the
+// connectionType-based transports (Network/LocalAgent), which only match when no
+// provider override is set.
 const DEFAULT_PROVIDERS: readonly PrintProvider[] = [
+  new PrintNodeProvider(),
   new NetworkTcpProvider(),
   new LocalAgentProvider(),
-  new PrintNodeProvider(),
 ];
 
 /**

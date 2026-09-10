@@ -4,6 +4,7 @@ import { PrintJobService } from '../print-job.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PrinterService } from '../../printer/printer.service';
 import { PrinterAssignmentService } from '../../printer-assignment/printer-assignment.service';
+import { PrintProviderConfigService } from '../../print-provider-config/print-provider-config.service';
 import { TemplateService } from '../../template/template.service';
 import type { CreatePrintJobDto } from '../dto/print-job.dto';
 
@@ -40,8 +41,9 @@ describe('PrintJobService — execution status (HACCP audit integrity)', () => {
   let service:     PrintJobService;
   let prisma:      ReturnType<typeof makePrisma>;
   let printers:    { findOne: jest.Mock; findDefault: jest.Mock };
-  let assignments: { resolve: jest.Mock };
-  let templates:   { findDefaultForType: jest.Mock };
+  let assignments:    { resolve: jest.Mock };
+  let providerConfig: { getPrintNodeApiKey: jest.Mock };
+  let templates:      { findDefaultForType: jest.Mock };
 
   function makePrisma() {
     return {
@@ -61,16 +63,18 @@ describe('PrintJobService — execution status (HACCP audit integrity)', () => {
   beforeEach(async () => {
     prisma      = makePrisma();
     printers    = { findOne: jest.fn(), findDefault: jest.fn() };
-    assignments = { resolve: jest.fn().mockResolvedValue({ data: null }) };
-    templates   = { findDefaultForType: jest.fn().mockResolvedValue(null) };
+    assignments    = { resolve: jest.fn().mockResolvedValue({ data: null }) };
+    providerConfig = { getPrintNodeApiKey: jest.fn().mockResolvedValue(null) };
+    templates      = { findDefaultForType: jest.fn().mockResolvedValue(null) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PrintJobService,
-        { provide: PrismaService,            useValue: prisma      as unknown as PrismaService },
-        { provide: PrinterService,           useValue: printers    as unknown as PrinterService },
-        { provide: PrinterAssignmentService, useValue: assignments as unknown as PrinterAssignmentService },
-        { provide: TemplateService,          useValue: templates   as unknown as TemplateService },
+        { provide: PrismaService,              useValue: prisma         as unknown as PrismaService },
+        { provide: PrinterService,             useValue: printers       as unknown as PrinterService },
+        { provide: PrinterAssignmentService,   useValue: assignments    as unknown as PrinterAssignmentService },
+        { provide: PrintProviderConfigService, useValue: providerConfig as unknown as PrintProviderConfigService },
+        { provide: TemplateService,            useValue: templates      as unknown as TemplateService },
       ],
     }).compile();
 
@@ -137,6 +141,40 @@ describe('PrintJobService — execution status (HACCP audit integrity)', () => {
     );
     expect(sendZplOverTcp).toHaveBeenCalled();
     expect(lastStatus()).toBe('COMPLETED');
+  });
+
+  // ── PrintNode dispatch wiring ────────────────────────────────────────────────
+  describe('PrintNode dispatch wiring', () => {
+    const pnPrinter = {
+      ...basePrinter, connectionType: 'NETWORK', ipAddress: null,
+      provider: 'PRINTNODE', printNodePrinterId: 12345,
+    };
+    let fetchSpy: jest.SpyInstance;
+    beforeEach(() => {
+      fetchSpy = jest
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue({ ok: true, status: 201, text: async () => '' } as never);
+    });
+    afterEach(() => { fetchSpy.mockRestore(); });
+
+    it('PrintNode printer + configured key → decrypts key, dispatches → COMPLETED', async () => {
+      printers.findOne.mockResolvedValue({ data: pnPrinter });
+      providerConfig.getPrintNodeApiKey.mockResolvedValue('pk-test-abc');
+      await service.create(DLC_DTO, 't1', 'u1');
+      await flush();
+      expect(providerConfig.getPrintNodeApiKey).toHaveBeenCalledWith('t1');
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(lastStatus()).toBe('COMPLETED');
+    });
+
+    it('PrintNode printer + NO key → FAILED, PrintNode never called', async () => {
+      printers.findOne.mockResolvedValue({ data: pnPrinter });
+      providerConfig.getPrintNodeApiKey.mockResolvedValue(null);
+      await service.create(DLC_DTO, 't1', 'u1');
+      await flush();
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(lastStatus()).toBe('FAILED');
+    });
   });
 
   // ── Atomic claim (Local Print Agent) ────────────────────────────────────────

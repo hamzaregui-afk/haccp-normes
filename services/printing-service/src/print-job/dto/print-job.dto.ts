@@ -31,6 +31,12 @@ export type CreatePrintJobDto = z.infer<typeof CreatePrintJobSchema>;
 export const PrintJobStatusSchema = z.enum(['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED']);
 export type PrintJobStatusType = z.infer<typeof PrintJobStatusSchema>;
 
+// ── Test print ──────────────────────────────────────────────────────────────────
+export const TestPrintSchema = z.object({
+  printerId: z.string().min(1),
+});
+export type TestPrintDto = z.infer<typeof TestPrintSchema>;
+
 export const PrintJobQuerySchema = z.object({
   page:      z.coerce.number().int().min(1).default(1),
   limit:     z.coerce.number().int().min(1).max(100).default(20),
