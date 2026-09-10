@@ -17,6 +17,7 @@ import {
   CrossTenantAccessError,
   canAccessTenant,
   resolveEffectiveTenant,
+  resolveRequestTenantId,
 } from '../tenant-context';
 
 // Minimal principal — the resolver only reads role + tenantId.
@@ -155,4 +156,40 @@ describe('resolveEffectiveTenant — normal roles (isolation guarantee)', () => 
       expect(resolveEffectiveTenant(user, undefined).effectiveTenantId).toBe(TENANT_A);
     },
   );
+});
+
+describe('resolveRequestTenantId (JWT strategy chokepoint — never throws)', () => {
+  it('SUPER_ADMIN + selected tenant → that tenant', () => {
+    expect(resolveRequestTenantId(SUPER, TENANT_A)).toBe(TENANT_A);
+    expect(resolveRequestTenantId(SUPER, TENANT_B)).toBe(TENANT_B);
+  });
+
+  it('SUPER_ADMIN + no header → own JWT tenant (platform sentinel)', () => {
+    expect(resolveRequestTenantId(SUPER, undefined)).toBe(PLATFORM_TENANT);
+    expect(resolveRequestTenantId(SUPER, null)).toBe(PLATFORM_TENANT);
+    expect(resolveRequestTenantId(SUPER, '')).toBe(PLATFORM_TENANT);
+  });
+
+  it('SUPER_ADMIN + ALL → own JWT tenant (aggregation handled elsewhere, lists stay empty)', () => {
+    expect(resolveRequestTenantId(SUPER, ALL_TENANTS)).toBe(PLATFORM_TENANT);
+  });
+
+  it('handles a duplicated header value (string[]) by taking the first', () => {
+    expect(resolveRequestTenantId(SUPER, [TENANT_B, TENANT_A])).toBe(TENANT_B);
+  });
+
+  it.each<UserRole>(['ADMIN', 'MANAGER', 'QUALITY_OFFICER', 'OPERATOR', 'VIEWER'])(
+    'role %s is ALWAYS scoped to its own tenant — header ignored, never throws',
+    (role) => {
+      const user = principal(role, TENANT_A);
+      expect(resolveRequestTenantId(user, undefined)).toBe(TENANT_A);
+      expect(resolveRequestTenantId(user, TENANT_B)).toBe(TENANT_A); // stray header ignored, no throw
+      expect(resolveRequestTenantId(user, ALL_TENANTS)).toBe(TENANT_A);
+      expect(() => resolveRequestTenantId(user, TENANT_B)).not.toThrow();
+    },
+  );
+
+  it('the header constant used by the strategy is stable', () => {
+    expect(SELECTED_TENANT_HEADER).toBe('x-selected-tenant');
+  });
 });

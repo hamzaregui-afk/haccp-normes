@@ -170,3 +170,32 @@ export function resolveEffectiveTenant(
     selectedTenantId: null,
   };
 }
+
+/**
+ * Non-throwing convenience for the JWT strategy — returns the single tenantId a
+ * request should be scoped to, so `@CurrentUser().tenantId` becomes the
+ * "effective" tenant everywhere without touching a single controller.
+ *
+ * ARCH-DECISION: this is the ONE chokepoint (every authenticated request passes
+ * through the JWT strategy) that makes SUPER_ADMIN tenant selection flow to all
+ * modules at once — no per-endpoint migration, no risk of missing a route.
+ *
+ * - The header is honoured ONLY for SUPER_ADMIN. For every other role the
+ *   caller's own JWT tenant is returned and the header is IGNORED (never
+ *   throws) — a stray/forged header therefore cannot trigger a 401 → refresh →
+ *   logout loop, and cannot widen scope (own tenant only = no leak).
+ * - SUPER_ADMIN + a selected tenantId → that tenant (SINGLE cockpit).
+ * - SUPER_ADMIN + ALL or no selection → the JWT's own tenantId (the 'platform'
+ *   sentinel), so ordinary list endpoints stay empty; ALL-mode aggregation is
+ *   served separately by endpoints that read {@link resolveEffectiveTenant}
+ *   via `@TenantScope()`.
+ */
+export function resolveRequestTenantId(
+  user: Pick<JwtPayload, 'role' | 'tenantId'>,
+  rawHeader: string | string[] | null | undefined,
+): string {
+  if (!isSuperAdmin(user)) return user.tenantId;
+  const header = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader;
+  const ctx = resolveEffectiveTenant(user, header); // super-admin path never throws
+  return ctx.effectiveTenantId ?? user.tenantId;
+}
