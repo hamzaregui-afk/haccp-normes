@@ -64,4 +64,23 @@ describe('PrintProviderConfigService', () => {
     prisma.printProviderConfig.findUnique.mockResolvedValue({ printNodeEnabled: false, printNodeApiKeyEnc: enc });
     expect(await service.getPrintNodeApiKey('t1')).toBeNull();
   });
+
+  it('providers() returns the connection-mode catalog', () => {
+    const result = service.providers() as { data: Array<{ key: string; requiresApiKey: boolean }> };
+    expect(result.data.map((d) => d.key)).toEqual(expect.arrayContaining(['PRINTNODE', 'NETWORK', 'LOCAL_AGENT']));
+    expect(result.data.find((d) => d.key === 'PRINTNODE')?.requiresApiKey).toBe(true);
+  });
+
+  it('printNodeTest with a supplied key → ok (PrintNode API mocked)', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, status: 200, json: async () => [] } as never);
+    const result = (await service.printNodeTest('t1', 'pk-supplied-123')) as { data: { ok: boolean } };
+    expect(result.data.ok).toBe(true);
+    fetchSpy.mockRestore();
+  });
+
+  it('printNodeTest returns ok:false when no key is available', async () => {
+    prisma.printProviderConfig.findUnique.mockResolvedValue(null);
+    const result = (await service.printNodeTest('t1')) as { data: { ok: boolean } };
+    expect(result.data.ok).toBe(false);
+  });
 });

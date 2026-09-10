@@ -48,4 +48,40 @@ describe('PrintNodeProvider', () => {
     expect((await provider.dispatch(input({ printer: printer({ printNodePrinterId: null }) }))).outcome).toBe('FAILED');
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+
+  // ── Enumeration / validation ────────────────────────────────────────────────
+  it('describe() advertises PrintNode as an API-key provider that lists printers', () => {
+    const d = provider.describe();
+    expect(d.key).toBe('PRINTNODE');
+    expect(d.requiresApiKey).toBe(true);
+    expect(d.listsPrinters).toBe(true);
+    expect(d.fields.map((f) => f.name)).toEqual(expect.arrayContaining(['providerComputerId', 'printNodePrinterId']));
+  });
+
+  it('testConnection → ok when whoami succeeds (counts computers)', async () => {
+    fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation((url: string | URL | Request) => {
+      const u = String(url);
+      if (u.endsWith('/whoami'))    return Promise.resolve({ ok: true, status: 200, json: async () => ({ id: 1 }) } as never);
+      if (u.endsWith('/computers')) return Promise.resolve({ ok: true, status: 200, json: async () => [{ id: 5, name: 'PC-1', state: 'connected' }] } as never);
+      return Promise.resolve({ ok: false, status: 404 } as never);
+    });
+    const res = await provider.testConnection('pk');
+    expect(res.ok).toBe(true);
+    expect(res.computerCount).toBe(1);
+  });
+
+  it('testConnection → not ok on 401 (invalid key)', async () => {
+    fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: false, status: 401 } as never);
+    expect((await provider.testConnection('bad')).ok).toBe(false);
+  });
+
+  it('listComputers maps the PrintNode computers', async () => {
+    fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, status: 200, json: async () => [{ id: 7, name: 'Cuisine-PC', state: 'connected' }] } as never);
+    expect(await provider.listComputers('pk')).toEqual([{ id: 7, name: 'Cuisine-PC', state: 'connected' }]);
+  });
+
+  it('listPrinters(computerId) maps printers with their computer id', async () => {
+    fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, status: 200, json: async () => [{ id: 42, name: 'Gprinter', state: 'online', computer: { id: 7 } }] } as never);
+    expect(await provider.listPrinters('pk', 7)).toEqual([{ id: 42, name: 'Gprinter', computerId: 7, state: 'online' }]);
+  });
 });

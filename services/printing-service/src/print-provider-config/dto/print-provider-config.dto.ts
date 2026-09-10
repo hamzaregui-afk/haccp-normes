@@ -11,3 +11,12 @@ export const UpdatePrintProviderConfigSchema = z
   });
 
 export type UpdatePrintProviderConfigDto = z.infer<typeof UpdatePrintProviderConfigSchema>;
+
+// PrintNode probe (test / list computers / list printers). Accepts an optional
+// not-yet-saved key (in the request BODY, never a URL) so the client can validate
+// before saving; falls back to the stored encrypted key when omitted.
+export const PrintNodeProbeSchema = z.object({
+  apiKey:     z.string().min(10).max(200).optional(),
+  computerId: z.coerce.number().int().positive().optional(),
+});
+export type PrintNodeProbeDto = z.infer<typeof PrintNodeProbeSchema>;

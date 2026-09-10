@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { JwtPayload } from '@haccp/shared-types';
 import { emitAuditEvent } from '@haccp/shared-utils';
@@ -7,7 +7,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { PrintProviderConfigService } from './print-provider-config.service';
-import { UpdatePrintProviderConfigSchema } from './dto/print-provider-config.dto';
+import { UpdatePrintProviderConfigSchema, PrintNodeProbeSchema } from './dto/print-provider-config.dto';
 
 // RBAC matrix: print settings management = ADMIN/SUPER_ADMIN only.
 const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN'] as const;
@@ -24,6 +24,37 @@ export class PrintProviderConfigController {
   @ApiOperation({ summary: "Statut d'impression du tenant (la clé PrintNode n'est jamais renvoyée)" })
   getStatus(@CurrentUser() user: JwtPayload) {
     return this.service.getStatus(user.tenantId);
+  }
+
+  @Get('providers')
+  @Roles(...ADMIN_ROLES)
+  @ApiOperation({ summary: 'Catalogue des modes de connexion (pilote le formulaire dynamique)' })
+  providers() {
+    return this.service.providers();
+  }
+
+  @Post('printnode/test')
+  @Roles(...ADMIN_ROLES)
+  @ApiOperation({ summary: 'Tester la connexion PrintNode (clé fournie dans le corps, ou clé enregistrée)' })
+  testPrintNode(@Body() rawBody: unknown, @CurrentUser() user: JwtPayload) {
+    const dto = PrintNodeProbeSchema.parse(rawBody);
+    return this.service.printNodeTest(user.tenantId, dto.apiKey);
+  }
+
+  @Post('printnode/computers')
+  @Roles(...ADMIN_ROLES)
+  @ApiOperation({ summary: 'Lister les ordinateurs PrintNode' })
+  printNodeComputers(@Body() rawBody: unknown, @CurrentUser() user: JwtPayload) {
+    const dto = PrintNodeProbeSchema.parse(rawBody);
+    return this.service.printNodeComputers(user.tenantId, dto.apiKey);
+  }
+
+  @Post('printnode/printers')
+  @Roles(...ADMIN_ROLES)
+  @ApiOperation({ summary: 'Lister les imprimantes PrintNode (option: computerId)' })
+  printNodePrinters(@Body() rawBody: unknown, @CurrentUser() user: JwtPayload) {
+    const dto = PrintNodeProbeSchema.parse(rawBody);
+    return this.service.printNodePrinters(user.tenantId, dto.apiKey, dto.computerId);
   }
 
   @Put()
