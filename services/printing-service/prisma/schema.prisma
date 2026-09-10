@@ -93,6 +93,10 @@ model Printer {
   // (not a Prisma enum) so the migration stays additive with no CREATE TYPE churn.
   provider           String? @map("provider")
   printNodePrinterId Int?    @map("printnode_printer_id")
+  providerComputerId Int?    @map("provider_computer_id")
+  // Generic per-provider config bag (future providers: deviceId, host/port…) so a
+  // new connection mode needs no new columns — "configure, not code".
+  providerConfig     Json?   @map("provider_config")
 
   jobs                PrintJob[]
   assignments         PrinterAssignment[]
@@ -136,6 +140,14 @@ model MediaProfile {
   autoCalibrate Boolean   @default(true) @map("auto_calibrate")
   isDefault     Boolean   @default(false) @map("is_default")
   isActive      Boolean   @default(true) @map("is_active")
+  // Lot 3b: layout config (PORTRAIT/LANDSCAPE, margins mm, cutter). All optional/
+  // defaulted → additive. cutter is only honoured when the printer supports it.
+  orientation    String?  @map("orientation")
+  marginTopMm    Float?   @map("margin_top_mm")
+  marginBottomMm Float?   @map("margin_bottom_mm")
+  marginLeftMm   Float?   @map("margin_left_mm")
+  marginRightMm  Float?   @map("margin_right_mm")
+  cutter         Boolean  @default(false) @map("cutter")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 

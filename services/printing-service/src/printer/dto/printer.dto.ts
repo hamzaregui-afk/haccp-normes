@@ -27,6 +27,11 @@ export const CreatePrinterSchema = z.object({
   protocol:              PrinterProtocolSchema.optional(),
   connection:            PrinterConnectionSchema.optional(),
   defaultMediaProfileId: z.string().min(1).optional(),
+  // Lot 3: explicit dispatch provider + PrintNode selection + generic config bag.
+  provider:              z.enum(['NETWORK', 'LOCAL_AGENT', 'PRINTNODE']).optional(),
+  providerComputerId:    z.coerce.number().int().positive().optional(),
+  printNodePrinterId:    z.coerce.number().int().positive().optional(),
+  providerConfig:        z.record(z.unknown()).optional(),
 });
 
 export type CreatePrinterDto = z.infer<typeof CreatePrinterSchema>;

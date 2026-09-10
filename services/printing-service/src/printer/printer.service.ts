@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { toApiResponse, toPaginationMeta } from '@haccp/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreatePrinterDto, UpdatePrinterDto, PrinterQuery } from './dto/printer.dto';
@@ -68,6 +69,10 @@ export class PrinterService {
         ...(dto.protocol              !== undefined ? { protocol:              dto.protocol }              : {}),
         ...(dto.connection            !== undefined ? { connection:            dto.connection }            : {}),
         ...(dto.defaultMediaProfileId !== undefined ? { defaultMediaProfileId: dto.defaultMediaProfileId } : {}),
+        ...(dto.provider           !== undefined ? { provider:           dto.provider }           : {}),
+        ...(dto.providerComputerId !== undefined ? { providerComputerId: dto.providerComputerId } : {}),
+        ...(dto.printNodePrinterId !== undefined ? { printNodePrinterId: dto.printNodePrinterId } : {}),
+        ...(dto.providerConfig     !== undefined ? { providerConfig:     dto.providerConfig as Prisma.InputJsonValue } : {}),
       },
     });
 
@@ -103,6 +108,10 @@ export class PrinterService {
         ...(dto.protocol              !== undefined ? { protocol:              dto.protocol }              : {}),
         ...(dto.connection            !== undefined ? { connection:            dto.connection }            : {}),
         ...(dto.defaultMediaProfileId !== undefined ? { defaultMediaProfileId: dto.defaultMediaProfileId } : {}),
+        ...(dto.provider           !== undefined ? { provider:           dto.provider }           : {}),
+        ...(dto.providerComputerId !== undefined ? { providerComputerId: dto.providerComputerId } : {}),
+        ...(dto.printNodePrinterId !== undefined ? { printNodePrinterId: dto.printNodePrinterId } : {}),
+        ...(dto.providerConfig     !== undefined ? { providerConfig:     dto.providerConfig as Prisma.InputJsonValue } : {}),
       },
     });
 

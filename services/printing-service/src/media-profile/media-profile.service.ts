@@ -66,6 +66,12 @@ export class MediaProfileService {
         density:       dto.density ?? null,
         autoCalibrate: dto.autoCalibrate,
         isDefault:     dto.isDefault,
+        orientation:    dto.orientation ?? null,
+        marginTopMm:    dto.marginTopMm ?? null,
+        marginBottomMm: dto.marginBottomMm ?? null,
+        marginLeftMm:   dto.marginLeftMm ?? null,
+        marginRightMm:  dto.marginRightMm ?? null,
+        cutter:         dto.cutter,
       },
     });
 
@@ -97,6 +103,12 @@ export class MediaProfileService {
         ...(dto.density       !== undefined ? { density:       dto.density }       : {}),
         ...(dto.autoCalibrate !== undefined ? { autoCalibrate: dto.autoCalibrate } : {}),
         ...(dto.isDefault     !== undefined ? { isDefault:     dto.isDefault }     : {}),
+        ...(dto.orientation    !== undefined ? { orientation:    dto.orientation }    : {}),
+        ...(dto.marginTopMm    !== undefined ? { marginTopMm:    dto.marginTopMm }    : {}),
+        ...(dto.marginBottomMm !== undefined ? { marginBottomMm: dto.marginBottomMm } : {}),
+        ...(dto.marginLeftMm   !== undefined ? { marginLeftMm:   dto.marginLeftMm }   : {}),
+        ...(dto.marginRightMm  !== undefined ? { marginRightMm:  dto.marginRightMm }  : {}),
+        ...(dto.cutter         !== undefined ? { cutter:         dto.cutter }         : {}),
       },
     });
 

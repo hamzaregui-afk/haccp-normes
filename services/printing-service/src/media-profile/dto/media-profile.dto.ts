@@ -20,6 +20,13 @@ export const CreateMediaProfileSchema = z.object({
   density:       z.coerce.number().int().min(0).max(30).optional(),
   autoCalibrate: z.boolean().default(true),
   isDefault:     z.boolean().default(false),
+  // Lot 3b: layout. Media type GAP = étiquettes prédécoupées, CONTINUOUS = rouleau.
+  orientation:    z.enum(['PORTRAIT', 'LANDSCAPE']).optional(),
+  marginTopMm:    z.coerce.number().min(0).max(100).optional(),
+  marginBottomMm: z.coerce.number().min(0).max(100).optional(),
+  marginLeftMm:   z.coerce.number().min(0).max(100).optional(),
+  marginRightMm:  z.coerce.number().min(0).max(100).optional(),
+  cutter:         z.boolean().default(false),
 });
 export type CreateMediaProfileDto = z.infer<typeof CreateMediaProfileSchema>;
 

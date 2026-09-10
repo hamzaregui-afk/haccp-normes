@@ -57,7 +57,7 @@ describe('MediaProfileService', () => {
       const result = await service.create(
         {
           name: '50 x 29 mm GAP', widthMm: 50, heightMm: 29, mediaType: 'GAP',
-          gapMm: 2, dpi: 203, autoCalibrate: true, isDefault: false,
+          gapMm: 2, dpi: 203, autoCalibrate: true, isDefault: false, cutter: false,
         },
         TENANT,
       );
@@ -73,7 +73,7 @@ describe('MediaProfileService', () => {
       prismaMock.mediaProfile.updateMany.mockResolvedValue({ count: 1 });
 
       await service.create(
-        { name: 'X', widthMm: 50, heightMm: 100, mediaType: 'GAP', dpi: 203, autoCalibrate: true, isDefault: true },
+        { name: 'X', widthMm: 50, heightMm: 100, mediaType: 'GAP', dpi: 203, autoCalibrate: true, isDefault: true, cutter: false },
         TENANT,
       );
 

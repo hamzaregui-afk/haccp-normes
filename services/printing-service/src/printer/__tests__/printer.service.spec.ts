@@ -106,6 +106,26 @@ describe('PrinterService', () => {
 
       expect(prismaMock.printer.updateMany).not.toHaveBeenCalled();
     });
+
+    it('persists PrintNode provider fields (provider + computer/printer id)', async () => {
+      prismaMock.printer.create.mockResolvedValue(mockPrinter);
+
+      await service.create(
+        {
+          name: 'DLC Cuisine', connectionType: 'NETWORK', port: 9100, isDefault: false,
+          provider: 'PRINTNODE', providerComputerId: 7, printNodePrinterId: 42,
+        },
+        'cltenant00000000000000000001',
+      );
+
+      expect(prismaMock.printer.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            provider: 'PRINTNODE', providerComputerId: 7, printNodePrinterId: 42,
+          }),
+        }),
+      );
+    });
   });
 
   // ── findAll ───────────────────────────────────────────────────────────────────
