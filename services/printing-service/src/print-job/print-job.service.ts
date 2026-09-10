@@ -5,7 +5,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PrinterService } from '../printer/printer.service';
 import { PrinterAssignmentService } from '../printer-assignment/printer-assignment.service';
 import { TemplateService } from '../template/template.service';
-import { generateDlcZpl, renderTemplate, type LabelMedia } from '../printer/zpl.generator';
+import { renderTemplate, type LabelMedia } from '../printer/zpl.generator';
+import { getLabelRenderer } from '../label-renderer';
 import { selectPrintProvider, type PrintDispatchInput } from './providers';
 import { PrintProviderConfigService } from '../print-provider-config/print-provider-config.service';
 import type { CreatePrintJobDto, PrintJobQuery } from './dto/print-job.dto';
@@ -241,7 +242,9 @@ export class PrintJobService {
 
     try {
       // ── Step 2: Generate / render the ZPL (media sized to the resolved printer) ─
-      zpl = await this.resolveZpl(dto, tenantId, printer?.id);
+      // NOTE: `zpl` holds the rendered label in the printer's protocol (ZPL/TSPL/
+      // ESC_POS) — the column name is legacy; providers transmit the bytes as-is.
+      zpl = await this.resolveZpl(dto, tenantId, printer?.id, printer?.protocol);
 
       // ── Step 3: Select the transport PROVIDER and dispatch ────────────────────
       // ARCH-DECISION: a provider strategy replaces the old `if (connectionType)`
@@ -394,6 +397,7 @@ export class PrintJobService {
     dto: CreatePrintJobDto,
     tenantId: string,
     resolvedPrinterId?: string,
+    protocol?: string | null,
   ): Promise<string> {
     const payload = dto.payload;
 
@@ -412,7 +416,8 @@ export class PrintJobService {
       // Size the label to the actually-resolved printer's media profile (falls
       // back to dto.printerId, then the tenant default) — not just dto.printerId.
       const media = await this.resolveMedia(resolvedPrinterId ?? dto.printerId, tenantId);
-      return generateDlcZpl(
+      // Render in the printer's protocol (ZPL/TSPL/ESC_POS); defaults to ZPL.
+      return getLabelRenderer(protocol).renderDlc(
         {
           productName: String(payload['productName'] ?? ''),
           lotNumber:   payload['lotNumber'] != null ? String(payload['lotNumber']) : null,
