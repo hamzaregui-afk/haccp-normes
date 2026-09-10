@@ -562,6 +562,10 @@ services:
       RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
       AUDIT_SERVICE_URL: http://audit-service:3019/api/v1
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-haccp-internal-dev-secret-change-in-prod}
+      # Lot 3: AES-256-GCM key encrypting per-tenant PrintNode API keys at rest.
+      # Empty → PrintNode disabled (service still boots). Set ENCRYPTION_KEY on the
+      # server (32+ chars) to enable PrintNode. Never commit the value.
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       OTEL_SERVICE_NAME: printing-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
       OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
