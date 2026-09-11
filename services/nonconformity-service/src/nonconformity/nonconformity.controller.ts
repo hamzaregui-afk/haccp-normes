@@ -17,6 +17,8 @@ import type { JwtPayload } from '@haccp/shared-types';
 import { emitAuditEvent, extractResourceId, publishDomainEvent } from '@haccp/shared-utils';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { ModuleGuard } from '../auth/guards/module.guard';
+import { RequireModule } from '../auth/decorators/require-module.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { NonconformityService } from './nonconformity.service';
@@ -37,7 +39,8 @@ const DELETE_ROLES  = ['ADMIN', 'SUPER_ADMIN'] as const;
 @ApiTags('nonconformities')
 @ApiBearerAuth()
 @Controller('nonconformities')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ModuleGuard)
+@RequireModule('NONCONFORMITIES')
 export class NonconformityController {
   constructor(private readonly nonconformityService: NonconformityService) {}
 

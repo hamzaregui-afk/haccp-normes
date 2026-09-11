@@ -18,6 +18,7 @@ import {
   canAccessTenant,
   resolveEffectiveTenant,
   resolveRequestTenantId,
+  parseModuleEnforcement,
 } from '../tenant-context';
 
 // Minimal principal — the resolver only reads role + tenantId.
@@ -191,5 +192,23 @@ describe('resolveRequestTenantId (JWT strategy chokepoint — never throws)', ()
 
   it('the header constant used by the strategy is stable', () => {
     expect(SELECTED_TENANT_HEADER).toBe('x-selected-tenant');
+  });
+});
+
+describe('parseModuleEnforcement', () => {
+  it('defaults to log (safe staged rollout) when unset/empty/unknown', () => {
+    expect(parseModuleEnforcement(undefined)).toBe('log');
+    expect(parseModuleEnforcement(null)).toBe('log');
+    expect(parseModuleEnforcement('')).toBe('log');
+    expect(parseModuleEnforcement('   ')).toBe('log');
+    expect(parseModuleEnforcement('banana')).toBe('log');
+  });
+
+  it('parses strict and off (case/space-insensitive)', () => {
+    expect(parseModuleEnforcement('strict')).toBe('strict');
+    expect(parseModuleEnforcement('  STRICT ')).toBe('strict');
+    expect(parseModuleEnforcement('off')).toBe('off');
+    expect(parseModuleEnforcement('Off')).toBe('off');
+    expect(parseModuleEnforcement('log')).toBe('log');
   });
 });

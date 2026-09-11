@@ -31,6 +31,8 @@ import type { JwtPayload } from '@haccp/shared-types';
 import { emitAuditEvent, publishDomainEvent } from '@haccp/shared-utils';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { ModuleGuard } from '../auth/guards/module.guard';
+import { RequireModule } from '../auth/decorators/require-module.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { TracabilityService } from './tracability.service';
@@ -47,7 +49,8 @@ const DELETE_ROLES = ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] as const;
 @ApiTags('tracabilities')
 @ApiBearerAuth()
 @Controller('tracabilities')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ModuleGuard)
+@RequireModule('TRACABILITY')
 export class TracabilityController {
   constructor(private readonly tracabilityService: TracabilityService) {}
 

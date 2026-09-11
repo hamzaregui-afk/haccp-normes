@@ -18,8 +18,10 @@ import type { JwtPayload } from '@haccp/shared-types';
 import { emitAuditEvent, extractResourceId, CORRELATION_ID_HEADER } from '@haccp/shared-utils';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequireModule } from '../auth/decorators/require-module.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { ModuleGuard } from '../auth/guards/module.guard';
 import {
   CreateTemplateDtoSchema,
   UpdateTemplateDtoSchema,
@@ -36,7 +38,8 @@ import { ControlService } from './control.service';
 // the dual-write race condition that existed with fire-and-forget publishDomainEvent.
 
 @Controller('controls')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ModuleGuard)
+@RequireModule('HACCP_CONTROLS')
 export class ControlController {
   constructor(private readonly controlService: ControlService) {}
 

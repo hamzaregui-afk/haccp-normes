@@ -199,3 +199,25 @@ export function resolveRequestTenantId(
   const ctx = resolveEffectiveTenant(user, header); // super-admin path never throws
   return ctx.effectiveTenantId ?? user.tenantId;
 }
+
+/**
+ * Backend per-tenant MODULE enforcement mode (from the MODULE_ENFORCEMENT env).
+ * - 'off'    → module gates disabled (guard is a no-op).
+ * - 'log'    → a request for a module the tenant does not have is ALLOWED but
+ *              logged (safe staged rollout: observe real usage before blocking).
+ * - 'strict' → such a request is blocked with 403.
+ *
+ * ARCH-DECISION: default is 'log', so wiring the ModuleGuard changes NO behaviour
+ * in production until an operator sets MODULE_ENFORCEMENT=strict — the tenant
+ * module toggles were historically enforced nowhere, and flipping straight to
+ * 'strict' could 403 tenants relying on a module that was disabled but reachable.
+ */
+export type ModuleEnforcementMode = 'off' | 'log' | 'strict';
+
+export function parseModuleEnforcement(raw: string | null | undefined): ModuleEnforcementMode {
+  switch ((raw ?? '').trim().toLowerCase()) {
+    case 'strict': return 'strict';
+    case 'off':    return 'off';
+    default:       return 'log';
+  }
+}
