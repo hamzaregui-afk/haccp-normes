@@ -4,6 +4,15 @@
  */
 
 const fr = {
+  // ── Supervision multi-client (SUPER_ADMIN) ──────────────────────────────────────
+  supervision: {
+    label:       'Client supervisé',
+    platform:    'Vue plateforme',
+    all:         'Tous les clients',
+    viewing:     'Données affichées',
+    loading:     'Chargement…',
+    noClients:   'Aucun client',
+  },
   // ── Navigation ────────────────────────────────────────────────────────────────
   nav: {
     operations:      'OPÉRATIONS',

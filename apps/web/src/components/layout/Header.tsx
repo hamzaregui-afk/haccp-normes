@@ -3,6 +3,7 @@ import { Globe } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
 import { NotificationBell } from '@/components/notifications';
+import { SupervisionSelector } from '@/components/layout/SupervisionSelector';
 import { setLanguage, SUPPORTED_LANGUAGES, type LangCode } from '@/i18n';
 
 interface HeaderProps {
@@ -44,6 +45,8 @@ export function Header({ title, subtitle, icon: Icon, iconColor = 'bg-brand-ligh
       {/* Right controls */}
       <div className="flex items-center gap-3">
         {extra}
+        {/* SUPER_ADMIN client-supervision selector (renders nothing for other roles) */}
+        <SupervisionSelector />
         {/* Real-time notification bell */}
         <NotificationBell />
 

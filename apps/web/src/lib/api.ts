@@ -20,8 +20,10 @@
  *    exports use 120 s (matches the nginx read_timeout for /api/v1/reports).
  */
 import axios, { type InternalAxiosRequestConfig } from 'axios';
+import { SELECTED_TENANT_HEADER, ALL_TENANTS } from '@haccp/shared-types';
 
 import { useAuthStore } from '@/store/auth.store';
+import { useSupervisionStore } from '@/store/supervision.store';
 
 // ─── Timeout tiers ────────────────────────────────────────────────────────────
 const DEFAULT_TIMEOUT = 15_000;
@@ -62,6 +64,20 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = useAuthStore.getState().accessToken;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  // ARCH-DECISION: attach the SUPER_ADMIN client-supervision selection as a
+  // header (never a URL/query param — keeps tenantId out of logs/history). Sent
+  // ONLY for SUPER_ADMIN; the backend JwtStrategy ignores it for every other
+  // role, so this can never widen a normal user's scope even if it leaked in.
+  const user = useAuthStore.getState().user;
+  if (user?.role === 'SUPER_ADMIN') {
+    const { mode, selectedTenantId } = useSupervisionStore.getState();
+    if (mode === 'SINGLE' && selectedTenantId) {
+      config.headers[SELECTED_TENANT_HEADER] = selectedTenantId;
+    } else if (mode === 'ALL') {
+      config.headers[SELECTED_TENANT_HEADER] = ALL_TENANTS;
+    }
   }
 
   // ARCH-DECISION: When the body is FormData (file uploads), delete the global
