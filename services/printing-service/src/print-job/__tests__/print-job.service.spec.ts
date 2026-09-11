@@ -54,6 +54,7 @@ describe('PrintJobService — execution status (HACCP audit integrity)', () => {
         findFirst:  jest.fn(),
         findMany:   jest.fn(),
         count:      jest.fn(),
+        groupBy:    jest.fn(),
       },
       printer:      { findFirst: jest.fn().mockResolvedValue(null) },
       mediaProfile: { findFirst: jest.fn().mockResolvedValue(null) },
@@ -88,6 +89,34 @@ describe('PrintJobService — execution status (HACCP audit integrity)', () => {
     const data  = (calls[calls.length - 1]?.[0] as { data: { status: string } }).data;
     return data.status;
   };
+
+  describe('getStatsByTenant', () => {
+    it('aggregates today print-job counts per tenant with totals', async () => {
+      prisma.printJob.groupBy.mockResolvedValue([
+        { tenantId: 't1', status: 'FAILED',    _count: { _all: 2 } },
+        { tenantId: 't1', status: 'COMPLETED', _count: { _all: 7 } },
+        { tenantId: 't1', status: 'PENDING',   _count: { _all: 1 } },
+        { tenantId: 't2', status: 'PROCESSING',_count: { _all: 1 } },
+      ]);
+
+      const result = await service.getStatsByTenant();
+
+      expect(result.data.totals).toEqual({ total: 11, failed: 2, pending: 2, completed: 7 });
+      const t1 = result.data.byTenant.find((r) => r.tenantId === 't1');
+      expect(t1).toEqual({ tenantId: 't1', total: 10, failed: 2, pending: 1, completed: 7 });
+      const t2 = result.data.byTenant.find((r) => r.tenantId === 't2');
+      expect(t2).toEqual({ tenantId: 't2', total: 1, failed: 0, pending: 1, completed: 0 });
+    });
+
+    it('groups by tenantId+status scoped to today, not to a tenant', async () => {
+      prisma.printJob.groupBy.mockResolvedValue([]);
+      await service.getStatsByTenant();
+      const call = prisma.printJob.groupBy.mock.calls[0][0] as { by: string[]; where: { tenantId?: unknown; createdAt?: unknown } };
+      expect(call.by).toEqual(['tenantId', 'status']);
+      expect(call.where.tenantId).toBeUndefined();
+      expect(call.where.createdAt).toBeDefined();
+    });
+  });
 
   it('NETWORK printer with IP → sends over TCP and marks COMPLETED', async () => {
     printers.findOne.mockResolvedValue({ data: { ...basePrinter, connectionType: 'NETWORK' } });

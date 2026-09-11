@@ -13,6 +13,15 @@ import type { CreatePrintJobDto, PrintJobQuery } from './dto/print-job.dto';
 import { Prisma } from '@prisma/client';
 import type { Printer } from '@prisma/client';
 
+/** Per-tenant print-job counts (today) for the SUPER_ADMIN "Tous les clients" overview. */
+export interface TenantPrintStatRow {
+  tenantId: string;
+  total: number;
+  failed: number;
+  pending: number;
+  completed: number;
+}
+
 @Injectable()
 export class PrintJobService {
   private readonly logger = new Logger(PrintJobService.name);
@@ -26,6 +35,55 @@ export class PrintJobService {
   ) {}
 
   // ── Public API ────────────────────────────────────────────────────────────────
+
+  /**
+   * Cross-tenant supervision aggregate ("Tous les clients" / ALL mode).
+   * SUPER_ADMIN-only. Groups today's print-job counts by tenant (failed /
+   * pending / completed / total); keys by tenantId, names joined client-side.
+   */
+  async getStatsByTenant() {
+    const now        = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const endOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    const groups = await this.prisma.printJob.groupBy({
+      by: ['tenantId', 'status'],
+      where: { createdAt: { gte: startOfDay, lte: endOfDay } },
+      _count: { _all: true },
+    });
+
+    const rows = new Map<string, TenantPrintStatRow>();
+    const row = (tenantId: string): TenantPrintStatRow => {
+      let r = rows.get(tenantId);
+      if (!r) {
+        r = { tenantId, total: 0, failed: 0, pending: 0, completed: 0 };
+        rows.set(tenantId, r);
+      }
+      return r;
+    };
+
+    for (const g of groups) {
+      const r = row(g.tenantId);
+      const n = g._count._all;
+      r.total += n;
+      if (g.status === 'FAILED') r.failed += n;
+      else if (g.status === 'PENDING' || g.status === 'PROCESSING') r.pending += n;
+      else if (g.status === 'COMPLETED') r.completed += n;
+    }
+
+    const byTenant = [...rows.values()];
+    const totals = byTenant.reduce(
+      (acc, r) => ({
+        total:     acc.total + r.total,
+        failed:    acc.failed + r.failed,
+        pending:   acc.pending + r.pending,
+        completed: acc.completed + r.completed,
+      }),
+      { total: 0, failed: 0, pending: 0, completed: 0 },
+    );
+
+    return toApiResponse({ totals, byTenant });
+  }
 
   async findAll(tenantId: string, query: PrintJobQuery) {
     const { page, limit, status, labelType, printerId } = query;

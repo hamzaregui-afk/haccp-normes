@@ -47,6 +47,16 @@ export class PrintJobController {
     return this.printJobService.findAll(user.tenantId, query);
   }
 
+  // Cross-tenant supervision aggregate for the SUPER_ADMIN "Tous les clients"
+  // dashboard. Declared before /:id so the literal path wins. Always aggregates
+  // across every tenant (SUPER_ADMIN-only); ignores X-Selected-Tenant by design.
+  @Get('stats/by-tenant')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({ summary: "Cross-tenant print-job counts grouped by tenant (SUPER_ADMIN)" })
+  getStatsByTenant() {
+    return this.printJobService.getStatsByTenant();
+  }
+
   // GET /print-jobs/:id — declared before /:id/retry to avoid route conflict
   @Get(':id')
   @Roles(...READ_ROLES)
