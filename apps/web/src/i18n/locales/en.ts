@@ -3,6 +3,25 @@
  */
 
 const en = {
+  supervision: {
+    label:       'Supervised client',
+    platform:    'Platform view',
+    all:         'All clients',
+    viewing:     'Showing data',
+    loading:     'Loading…',
+    noClients:   'No client',
+    overview: {
+      subtitle:    'Aggregated view of all supervised clients',
+      client:      'Client',
+      overdue:     'Overdue tasks',
+      ncOpen:      'Open NCs',
+      ncCritical:  'Critical NCs',
+      dlcToday:    "Use-by today",
+      dlcExpired:  'Expired use-by',
+      printFailed: 'Failed prints',
+      empty:       'No data for supervised clients',
+    },
+  },
   nav: {
     operations:      'OPERATIONS',
     overview:        'Overview',

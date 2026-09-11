@@ -4,6 +4,25 @@
  */
 
 const ar = {
+  supervision: {
+    label:       'العميل المُشرف عليه',
+    platform:    'عرض المنصة',
+    all:         'جميع العملاء',
+    viewing:     'البيانات المعروضة',
+    loading:     'جارٍ التحميل…',
+    noClients:   'لا يوجد عميل',
+    overview: {
+      subtitle:    'عرض مجمّع لجميع العملاء المُشرف عليهم',
+      client:      'العميل',
+      overdue:     'مهام متأخرة',
+      ncOpen:      'حالات عدم مطابقة مفتوحة',
+      ncCritical:  'حالات حرجة',
+      dlcToday:    'صلاحية اليوم',
+      dlcExpired:  'صلاحية منتهية',
+      printFailed: 'طباعة فاشلة',
+      empty:       'لا توجد بيانات للعملاء المُشرف عليهم',
+    },
+  },
   nav: {
     operations:      'العمليات',
     overview:        'نظرة عامة',
