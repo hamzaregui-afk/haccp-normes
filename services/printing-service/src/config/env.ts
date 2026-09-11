@@ -13,7 +13,16 @@ const envSchema = z.object({
   // keys at rest. OPTIONAL — when absent, PrintNode features are disabled and the
   // service still boots. Provision it (server env / GitHub secret) to enable
   // PrintNode. Must never be committed.
-  ENCRYPTION_KEY:          z.string().min(32).optional(),
+  //
+  // ARCH-DECISION: preprocess empty/whitespace → undefined. docker-compose injects
+  // `ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}`, which is an empty STRING (not unset) when
+  // the key isn't provisioned. `.optional()` only accepts `undefined`, so a bare
+  // `.min(32).optional()` REJECTS "" and crash-loops the whole service on boot.
+  // Coercing "" → undefined lets the service boot key-less as intended.
+  ENCRYPTION_KEY: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim().length === 0 ? undefined : v),
+    z.string().min(32).optional(),
+  ),
 });
 
 export type Env = z.infer<typeof envSchema>;
