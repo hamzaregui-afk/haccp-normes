@@ -17,6 +17,7 @@ const mockPrisma = {
     findFirst: jest.fn(),
     update:    jest.fn(),
     delete:    jest.fn(),
+    groupBy:   jest.fn(),
   },
   // $transaction is used in findAll — simulate it by executing each callback
   $transaction: jest.fn(),
@@ -443,6 +444,40 @@ describe('NonconformityService', () => {
   });
 
   // ── getStats ─────────────────────────────────────────────────────────────────
+
+  describe('getStatsByTenant', () => {
+    it('aggregates NC counts per tenant with platform totals', async () => {
+      mockPrisma.nonConformity.groupBy
+        .mockResolvedValueOnce([
+          { tenantId: 't1', status: NCStatus.OPEN,        _count: { _all: 20 } },
+          { tenantId: 't1', status: NCStatus.IN_PROGRESS, _count: { _all: 5 } },
+          { tenantId: 't1', status: NCStatus.CLOSED,      _count: { _all: 10 } },
+          { tenantId: 't2', status: NCStatus.OPEN,        _count: { _all: 3 } },
+        ])
+        .mockResolvedValueOnce([
+          { tenantId: 't1', _count: { _all: 2 } },
+        ]);
+
+      const result = await service.getStatsByTenant();
+
+      expect(result.data.totals).toEqual({
+        total: 38, open: 23, inProgress: 5, closed: 10, rejected: 0, critical: 2,
+      });
+      expect(result.data.byTenant).toHaveLength(2);
+      const t1 = result.data.byTenant.find((r) => r.tenantId === 't1');
+      expect(t1).toEqual({ tenantId: 't1', total: 35, open: 20, inProgress: 5, closed: 10, rejected: 0, critical: 2 });
+      const t2 = result.data.byTenant.find((r) => r.tenantId === 't2');
+      expect(t2).toEqual({ tenantId: 't2', total: 3, open: 3, inProgress: 0, closed: 0, rejected: 0, critical: 0 });
+    });
+
+    it('groups without a tenant filter (cross-tenant by design)', async () => {
+      mockPrisma.nonConformity.groupBy.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+      await service.getStatsByTenant();
+      const statusCall = mockPrisma.nonConformity.groupBy.mock.calls[0][0] as { by: string[]; where?: unknown };
+      expect(statusCall.by).toEqual(['tenantId', 'status']);
+      expect(statusCall.where).toBeUndefined();
+    });
+  });
 
   describe('getStats', () => {
     it('should return correct counts scoped to tenantId', async () => {

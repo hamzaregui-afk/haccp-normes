@@ -50,6 +50,7 @@ function makePrismaMock() {
       findMany: jest.fn(),
       findFirst: jest.fn(),
       count:    jest.fn(),
+      groupBy:  jest.fn(),
     },
   };
 }
@@ -269,5 +270,40 @@ describe('DlcService', () => {
     const diffDays = diffMs / (1000 * 60 * 60 * 24);
     // 7 full days + day-boundary expansion ≈ 8 days (see companion test above).
     expect(diffDays).toBeCloseTo(8, 0);
+  });
+
+  // ─── getStatsByTenant (SUPER_ADMIN cross-tenant aggregate) ────────────────
+
+  it('getStatsByTenant — aggregates DLC counts per tenant with totals', async () => {
+    prisma.dlcLabel.groupBy
+      .mockResolvedValueOnce([
+        { tenantId: 't1', _count: { _all: 4 } },
+        { tenantId: 't2', _count: { _all: 1 } },
+      ]) // expiringToday
+      .mockResolvedValueOnce([
+        { tenantId: 't1', _count: { _all: 9 } },
+      ]) // expiringSoon
+      .mockResolvedValueOnce([
+        { tenantId: 't2', _count: { _all: 2 } },
+      ]); // expired
+
+    const result = await service.getStatsByTenant();
+
+    expect(result.data.totals).toEqual({ expiringToday: 5, expiringSoon: 9, expired: 2 });
+    expect(result.data.byTenant).toHaveLength(2);
+    const t1 = result.data.byTenant.find((r) => r.tenantId === 't1');
+    expect(t1).toEqual({ tenantId: 't1', expiringToday: 4, expiringSoon: 9, expired: 0 });
+    const t2 = result.data.byTenant.find((r) => r.tenantId === 't2');
+    expect(t2).toEqual({ tenantId: 't2', expiringToday: 1, expiringSoon: 0, expired: 2 });
+  });
+
+  it('getStatsByTenant — groups by tenantId without a tenant filter', async () => {
+    prisma.dlcLabel.groupBy.mockResolvedValue([]);
+
+    await service.getStatsByTenant();
+
+    const todayCall = prisma.dlcLabel.groupBy.mock.calls[0][0];
+    expect(todayCall.by).toEqual(['tenantId']);
+    expect(todayCall.where.tenantId).toBeUndefined();
   });
 });

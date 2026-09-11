@@ -16,6 +16,17 @@ type NcWithPhotos = Prisma.NonConformityGetPayload<{ include: { photos: true } }
 
 // ─── Service ─────────────────────────────────────────────────────────────────
 
+/** Per-tenant NC counts for the SUPER_ADMIN "Tous les clients" overview. */
+export interface TenantNcStatRow {
+  tenantId: string;
+  total: number;
+  open: number;
+  inProgress: number;
+  closed: number;
+  rejected: number;
+  critical: number;
+}
+
 @Injectable()
 export class NonconformityService {
   private readonly logger = new Logger(NonconformityService.name);
@@ -194,6 +205,65 @@ export class NonconformityService {
     ]);
 
     return toApiResponse({ total, open, inProgress, closed, rejected, critical });
+  }
+
+  /**
+   * Cross-tenant supervision aggregate ("Tous les clients" / ALL mode).
+   * SUPER_ADMIN-only. Groups NC counts by tenantId (never a flat unscoped list);
+   * keys by tenantId, names joined client-side.
+   */
+  async getStatsByTenant() {
+    const [statusGroups, criticalGroups] = await Promise.all([
+      this.prisma.nonConformity.groupBy({
+        by: ['tenantId', 'status'],
+        _count: { _all: true },
+      }),
+      this.prisma.nonConformity.groupBy({
+        by: ['tenantId'],
+        where: {
+          severity: NCSeverity.CRITICAL,
+          status: { in: [NCStatus.OPEN, NCStatus.IN_PROGRESS] },
+        },
+        _count: { _all: true },
+      }),
+    ]);
+
+    type Row = TenantNcStatRow;
+    const rows = new Map<string, Row>();
+    const row = (tenantId: string): Row => {
+      let r = rows.get(tenantId);
+      if (!r) {
+        r = { tenantId, total: 0, open: 0, inProgress: 0, closed: 0, rejected: 0, critical: 0 };
+        rows.set(tenantId, r);
+      }
+      return r;
+    };
+
+    for (const g of statusGroups) {
+      const r = row(g.tenantId);
+      const n = g._count._all;
+      r.total += n;
+      if (g.status === NCStatus.OPEN) r.open += n;
+      else if (g.status === NCStatus.IN_PROGRESS) r.inProgress += n;
+      else if (g.status === NCStatus.CLOSED) r.closed += n;
+      else if (g.status === NCStatus.REJECTED) r.rejected += n;
+    }
+    for (const g of criticalGroups) row(g.tenantId).critical = g._count._all;
+
+    const byTenant = [...rows.values()];
+    const totals = byTenant.reduce(
+      (acc, r) => ({
+        total:      acc.total + r.total,
+        open:       acc.open + r.open,
+        inProgress: acc.inProgress + r.inProgress,
+        closed:     acc.closed + r.closed,
+        rejected:   acc.rejected + r.rejected,
+        critical:   acc.critical + r.critical,
+      }),
+      { total: 0, open: 0, inProgress: 0, closed: 0, rejected: 0, critical: 0 },
+    );
+
+    return toApiResponse({ totals, byTenant });
   }
 
   // ── Photo upload ─────────────────────────────────────────────────────────

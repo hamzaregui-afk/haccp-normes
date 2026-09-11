@@ -18,6 +18,14 @@ function endOfDayUTC(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999));
 }
 
+/** Per-tenant DLC counts for the SUPER_ADMIN "Tous les clients" overview. */
+export interface TenantDlcStatRow {
+  tenantId: string;
+  expiringToday: number;
+  expiringSoon: number;
+  expired: number;
+}
+
 @Injectable()
 export class DlcService {
   constructor(private readonly prisma: PrismaService) {}
@@ -89,6 +97,63 @@ export class DlcService {
       orderBy: { expiresAt: 'asc' },
     });
     return toApiResponse(labels);
+  }
+
+  /**
+   * Cross-tenant supervision aggregate ("Tous les clients" / ALL mode).
+   * SUPER_ADMIN-only. Groups DLC label counts by tenantId; keys by tenantId,
+   * names joined client-side.
+   */
+  async getStatsByTenant() {
+    const now        = new Date();
+    const startToday = startOfDayUTC(now);
+    const endToday   = endOfDayUTC(now);
+    const soonCutoff = endOfDayUTC(addDays(now, 3));
+
+    const [todayGroups, soonGroups, expiredGroups] = await Promise.all([
+      this.prisma.dlcLabel.groupBy({
+        by: ['tenantId'],
+        where: { expiresAt: { gte: startToday, lte: endToday } },
+        _count: { _all: true },
+      }),
+      this.prisma.dlcLabel.groupBy({
+        by: ['tenantId'],
+        where: { expiresAt: { gte: startToday, lte: soonCutoff } },
+        _count: { _all: true },
+      }),
+      this.prisma.dlcLabel.groupBy({
+        by: ['tenantId'],
+        where: { expiresAt: { lt: startToday } },
+        _count: { _all: true },
+      }),
+    ]);
+
+    type Row = TenantDlcStatRow;
+    const rows = new Map<string, Row>();
+    const row = (tenantId: string): Row => {
+      let r = rows.get(tenantId);
+      if (!r) {
+        r = { tenantId, expiringToday: 0, expiringSoon: 0, expired: 0 };
+        rows.set(tenantId, r);
+      }
+      return r;
+    };
+
+    for (const g of todayGroups) row(g.tenantId).expiringToday = g._count._all;
+    for (const g of soonGroups) row(g.tenantId).expiringSoon = g._count._all;
+    for (const g of expiredGroups) row(g.tenantId).expired = g._count._all;
+
+    const byTenant = [...rows.values()];
+    const totals = byTenant.reduce(
+      (acc, r) => ({
+        expiringToday: acc.expiringToday + r.expiringToday,
+        expiringSoon:  acc.expiringSoon + r.expiringSoon,
+        expired:       acc.expired + r.expired,
+      }),
+      { expiringToday: 0, expiringSoon: 0, expired: 0 },
+    );
+
+    return toApiResponse({ totals, byTenant });
   }
 
   async getExpiringSoon(tenantId: string, days = 3) {

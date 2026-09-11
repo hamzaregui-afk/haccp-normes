@@ -49,6 +49,16 @@ export class NonconformityController {
     return this.nonconformityService.getStats(user.tenantId);
   }
 
+  // Cross-tenant supervision aggregate for the SUPER_ADMIN "Tous les clients"
+  // dashboard. Always aggregates across every tenant (SUPER_ADMIN-only), so it
+  // ignores the X-Selected-Tenant header by design. Declared before /:id.
+  @Get('stats/by-tenant')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({ summary: 'Cross-tenant NC counts grouped by tenant (SUPER_ADMIN)' })
+  getStatsByTenant() {
+    return this.nonconformityService.getStatsByTenant();
+  }
+
   // GET /nonconformities
   @Get()
   @Roles(...READ_ROLES)

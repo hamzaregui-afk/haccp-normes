@@ -57,6 +57,15 @@ export class DlcController {
     return this.dlcService.getExpiringToday(user.tenantId);
   }
 
+  // Cross-tenant supervision aggregate for the SUPER_ADMIN "Tous les clients"
+  // dashboard. Always aggregates across every tenant (SUPER_ADMIN-only), so it
+  // ignores the X-Selected-Tenant header by design.
+  @Get('stats/by-tenant')
+  @Roles('SUPER_ADMIN')
+  getStatsByTenant() {
+    return this.dlcService.getStatsByTenant();
+  }
+
   @Get('labels/expiring-soon')
   @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'VIEWER')
   getExpiringSoon(
