@@ -143,7 +143,9 @@ export function resolveEffectiveTenant(
         selectedTenantId: null,
       };
     }
-    if (selected === ALL_TENANTS) {
+    // Case-insensitive so a hand-crafted 'all'/'All' header still aggregates
+    // rather than being mistaken for a literal tenantId (cuids never equal 'ALL').
+    if (selected.toUpperCase() === ALL_TENANTS) {
       return {
         mode: 'ALL',
         effectiveTenantId: null,

@@ -79,6 +79,11 @@ export const useAuthStore = create<AuthState>()(
           // the QueryProvider module at load time.
           const { queryClient } = await import('@/lib/queryClient');
           queryClient.clear();
+          // Reset any SUPER_ADMIN client-supervision selection so it can never
+          // linger into the next session (safe even though useTenantId/api re-gate
+          // on the live role — this keeps the persisted store clean).
+          const { useSupervisionStore } = await import('@/store/supervision.store');
+          useSupervisionStore.setState({ mode: 'PLATFORM', selectedTenantId: null, selectedTenantName: null });
         }
       },
 

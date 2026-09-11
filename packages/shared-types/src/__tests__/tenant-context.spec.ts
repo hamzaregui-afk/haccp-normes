@@ -92,6 +92,12 @@ describe('resolveEffectiveTenant — SUPER_ADMIN', () => {
     expect(ctx.isSuperAdmin).toBe(true);
   });
 
+  it('ALL header is case-insensitive (all / All → aggregation)', () => {
+    expect(resolveEffectiveTenant(SUPER, 'all').mode).toBe('ALL');
+    expect(resolveEffectiveTenant(SUPER, 'All').mode).toBe('ALL');
+    expect(resolveEffectiveTenant(SUPER, '  aLL ').mode).toBe('ALL');
+  });
+
   it('header = a real tenantId → SINGLE scoped to that tenant', () => {
     const ctx = resolveEffectiveTenant(SUPER, TENANT_A);
     expect(ctx).toEqual({

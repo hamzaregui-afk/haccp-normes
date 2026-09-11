@@ -45,7 +45,7 @@ function SupervisionSelectorInner() {
       // module's static graph, so mounting the Header in tests/non-admin paths
       // never eval-loads it — matches auth.store's lazy `import('@/lib/api')`.
       const { api } = await import('@/lib/api');
-      const { data } = await api.get<ApiResponse<Tenant[]>>('/api/v1/tenants?page=1&limit=100');
+      const { data } = await api.get<ApiResponse<Tenant[]>>('/api/v1/tenants?page=1&limit=500');
       return data.data;
     },
     staleTime: 1000 * 60 * 5,

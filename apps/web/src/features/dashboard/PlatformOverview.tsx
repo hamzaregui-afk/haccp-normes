@@ -54,7 +54,7 @@ export function PlatformOverview() {
   const tenantsQuery = useQuery({
     queryKey: ['supervision', 'tenants'],
     queryFn: async () => {
-      const { data } = await api.get<ApiResponse<Tenant[]>>('/api/v1/tenants?page=1&limit=100');
+      const { data } = await api.get<ApiResponse<Tenant[]>>('/api/v1/tenants?page=1&limit=500');
       return data.data;
     },
     staleTime: 5 * 60 * 1000,
