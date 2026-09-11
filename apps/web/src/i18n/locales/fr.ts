@@ -12,6 +12,17 @@ const fr = {
     viewing:     'Données affichées',
     loading:     'Chargement…',
     noClients:   'Aucun client',
+    overview: {
+      subtitle:    'Vue agrégée de tous les clients supervisés',
+      client:      'Client',
+      overdue:     'Tâches en retard',
+      ncOpen:      'NC ouvertes',
+      ncCritical:  'NC critiques',
+      dlcToday:    'DLC du jour',
+      dlcExpired:  'DLC expirées',
+      printFailed: 'Impressions échouées',
+      empty:       'Aucune donnée pour les clients supervisés',
+    },
   },
   // ── Navigation ────────────────────────────────────────────────────────────────
   nav: {

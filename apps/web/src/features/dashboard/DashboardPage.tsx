@@ -19,7 +19,9 @@ import { Header } from '@/components/layout/Header';
 import { PageWrapper } from '@/components/layout/AppLayout';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
+import { useSupervisionStore } from '@/store/supervision.store';
 import { useTenantId } from '@/hooks/useTenantId';
+import { PlatformOverview } from './PlatformOverview';
 import type { ApiResponse, UserRole } from '@haccp/shared-types';
 
 // ─── API shapes ───────────────────────────────────────────────────────────────
@@ -433,7 +435,7 @@ function RecentNcControlsWidget({ zoneMap }: { zoneMap: Record<string, string> }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function DashboardPage() {
+function TenantDashboard() {
   const { t, i18n } = useTranslation();
   const currentUser = useAuthStore((s) => s.user);
   const tenantId    = useTenantId();
@@ -849,4 +851,18 @@ export default function DashboardPage() {
       </PageWrapper>
     </>
   );
+}
+
+/**
+ * Dashboard entry point. For a SUPER_ADMIN supervising "Tous les clients"
+ * (ALL mode) it renders the cross-tenant platform overview; otherwise the
+ * normal single-tenant dashboard (which, for a SUPER_ADMIN with a client
+ * selected, is already scoped to that client via the effective-tenant seam).
+ */
+export default function DashboardPage() {
+  const isSuperAdmin = useAuthStore((s) => s.user?.role === 'SUPER_ADMIN');
+  const mode = useSupervisionStore((s) => s.mode);
+
+  if (isSuperAdmin && mode === 'ALL') return <PlatformOverview />;
+  return <TenantDashboard />;
 }
