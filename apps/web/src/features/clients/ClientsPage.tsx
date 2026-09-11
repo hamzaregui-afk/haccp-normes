@@ -16,6 +16,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Pagination } from '@/components/ui/Pagination';
 import { showToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
+import { ALL_TENANT_MODULE_KEYS } from '@haccp/shared-types';
 import type { ApiResponse, Tenant } from '@haccp/shared-types';
 
 // ─── Error helper ─────────────────────────────────────────────────────────────
@@ -336,7 +337,7 @@ function TenantRow({ tenant, onEdit, onStatus }: TenantRowProps) {
           <span className="text-gray-300">—</span>
         )}
         {' '}
-        <span className="text-xs text-gray-400">/ 17</span>
+        <span className="text-xs text-gray-400">/ {ALL_TENANT_MODULE_KEYS.length}</span>
       </td>
 
       {/* Sites */}

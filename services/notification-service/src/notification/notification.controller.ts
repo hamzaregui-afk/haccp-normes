@@ -43,7 +43,7 @@ export class NotificationController {
   markRead(@Body() body: unknown, @CurrentUser() user: JwtPayload) {
     const parsed = MarkReadDtoSchema.safeParse(body);
     if (parsed.success) {
-      return this.notificationService.markRead(parsed.data, user.tenantId);
+      return this.notificationService.markRead(parsed.data, user.tenantId, user.sub);
     }
     // No valid IDs provided → mark all unread for this user
     return this.notificationService.markAllReadForUser(user.sub, user.tenantId);

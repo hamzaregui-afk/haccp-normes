@@ -132,6 +132,7 @@ describe('NotificationService', () => {
       await service.create(dto, TENANT_A);
 
       expect(gateway.emitToUser).toHaveBeenCalledWith(
+        TENANT_A,
         USER_ID,
         'notification:new',
         expect.objectContaining({ id: 'notif-001' }),
@@ -241,14 +242,14 @@ describe('NotificationService', () => {
   // ─── markRead ───────────────────────────────────────────────────────────────
 
   describe('markRead', () => {
-    it('calls updateMany with the given ids scoped to the tenant', async () => {
+    it('calls updateMany with the given ids scoped to the tenant AND the user', async () => {
       prisma.notification.updateMany.mockResolvedValue({ count: 2 });
 
       const dto: MarkReadDto = { ids: ['notif-001', 'notif-002'] };
-      const result = await service.markRead(dto, TENANT_A);
+      const result = await service.markRead(dto, TENANT_A, USER_ID);
 
       expect(prisma.notification.updateMany).toHaveBeenCalledWith({
-        where: { id: { in: dto.ids }, tenantId: TENANT_A },
+        where: { id: { in: dto.ids }, tenantId: TENANT_A, userId: USER_ID },
         data:  { isRead: true },
       });
       expect(result.message).toBe('Marked as read');
@@ -258,10 +259,20 @@ describe('NotificationService', () => {
       prisma.notification.updateMany.mockResolvedValue({ count: 0 });
 
       const dto: MarkReadDto = { ids: ['notif-001'] };
-      await service.markRead(dto, TENANT_B);
+      await service.markRead(dto, TENANT_B, USER_ID);
 
       const calledWhere = prisma.notification.updateMany.mock.calls[0][0].where as Record<string, unknown>;
       expect(calledWhere['tenantId']).toBe(TENANT_B);
+    });
+
+    it('scopes to the caller so one user cannot mark another user\'s notifications read', async () => {
+      prisma.notification.updateMany.mockResolvedValue({ count: 0 });
+
+      const dto: MarkReadDto = { ids: ['someone-elses-notif'] };
+      await service.markRead(dto, TENANT_A, USER_ID);
+
+      const calledWhere = prisma.notification.updateMany.mock.calls[0][0].where as Record<string, unknown>;
+      expect(calledWhere['userId']).toBe(USER_ID);
     });
   });
 

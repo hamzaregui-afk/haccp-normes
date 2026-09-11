@@ -5,7 +5,7 @@
  * Tabs:
  *  1. Informations     — name, slug, contacts, status, sector
  *  2. Admin principal  — create/view the tenant's ADMIN user
- *  3. Modules          — feature flag toggles (17 modules)
+ *  3. Modules          — feature flag toggles (18 modules)
  *  4. Abonnement       — plan, limits, trial dates
  *  5. Sites & Zones    — hierarchical reference data
  *  6. Utilisateurs     — tenant user list (read-only from SA view)

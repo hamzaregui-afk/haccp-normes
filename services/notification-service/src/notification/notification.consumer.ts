@@ -193,7 +193,7 @@ export class NotificationConsumer {
 
     // Personal notification to the operator (if individually assigned)
     if (assigneeId) {
-      this.gateway.emitToUser(assigneeId, 'notification:task-assigned', socketPayload);
+      this.gateway.emitToUser(data.tenantId, assigneeId, 'notification:task-assigned', socketPayload);
 
       // ARCH-DECISION: Persist to DB so operators can retrieve notifications
       // after reconnecting (GET /notifications endpoint). WebSocket alone loses
@@ -252,7 +252,7 @@ export class NotificationConsumer {
     this.gateway.emitToTenant(data.tenantId, 'notification:tasks-overdue', body);
 
     for (const assigneeId of assigneeIds) {
-      this.gateway.emitToUser(assigneeId, 'notification:tasks-overdue', body);
+      this.gateway.emitToUser(data.tenantId, assigneeId, 'notification:tasks-overdue', body);
     }
 
     // ARCH-DECISION: Also push to mobile. The field operators who own overdue tasks

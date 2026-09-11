@@ -23,9 +23,10 @@ export class NotificationService {
       data: { ...dto, tenantId },
     });
 
-    // Push real-time event to the target user's socket room
+    // Push real-time event to the target user's TENANT-SCOPED socket room
     // ARCH-DECISION: 'notification:new' matches the web useNotifications hook listener.
-    this.gateway.emitToUser(dto.userId, 'notification:new', notification);
+    // Passing tenantId scopes the push so a foreign userId cannot receive it.
+    this.gateway.emitToUser(tenantId, dto.userId, 'notification:new', notification);
 
     // Fire-and-forget email for actionable notification types
     // ARCH-DECISION: Email is sent asynchronously (no await) so that a slow SMTP
@@ -56,9 +57,12 @@ export class NotificationService {
     return toApiResponse(items, toPaginationMeta(total, { page, limit }));
   }
 
-  async markRead(dto: MarkReadDto, tenantId: string) {
+  async markRead(dto: MarkReadDto, tenantId: string, userId: string) {
+    // ARCH-DECISION: scope by userId as well as tenantId — a user may only mark
+    // THEIR OWN notifications read. Without userId any tenant member could flip
+    // another member's read flags by supplying their notification IDs.
     await this.prisma.notification.updateMany({
-      where: { id: { in: dto.ids }, tenantId },
+      where: { id: { in: dto.ids }, tenantId, userId },
       data: { isRead: true },
     });
     return toApiResponse(null, undefined, 'Marked as read');

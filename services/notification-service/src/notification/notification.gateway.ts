@@ -53,6 +53,14 @@ export class NotificationGateway implements OnGatewayConnection, OnGatewayDiscon
       this.logger.log(`Client ${client.id} joined room user:${userId}`);
     }
 
+    // ARCH-DECISION: also join a TENANT-SCOPED user room so a personal push can
+    // never cross tenants. emitToUser targets `u:{tenantId}:{userId}`; a caller
+    // that (accidentally or maliciously) supplies a foreign userId emits into a
+    // room no socket of that tenant ever joined, so nothing is delivered.
+    if (userId && tenantId) {
+      void client.join(`u:${tenantId}:${userId}`);
+    }
+
     // ARCH-DECISION: Each client also joins a tenant-scoped room so that
     // domain events (NC created, task completed, report validated) can be
     // broadcast to all connected users in the same tenant without knowing
@@ -68,9 +76,13 @@ export class NotificationGateway implements OnGatewayConnection, OnGatewayDiscon
     this.logger.log(`Client ${client.id} disconnected`);
   }
 
-  /** Push an event to all sockets belonging to a specific user. */
-  emitToUser(userId: string, event: string, data: unknown): void {
-    this.server.to(`user:${userId}`).emit(event, data);
+  /**
+   * Push an event to a specific user's sockets, SCOPED TO THEIR TENANT.
+   * Targets `u:{tenantId}:{userId}` so a personal push cannot reach a user of
+   * another tenant even if a foreign userId is passed.
+   */
+  emitToUser(tenantId: string, userId: string, event: string, data: unknown): void {
+    this.server.to(`u:${tenantId}:${userId}`).emit(event, data);
   }
 
   /**
