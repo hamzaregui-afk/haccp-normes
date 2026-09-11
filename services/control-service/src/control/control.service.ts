@@ -19,6 +19,15 @@ import {
 // them to RabbitMQ — guaranteeing at-least-once delivery even on crash.
 // See src/outbox/outbox.worker.ts for the relay implementation.
 
+/** Per-tenant control counts for the SUPER_ADMIN "Tous les clients" overview. */
+export interface TenantControlStatRow {
+  tenantId: string;
+  openOverdue: number;
+  todayTotal: number;
+  todayCompleted: number;
+  ncControlsThisMonth: number;
+}
+
 @Injectable()
 export class ControlService {
   constructor(
@@ -320,6 +329,76 @@ export class ControlService {
       : Math.round((todayCompleted / todayTotal) * 100);
 
     return toApiResponse({ todayTotal, todayCompleted, openOverdue, complianceRate, ncControlsThisMonth });
+  }
+
+  /**
+   * Cross-tenant supervision aggregate ("Tous les clients" / ALL mode).
+   *
+   * ARCH-DECISION: SUPER_ADMIN-only. This is the ONE place control-service
+   * queries across every tenant (grouped by tenantId, never a flat unscoped
+   * list), used by the platform overview. Tenant *names* are not known here
+   * (they live in tenant-service) — the response keys by tenantId and the
+   * frontend joins names from the tenant list it already holds.
+   */
+  async getStatsByTenant() {
+    const now          = new Date();
+    const startOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const endOfDay     = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+
+    type Row = TenantControlStatRow;
+    const [overdueGroups, todayGroups, ncGroups] = await Promise.all([
+      this.prisma.controlTask.groupBy({
+        by: ['tenantId'],
+        where: { status: TaskStatus.OVERDUE },
+        _count: { _all: true },
+      }),
+      this.prisma.controlTask.groupBy({
+        by: ['tenantId', 'status'],
+        where: { scheduledAt: { gte: startOfDay, lte: endOfDay } },
+        _count: { _all: true },
+      }),
+      this.prisma.controlTask.groupBy({
+        by: ['tenantId'],
+        where: {
+          status:      TaskStatus.COMPLETED,
+          completedAt: { gte: startOfMonth },
+          resultJson:  { path: ['overallCompliant'], equals: false },
+        },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const rows = new Map<string, Row>();
+    const row = (tenantId: string): Row => {
+      let r = rows.get(tenantId);
+      if (!r) {
+        r = { tenantId, openOverdue: 0, todayTotal: 0, todayCompleted: 0, ncControlsThisMonth: 0 };
+        rows.set(tenantId, r);
+      }
+      return r;
+    };
+
+    for (const g of overdueGroups) row(g.tenantId).openOverdue = g._count._all;
+    for (const g of todayGroups) {
+      const r = row(g.tenantId);
+      r.todayTotal += g._count._all;
+      if (g.status === TaskStatus.COMPLETED) r.todayCompleted += g._count._all;
+    }
+    for (const g of ncGroups) row(g.tenantId).ncControlsThisMonth = g._count._all;
+
+    const byTenant = [...rows.values()];
+    const totals = byTenant.reduce(
+      (acc, r) => ({
+        openOverdue:         acc.openOverdue + r.openOverdue,
+        todayTotal:          acc.todayTotal + r.todayTotal,
+        todayCompleted:      acc.todayCompleted + r.todayCompleted,
+        ncControlsThisMonth: acc.ncControlsThisMonth + r.ncControlsThisMonth,
+      }),
+      { openOverdue: 0, todayTotal: 0, todayCompleted: 0, ncControlsThisMonth: 0 },
+    );
+
+    return toApiResponse({ totals, byTenant });
   }
 
   /**

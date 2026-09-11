@@ -22,6 +22,7 @@ const mockControlTask = {
   create:    jest.fn(),
   findFirst: jest.fn(),
   update:    jest.fn(),
+  groupBy:   jest.fn(),
 };
 
 const mockOutboxEvent = {
@@ -758,6 +759,70 @@ describe('ControlService', () => {
         status:     'COMPLETED',
         resultJson: { path: ['overallCompliant'], equals: false },
       });
+    });
+  });
+
+  // ── getStatsByTenant (SUPER_ADMIN cross-tenant aggregate) ──────────────────────
+
+  describe('getStatsByTenant', () => {
+    // The service fires 3 groupBy queries via Promise.all, in declaration order:
+    // 1) overdue by tenantId, 2) today by tenantId+status, 3) ncThisMonth by tenantId.
+    function mockGroups() {
+      mockControlTask.groupBy
+        .mockResolvedValueOnce([
+          { tenantId: 't1', _count: { _all: 3 } },
+          { tenantId: 't2', _count: { _all: 1 } },
+        ])
+        .mockResolvedValueOnce([
+          { tenantId: 't1', status: 'PLANNED',   _count: { _all: 5 } },
+          { tenantId: 't1', status: 'COMPLETED', _count: { _all: 4 } },
+          { tenantId: 't2', status: 'COMPLETED', _count: { _all: 2 } },
+        ])
+        .mockResolvedValueOnce([
+          { tenantId: 't1', _count: { _all: 1 } },
+        ]);
+    }
+
+    it('aggregates per-tenant counts and platform totals', async () => {
+      mockGroups();
+
+      const result = await service.getStatsByTenant();
+
+      expect(result.data.totals).toEqual({
+        openOverdue:         4,
+        todayTotal:          11,
+        todayCompleted:      6,
+        ncControlsThisMonth: 1,
+      });
+      expect(result.data.byTenant).toHaveLength(2);
+
+      const t1 = result.data.byTenant.find((r) => r.tenantId === 't1');
+      const t2 = result.data.byTenant.find((r) => r.tenantId === 't2');
+      expect(t1).toEqual({ tenantId: 't1', openOverdue: 3, todayTotal: 9, todayCompleted: 4, ncControlsThisMonth: 1 });
+      expect(t2).toEqual({ tenantId: 't2', openOverdue: 1, todayTotal: 2, todayCompleted: 2, ncControlsThisMonth: 0 });
+    });
+
+    it('groups overdue with no tenant filter (cross-tenant by design)', async () => {
+      mockGroups();
+
+      await service.getStatsByTenant();
+
+      const overdueCall = mockControlTask.groupBy.mock.calls[0] as [{ by: string[]; where: Record<string, unknown> }];
+      expect(overdueCall[0].by).toEqual(['tenantId']);
+      expect(overdueCall[0].where).toEqual({ status: 'OVERDUE' });
+      expect(overdueCall[0].where).not.toHaveProperty('tenantId');
+    });
+
+    it('returns empty aggregate when there is no data', async () => {
+      mockControlTask.groupBy
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      const result = await service.getStatsByTenant();
+
+      expect(result.data.byTenant).toHaveLength(0);
+      expect(result.data.totals).toEqual({ openOverdue: 0, todayTotal: 0, todayCompleted: 0, ncControlsThisMonth: 0 });
     });
   });
 

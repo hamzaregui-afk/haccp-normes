@@ -205,6 +205,15 @@ export class ControlController {
     return this.controlService.getStats(user.tenantId);
   }
 
+  // Cross-tenant supervision aggregate for the SUPER_ADMIN "Tous les clients"
+  // (ALL) dashboard. Always aggregates across every tenant, so it ignores the
+  // X-Selected-Tenant header by design; SUPER_ADMIN-only.
+  @Get('stats/by-tenant')
+  @Roles('SUPER_ADMIN')
+  getStatsByTenant() {
+    return this.controlService.getStatsByTenant();
+  }
+
   @Get('nc-controls')
   @Roles('ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'VIEWER')
   getRecentNcControls(@CurrentUser() user: JwtPayload) {
