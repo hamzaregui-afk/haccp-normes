@@ -67,7 +67,25 @@ export class NonconformityService {
       this.prisma.nonConformity.count({ where }),
     ]) as [NcWithPhotos[], number];
 
-    return toApiResponse(items, toPaginationMeta(total, { page, limit }));
+    const refreshed = await Promise.all(items.map((nc) => this.withFreshPhotoUrls(nc)));
+    return toApiResponse(refreshed, toPaginationMeta(total, { page, limit }));
+  }
+
+  /**
+   * Re-sign each photo's presigned URL from its permanent objectKey.
+   *
+   * ARCH-DECISION: NCPhoto.url is a presigned URL captured at upload with a 1h
+   * TTL; returning the STORED url made images 404 an hour later. Re-signing on
+   * read (like documents & control photos already do) always hands the client a
+   * fresh URL. presignedGetUrl is a local HMAC computation, not a MinIO round-
+   * trip, so this is cheap even across a page of NCs.
+   */
+  private async withFreshPhotoUrls(nc: NcWithPhotos): Promise<NcWithPhotos> {
+    if (nc.photos.length === 0) return nc;
+    const photos = await Promise.all(
+      nc.photos.map(async (p) => ({ ...p, url: await this.minio.presignedGetUrl(p.objectKey) })),
+    );
+    return { ...nc, photos };
   }
 
   // ── Single ────────────────────────────────────────────────────────────────
@@ -80,7 +98,7 @@ export class NonconformityService {
     if (!nc) {
       throw new NotFoundException(`NonConformity ${id} not found`);
     }
-    return toApiResponse(nc as NcWithPhotos);
+    return toApiResponse(await this.withFreshPhotoUrls(nc as NcWithPhotos));
   }
 
   // ── Create ────────────────────────────────────────────────────────────────
