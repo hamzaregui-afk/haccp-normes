@@ -5,6 +5,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles }       from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard }   from '../auth/guards/roles.guard';
+import { ModuleGuard }  from '../auth/guards/module.guard';
+import { RequireModule } from '../auth/decorators/require-module.decorator';
 import {
   CreateDocRequestSchema,
   UpdateDocRequestSchema,
@@ -16,7 +18,8 @@ const ADMIN_ROLES = ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] as const;
 const READ_ROLES  = ['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'QUALITY_OFFICER', 'VIEWER', 'OPERATOR'] as const;
 
 @Controller('document-requests')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ModuleGuard)
+@RequireModule('GED')
 export class DocumentRequestController {
   constructor(private readonly service: DocumentRequestService) {}
 

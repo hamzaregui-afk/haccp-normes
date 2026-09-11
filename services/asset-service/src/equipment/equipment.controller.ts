@@ -5,11 +5,14 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { ModuleGuard } from '../auth/guards/module.guard';
+import { RequireModule } from '../auth/decorators/require-module.decorator';
 import { CreateEquipmentDtoSchema, EquipmentQuerySchema, UpdateEquipmentDtoSchema } from './dto/equipment.dto';
 import { EquipmentService } from './equipment.service';
 
 @Controller('equipments')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ModuleGuard)
+@RequireModule('EQUIPMENTS')
 export class EquipmentController {
   constructor(private readonly equipmentService: EquipmentService) {}
 

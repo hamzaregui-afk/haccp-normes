@@ -18,6 +18,8 @@ import { CurrentUser }  from '../auth/decorators/current-user.decorator';
 import { Roles }        from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard }   from '../auth/guards/roles.guard';
+import { ModuleGuard }  from '../auth/guards/module.guard';
+import { RequireModule } from '../auth/decorators/require-module.decorator';
 import { DocumentCategorySchema, DocumentQuerySchema } from './dto/document.dto';
 import { DocumentService }     from './document.service';
 
@@ -50,7 +52,8 @@ function mimeAllowlistFilter(allow: Set<string>) {
 }
 
 @Controller('documents')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ModuleGuard)
+@RequireModule('GED')
 export class DocumentController {
   constructor(private readonly documentService: DocumentService) {}
 

@@ -5,11 +5,14 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { ModuleGuard } from '../auth/guards/module.guard';
+import { RequireModule } from '../auth/decorators/require-module.decorator';
 import { CreateProductDtoSchema, ProductQuerySchema, UpdateProductDtoSchema } from './dto/product.dto';
 import { ProductService } from './product.service';
 
 @Controller('products')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ModuleGuard)
+@RequireModule('PRODUCTS')
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
