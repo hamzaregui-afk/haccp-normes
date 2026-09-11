@@ -3,21 +3,18 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 
 import type { JwtPayload, TokenPair } from '@haccp/shared-types';
+import { ALL_TENANT_MODULE_KEYS } from '@haccp/shared-types';
 import { UnauthorizedError } from '@haccp/shared-errors';
 
 import { env } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
 
 // ── All 18 module keys — granted to SUPER_ADMIN unconditionally ────────────────
-// ARCH-DECISION: Kept here as a constant (not imported from shared-types) to
-// avoid a cross-package dependency in the hot path. Must stay in sync with
-// ALL_TENANT_MODULE_KEYS in packages/shared-types/src/tenant.types.ts.
-const ALL_MODULE_KEYS: string[] = [
-  'DASHBOARD', 'HACCP_CONTROLS', 'NONCONFORMITIES', 'DLC', 'REPORTS',
-  'EQUIPMENTS', 'PRODUCTS', 'SUPPLIERS', 'GED', 'NOTIFICATIONS', 'AUDIT',
-  'PLANNING', 'TEMPERATURES', 'RECEPTIONS', 'HYGIENE', 'ANALYTICS', 'MOBILE_ACCESS',
-  'TRACABILITY',
-];
+// ARCH-DECISION: single-sourced from shared-types (already a dependency of this
+// service) so the SUPER_ADMIN "all modules" list can never drift from the
+// canonical ALL_TENANT_MODULE_KEYS. Spread into a mutable string[] for the
+// allowedModules JWT field.
+const ALL_MODULE_KEYS: string[] = [...ALL_TENANT_MODULE_KEYS];
 
 interface TenantJwtContext {
   allowedModules:   string[];
