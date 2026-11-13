@@ -14,6 +14,7 @@ import { showToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { useTenantId } from '@/hooks/useTenantId';
+import { MediaProfilesManager } from './MediaProfilesManager';
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
@@ -577,6 +578,8 @@ export default function PrintersPage() {
 
       <PageWrapper>
         {canManage && <PrintNodeConfigCard />}
+
+        <div className="mb-6"><MediaProfilesManager canManage={canManage} /></div>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
