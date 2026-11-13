@@ -219,6 +219,54 @@ export class PrintJobService {
   }
 
   /**
+   * Render a DLC label to raw bytes (base64) for a given protocol WITHOUT
+   * creating or dispatching a print job. Used by the mobile Bluetooth-direct
+   * flow (Lot B): the device fetches the rendered bytes here — reusing the
+   * server's ZPL/TSPL/ESC_POS renderers (no duplication) — and writes them
+   * straight to a BLE printer.
+   *
+   * ARCH-DECISION: base64 of the UTF-8 bytes, identical to the PrintNode
+   * dispatch path (printnode.provider), so the Bluetooth bytes match exactly
+   * what the cloud relay would send. DLC content is ASCII (diacritics stripped),
+   * so UTF-8 == Latin-1 for these labels.
+   */
+  async renderLabel(
+    tenantId: string,
+    input: { protocol?: string | null; mediaProfileId?: string; payload: Record<string, unknown>; copies?: number },
+  ) {
+    const copies = input.copies && input.copies > 0 ? input.copies : 1;
+
+    const profile = input.mediaProfileId
+      ? await this.prisma.mediaProfile.findFirst({ where: { id: input.mediaProfileId, tenantId } })
+      : await this.prisma.mediaProfile.findFirst({ where: { tenantId, isActive: true, isDefault: true } });
+
+    const media: LabelMedia | undefined = profile
+      ? {
+          widthMm: profile.widthMm, heightMm: profile.heightMm, dpi: profile.dpi,
+          mediaType: profile.mediaType, gapMm: profile.gapMm ?? undefined,
+          blackMarkMm: profile.blackMarkMm ?? undefined,
+          speed: profile.speed ?? undefined, density: profile.density ?? undefined,
+        }
+      : undefined;
+
+    const p = input.payload;
+    const content = getLabelRenderer(input.protocol).renderDlc(
+      {
+        productName: String(p['productName'] ?? ''),
+        lotNumber:   p['lotNumber'] != null ? String(p['lotNumber']) : null,
+        producedAt:  String(p['producedAt'] ?? new Date().toISOString()),
+        expiresAt:   String(p['expiresAt']  ?? new Date().toISOString()),
+        tenantName:  p['tenantName'] != null ? String(p['tenantName']) : undefined,
+      },
+      copies,
+      media,
+    );
+
+    const protocol = input.protocol === 'TSPL' || input.protocol === 'ESC_POS' ? input.protocol : 'ZPL';
+    return toApiResponse({ protocol, contentBase64: Buffer.from(content, 'utf8').toString('base64') });
+  }
+
+  /**
    * Called by the Local Print Agent via PATCH /print-jobs/:id to report
    * PROCESSING, COMPLETED, or FAILED status after physical printing.
    */

@@ -32,6 +32,14 @@ export const PrintJobStatusSchema = z.enum(['PENDING', 'PROCESSING', 'COMPLETED'
 export type PrintJobStatusType = z.infer<typeof PrintJobStatusSchema>;
 
 // ── Test print ──────────────────────────────────────────────────────────────────
+export const RenderLabelSchema = z.object({
+  protocol:       z.enum(['ZPL', 'TSPL', 'ESC_POS']).optional(),
+  mediaProfileId: z.string().min(1).optional(),
+  payload:        z.record(z.unknown()),
+  copies:         z.coerce.number().int().min(1).max(50).default(1),
+});
+export type RenderLabelDto = z.infer<typeof RenderLabelSchema>;
+
 export const TestPrintSchema = z.object({
   printerId: z.string().min(1),
 });

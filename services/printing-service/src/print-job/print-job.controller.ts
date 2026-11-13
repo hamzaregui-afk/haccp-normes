@@ -16,7 +16,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { PrintJobService } from './print-job.service';
-import { CreatePrintJobSchema, PrintJobQuerySchema, PrintJobStatusSchema, TestPrintSchema } from './dto/print-job.dto';
+import { CreatePrintJobSchema, PrintJobQuerySchema, PrintJobStatusSchema, TestPrintSchema, RenderLabelSchema } from './dto/print-job.dto';
 import { z } from 'zod';
 
 const UpdateJobStatusSchema = z.object({
@@ -83,6 +83,17 @@ export class PrintJobController {
     }).catch(() => { /* fire-and-forget: audit failure must never surface */ });
 
     return result;
+  }
+
+  // POST /print-jobs/render — render a DLC label to raw bytes (base64) WITHOUT
+  // creating or dispatching a job. Used by the mobile Bluetooth-direct flow:
+  // the device fetches the bytes and writes them straight to a BLE printer.
+  @Post('render')
+  @Roles(...PRINT_ROLES)
+  @ApiOperation({ summary: 'Rendre une étiquette DLC en octets base64 (Bluetooth direct, sans dispatch)' })
+  render(@Body() rawBody: unknown, @CurrentUser() user: JwtPayload) {
+    const dto = RenderLabelSchema.parse(rawBody);
+    return this.printJobService.renderLabel(user.tenantId, dto);
   }
 
   // POST /print-jobs/test — send a small test label to a printer to verify it works

@@ -90,6 +90,31 @@ describe('PrintJobService — execution status (HACCP audit integrity)', () => {
     return data.status;
   };
 
+  describe('renderLabel (Bluetooth-direct, no dispatch)', () => {
+    it('renders a DLC label to base64 for the requested protocol without creating a job', async () => {
+      prisma.mediaProfile.findFirst.mockResolvedValue(null);
+
+      const result = await service.renderLabel('t1', {
+        protocol: 'ESC_POS',
+        payload: { productName: 'Yaourt', lotNumber: 'LOT-1', producedAt: '2026-11-13T00:00:00Z', expiresAt: '2026-11-20T00:00:00Z' },
+        copies: 2,
+      });
+
+      expect(result.data.protocol).toBe('ESC_POS');
+      expect(typeof result.data.contentBase64).toBe('string');
+      const decoded = Buffer.from(result.data.contentBase64, 'base64').toString('utf8');
+      expect(decoded).toContain('Yaourt');
+      expect(prisma.printJob.create).not.toHaveBeenCalled();
+    });
+
+    it('defaults to ZPL when no protocol is given', async () => {
+      prisma.mediaProfile.findFirst.mockResolvedValue(null);
+      const result = await service.renderLabel('t1', { payload: { productName: 'X' } });
+      expect(result.data.protocol).toBe('ZPL');
+      expect(Buffer.from(result.data.contentBase64, 'base64').toString('utf8')).toContain('^XA');
+    });
+  });
+
   describe('getStatsByTenant', () => {
     it('aggregates today print-job counts per tenant with totals', async () => {
       prisma.printJob.groupBy.mockResolvedValue([
