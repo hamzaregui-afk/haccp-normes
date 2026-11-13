@@ -181,6 +181,11 @@ function PrintNodeConfigCard() {
         Saisissez la clé API PrintNode du client pour imprimer via le relais PrintNode
         (sans réseau local partagé). La clé est chiffrée côté serveur et n'est jamais réaffichée.
       </p>
+      <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+        ℹ️ PrintNode nécessite le <strong>client PrintNode installé et démarré</strong> sur un
+        ordinateur local du client, ayant accès à l'imprimante — une clé API seule n'imprime rien.
+        Voir la procédure complète dans <code>docs/printing/printnode-setup.md</code>.
+      </div>
 
       {status && !status.encryptionConfigured && (
         <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
