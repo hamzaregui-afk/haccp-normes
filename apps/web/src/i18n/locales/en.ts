@@ -849,6 +849,10 @@ const en = {
   },
 
   printers: {
+    connectionMode: 'Connection mode',
+    online:         'Online',
+    modes:   { NETWORK: 'Network (direct IP)', LOCAL_AGENT: 'Local agent (USB)', BLUETOOTH: 'Bluetooth', PRINTNODE: 'PrintNode' },
+    cols:    { connection: 'Connection', target: 'Target', siteZone: 'Site / Zone', status: 'Status' },
     mediaProfiles: {
       title:       'Label profiles',
       add:         'Add a profile',

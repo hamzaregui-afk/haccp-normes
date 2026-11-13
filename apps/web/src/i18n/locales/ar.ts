@@ -850,6 +850,10 @@ const ar = {
   },
 
   printers: {
+    connectionMode: 'وضع الاتصال',
+    online:         'متصل',
+    modes:   { NETWORK: 'شبكة (IP مباشر)', LOCAL_AGENT: 'وكيل محلي (USB)', BLUETOOTH: 'بلوتوث', PRINTNODE: 'PrintNode' },
+    cols:    { connection: 'الاتصال', target: 'الهدف', siteZone: 'الموقع / المنطقة', status: 'الحالة' },
     mediaProfiles: {
       title:       'قوالب الملصقات',
       add:         'إضافة قالب',

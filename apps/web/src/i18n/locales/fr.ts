@@ -1696,6 +1696,10 @@ const fr = {
 
   // ── Imprimantes ────────────────────────────────────────────────────────────────
   printers: {
+    connectionMode: 'Mode de connexion',
+    online:         'En ligne',
+    modes:   { NETWORK: 'Réseau (IP directe)', LOCAL_AGENT: 'Agent local (USB)', BLUETOOTH: 'Bluetooth', PRINTNODE: 'PrintNode' },
+    cols:    { connection: 'Connexion', target: 'Cible', siteZone: 'Site / Zone', status: 'Statut' },
     mediaProfiles: {
       title:       'Profils d\'étiquettes',
       add:         'Ajouter un profil',

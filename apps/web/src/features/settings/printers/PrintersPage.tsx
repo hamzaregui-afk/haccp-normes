@@ -374,10 +374,10 @@ function PrinterModal({ open, onClose, printer }: PrinterModalProps) {
 
         {/* Connection MODE (drives the dynamic fields) */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-gray-700">Mode de connexion</label>
+          <label className="text-sm font-medium text-gray-700">{t('printers.connectionMode')}</label>
           <select value={form.mode} onChange={(e) => set('mode', e.target.value as Mode)} className={selectCls}>
             {(Object.keys(MODE_LABELS) as Mode[]).map((m) => (
-              <option key={m} value={m}>{MODE_LABELS[m]}</option>
+              <option key={m} value={m}>{t(`printers.modes.${m}` as Parameters<typeof t>[0])}</option>
             ))}
           </select>
         </div>
@@ -630,12 +630,12 @@ export default function PrintersPage() {
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                   <th className="px-4 py-3">{t('printers.form.name')}</th>
-                  <th className="px-4 py-3">Connexion</th>
+                  <th className="px-4 py-3">{t('printers.cols.connection')}</th>
                   <th className="px-4 py-3">{t('printers.form.model')}</th>
-                  <th className="px-4 py-3">Cible</th>
-                  <th className="px-4 py-3">Site / Zone</th>
-                  <th className="px-4 py-3">Statut</th>
-                  {canManage && <th className="px-4 py-3 text-right">Actions</th>}
+                  <th className="px-4 py-3">{t('printers.cols.target')}</th>
+                  <th className="px-4 py-3">{t('printers.cols.siteZone')}</th>
+                  <th className="px-4 py-3">{t('printers.cols.status')}</th>
+                  {canManage && <th className="px-4 py-3 text-right">{t('common.actions')}</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -674,7 +674,7 @@ export default function PrintersPage() {
                       <td className="px-4 py-3">
                         {p.lastActivityAt && Date.now() - new Date(p.lastActivityAt).getTime() < 180_000 ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                            <CheckCircle2 className="h-3 w-3" /> En ligne
+                            <CheckCircle2 className="h-3 w-3" /> {t('printers.online')}
                           </span>
                         ) : p.isActive ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
