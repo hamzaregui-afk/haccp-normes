@@ -1749,6 +1749,9 @@ const fr = {
     form: {
       name:                'Nom',
       model:               'Modèle',
+      brand:               'Marque',
+      protocol:            'Protocole',
+      protocolAuto:        'Auto (selon la marque)',
       connectionType:      'Type de connexion',
       ipAddress:           'Adresse IP',
       port:                'Port',

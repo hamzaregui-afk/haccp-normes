@@ -903,6 +903,9 @@ const ar = {
     form: {
       name:                'الاسم',
       model:               'الموديل',
+      brand:               'العلامة التجارية',
+      protocol:            'البروتوكول',
+      protocolAuto:        'تلقائي (حسب العلامة)',
       connectionType:      'نوع الاتصال',
       ipAddress:           'عنوان IP',
       port:                'المنفذ',

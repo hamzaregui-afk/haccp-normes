@@ -902,6 +902,9 @@ const en = {
     form: {
       name:                'Name',
       model:               'Model',
+      brand:               'Brand',
+      protocol:            'Protocol',
+      protocolAuto:        'Auto (by brand)',
       connectionType:      'Connection type',
       ipAddress:           'IP address',
       port:                'Port',

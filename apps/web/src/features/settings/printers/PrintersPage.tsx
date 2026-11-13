@@ -44,6 +44,8 @@ interface Printer {
   connectionStatus:     string | null;
   lastActivityAt:       string | null;
   defaultMediaProfileId:string | null;
+  brand:                string | null;
+  protocol:             string | null;
   tenantId:             string;
   createdAt:            string;
 }
@@ -55,11 +57,14 @@ interface PnComputer { id: number; name: string; state: string; }
 interface PnPrinter { id: number; name: string; computerId: number; state: string; }
 interface ProviderTestResult { ok: boolean; message: string; computerCount?: number; }
 
+type Protocol = '' | 'ZPL' | 'TSPL' | 'ESC_POS';
+
 interface PrinterFormValues {
   name: string; model: string; mode: Mode;
   ipAddress: string; port: number; bluetoothIdentifier: string;
   providerComputerId: number | ''; printNodePrinterId: number | '';
   isDefault: boolean; siteId: string; zoneId: string; defaultMediaProfileId: string;
+  brand: string; protocol: Protocol;
 }
 
 interface ApiResponse<T> { data: T; message?: string; }
@@ -86,6 +91,7 @@ const EMPTY_FORM: PrinterFormValues = {
   ipAddress: '', port: 9100, bluetoothIdentifier: '',
   providerComputerId: '', printNodePrinterId: '',
   isDefault: false, siteId: '', zoneId: '', defaultMediaProfileId: '',
+  brand: '', protocol: '',
 };
 
 function printerToForm(p: Printer): PrinterFormValues {
@@ -100,6 +106,7 @@ function printerToForm(p: Printer): PrinterFormValues {
     providerComputerId: p.providerComputerId ?? '', printNodePrinterId: p.printNodePrinterId ?? '',
     isDefault: p.isDefault, siteId: p.siteId ?? '', zoneId: p.zoneId ?? '',
     defaultMediaProfileId: p.defaultMediaProfileId ?? '',
+    brand: p.brand ?? '', protocol: (p.protocol as Protocol) ?? '',
   };
 }
 
@@ -304,6 +311,8 @@ function PrinterModal({ open, onClose, printer }: PrinterModalProps) {
       name: form.name.trim(), isDefault: form.isDefault, port: form.port,
     };
     if (form.model.trim())            body.model                 = form.model.trim();
+    if (form.brand.trim())            body.brand                 = form.brand.trim();
+    if (form.protocol)                body.protocol              = form.protocol;
     if (form.siteId)                  body.siteId                = form.siteId;
     if (form.zoneId)                  body.zoneId                = form.zoneId;
     if (form.defaultMediaProfileId)   body.defaultMediaProfileId = form.defaultMediaProfileId;
@@ -344,6 +353,23 @@ function PrinterModal({ open, onClose, printer }: PrinterModalProps) {
           <label className="text-sm font-medium text-gray-700">{t('printers.form.model')}</label>
           <input type="text" value={form.model} onChange={(e) => set('model', e.target.value)}
             placeholder="ex: Zebra ZD420, GPrinter GP-2120TUA, TSC TTP-244 Pro" className={inputCls} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-gray-700">{t('printers.form.brand')}</label>
+            <input type="text" value={form.brand} onChange={(e) => set('brand', e.target.value)}
+              placeholder="ex: Zebra, TSC, GPrinter" className={inputCls} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-gray-700">{t('printers.form.protocol')}</label>
+            <select value={form.protocol} onChange={(e) => set('protocol', e.target.value as Protocol)} className={selectCls}>
+              <option value="">{t('printers.form.protocolAuto')}</option>
+              <option value="ZPL">ZPL (Zebra)</option>
+              <option value="TSPL">TSPL (TSC / GPrinter)</option>
+              <option value="ESC_POS">ESC/POS</option>
+            </select>
+          </div>
         </div>
 
         {/* Connection MODE (drives the dynamic fields) */}
