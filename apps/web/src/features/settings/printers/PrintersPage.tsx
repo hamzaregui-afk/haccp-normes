@@ -116,6 +116,7 @@ const selectCls = 'h-9 w-full rounded-lg border border-gray-200 bg-white px-3 te
 // ─── PrintNode configuration card (tenant-level API key) ────────────────────────
 
 function PrintNodeConfigCard() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const tenantId = useTenantId();
   const [apiKey, setApiKey] = useState('');
@@ -139,7 +140,7 @@ function PrintNodeConfigCard() {
       return data.data;
     },
     onSuccess: (r) => setTestResult(r),
-    onError: () => setTestResult({ ok: false, message: 'PrintNode inaccessible' }),
+    onError: () => setTestResult({ ok: false, message: t('printers.printNode.testFailed') }),
   });
 
   const saveMutation = useMutation({
@@ -148,11 +149,11 @@ function PrintNodeConfigCard() {
     onSuccess: () => {
       setApiKey('');
       void qc.invalidateQueries({ queryKey: ['printnode.status', tenantId] });
-      showToast({ title: 'Clé PrintNode enregistrée', variant: 'success' });
+      showToast({ title: t('printers.printNode.saved'), variant: 'success' });
     },
     onError: (err: unknown) => {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      showToast({ title: msg ?? 'Erreur', variant: 'error' });
+      showToast({ title: msg ?? t('printers.printNode.genericError'), variant: 'error' });
     },
   });
 
@@ -160,7 +161,7 @@ function PrintNodeConfigCard() {
     mutationFn: () => api.delete('/api/v1/print-provider-config/printnode-key'),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['printnode.status', tenantId] });
-      showToast({ title: 'Clé PrintNode supprimée', variant: 'success' });
+      showToast({ title: t('printers.printNode.deleted'), variant: 'success' });
     },
   });
 
@@ -170,55 +171,49 @@ function PrintNodeConfigCard() {
     <div className="mb-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="flex items-center gap-2">
         <Cloud className="h-5 w-5 text-brand-medium" />
-        <h3 className="text-sm font-semibold text-gray-900">Connexion PrintNode</h3>
+        <h3 className="text-sm font-semibold text-gray-900">{t('printers.printNode.title')}</h3>
         {configured && (
           <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-            <CheckCircle2 className="h-3 w-3" /> API configurée
+            <CheckCircle2 className="h-3 w-3" /> {t('printers.printNode.configured')}
           </span>
         )}
       </div>
-      <p className="mt-1 text-xs text-gray-500">
-        Saisissez la clé API PrintNode du client pour imprimer via le relais PrintNode
-        (sans réseau local partagé). La clé est chiffrée côté serveur et n'est jamais réaffichée.
-      </p>
+      <p className="mt-1 text-xs text-gray-500">{t('printers.printNode.intro')}</p>
       <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
-        ℹ️ PrintNode nécessite le <strong>client PrintNode installé et démarré</strong> sur un
-        ordinateur local du client, ayant accès à l'imprimante — une clé API seule n'imprime rien.
-        Voir la procédure complète dans <code>docs/printing/printnode-setup.md</code>.
+        ℹ️ {t('printers.printNode.clientNote')} <code>docs/printing/printnode-setup.md</code>.
       </div>
 
       {status && !status.encryptionConfigured && (
         <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Le chiffrement des secrets (ENCRYPTION_KEY) n'est pas activé côté serveur — impossible
-          d'enregistrer une clé PrintNode pour l'instant.
+          {t('printers.printNode.encryptionWarning')}
         </div>
       )}
 
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <div className="flex min-w-[260px] flex-1 flex-col gap-1.5">
           <label className="flex items-center gap-1 text-sm font-medium text-gray-700">
-            <KeyRound className="h-3.5 w-3.5" /> {configured ? 'Modifier la clé' : 'Clé API PrintNode'}
+            <KeyRound className="h-3.5 w-3.5" /> {configured ? t('printers.printNode.keyLabelEdit') : t('printers.printNode.keyLabelNew')}
           </label>
           <input
             type="password" value={apiKey} onChange={(e) => { setApiKey(e.target.value); setTestResult(null); }}
-            placeholder={configured ? '•••••••••• (laisser vide pour conserver)' : 'Clé API PrintNode'}
+            placeholder={configured ? t('printers.printNode.keyPlaceholderKeep') : t('printers.printNode.keyLabelNew')}
             className={inputCls} autoComplete="off"
           />
         </div>
         <Button type="button" variant="secondary" loading={testMutation.isPending}
           onClick={() => testMutation.mutate()}
           disabled={!apiKey && !configured}>
-          Tester la connexion
+          {t('printers.printNode.test')}
         </Button>
         <Button type="button" loading={saveMutation.isPending}
           onClick={() => saveMutation.mutate()}
           disabled={!apiKey || !(status?.encryptionConfigured ?? false)}>
-          Enregistrer
+          {t('common.save')}
         </Button>
         {configured && (
           <Button type="button" variant="danger" loading={clearMutation.isPending}
             onClick={() => clearMutation.mutate()}>
-            Supprimer
+            {t('common.delete')}
           </Button>
         )}
       </div>
@@ -226,7 +221,7 @@ function PrintNodeConfigCard() {
       {testResult && (
         <div className={`mt-3 rounded-lg px-3 py-2 text-xs ${testResult.ok ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
           {testResult.ok ? '✓ ' : '✕ '}{testResult.message}
-          {testResult.ok && testResult.computerCount !== undefined && ` — ${testResult.computerCount} ordinateur(s) trouvé(s)`}
+          {testResult.ok && testResult.computerCount !== undefined && ` — ${t('printers.printNode.computersFound', { count: testResult.computerCount })}`}
         </div>
       )}
     </div>
