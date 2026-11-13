@@ -30,7 +30,37 @@ export class PrinterService {
       this.prisma.printer.count({ where }),
     ]);
 
-    return toApiResponse(items, toPaginationMeta(total, { page, limit }));
+    // Enrich each printer with its last successful print and last error, read
+    // from PrintJob (same service/DB — no cross-service join). Two aggregate
+    // queries for the whole page, not N+1.
+    const printerIds = items.map((p) => p.id);
+    const lastPrintBy = new Map<string, Date | null>();
+    const lastErrorBy = new Map<string, { message: string | null; at: Date }>();
+    if (printerIds.length > 0) {
+      const [prints, fails] = await Promise.all([
+        this.prisma.printJob.groupBy({
+          by: ['printerId'],
+          where: { tenantId, printerId: { in: printerIds }, status: 'COMPLETED' },
+          _max: { printedAt: true },
+        }),
+        this.prisma.printJob.findMany({
+          where: { tenantId, printerId: { in: printerIds }, status: 'FAILED' },
+          orderBy: { createdAt: 'desc' },
+          distinct: ['printerId'],
+          select: { printerId: true, errorMessage: true, createdAt: true },
+        }),
+      ]);
+      for (const g of prints) if (g.printerId) lastPrintBy.set(g.printerId, g._max.printedAt);
+      for (const f of fails) if (f.printerId) lastErrorBy.set(f.printerId, { message: f.errorMessage, at: f.createdAt });
+    }
+
+    const enriched = items.map((p) => ({
+      ...p,
+      lastPrintAt: lastPrintBy.get(p.id) ?? null,
+      lastError: lastErrorBy.get(p.id) ?? null,
+    }));
+
+    return toApiResponse(enriched, toPaginationMeta(total, { page, limit }));
   }
 
   async findOne(id: string, tenantId: string) {

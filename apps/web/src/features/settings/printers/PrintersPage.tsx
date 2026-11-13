@@ -46,6 +46,8 @@ interface Printer {
   defaultMediaProfileId:string | null;
   brand:                string | null;
   protocol:             string | null;
+  lastPrintAt:          string | null;
+  lastError:            { message: string | null; at: string } | null;
   tenantId:             string;
   createdAt:            string;
 }
@@ -635,6 +637,7 @@ export default function PrintersPage() {
                   <th className="px-4 py-3">{t('printers.cols.target')}</th>
                   <th className="px-4 py-3">{t('printers.cols.siteZone')}</th>
                   <th className="px-4 py-3">{t('printers.cols.status')}</th>
+                  <th className="px-4 py-3">{t('printers.cols.lastPrint')}</th>
                   {canManage && <th className="px-4 py-3 text-right">{t('common.actions')}</th>}
                 </tr>
               </thead>
@@ -683,6 +686,16 @@ export default function PrintersPage() {
                         ) : (
                           <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
                             <XCircle className="h-3 w-3" /> {t('printers.inactive')}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs">
+                        {p.lastPrintAt
+                          ? <span className="text-gray-600">{new Date(p.lastPrintAt).toLocaleString()}</span>
+                          : <span className="text-gray-300">—</span>}
+                        {p.lastError && (
+                          <span className="mt-0.5 block max-w-[220px] truncate text-red-600" title={p.lastError.message ?? ''}>
+                            ⚠ {p.lastError.message ?? t('printers.cols.error')}
                           </span>
                         )}
                       </td>

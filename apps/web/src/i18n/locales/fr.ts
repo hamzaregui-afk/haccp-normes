@@ -1699,7 +1699,7 @@ const fr = {
     connectionMode: 'Mode de connexion',
     online:         'En ligne',
     modes:   { NETWORK: 'Réseau (IP directe)', LOCAL_AGENT: 'Agent local (USB)', BLUETOOTH: 'Bluetooth', PRINTNODE: 'PrintNode' },
-    cols:    { connection: 'Connexion', target: 'Cible', siteZone: 'Site / Zone', status: 'Statut' },
+    cols:    { connection: 'Connexion', target: 'Cible', siteZone: 'Site / Zone', status: 'Statut', lastPrint: 'Dernière impression', error: 'Erreur' },
     printNode: {
       title:             'Connexion PrintNode',
       configured:        'API configurée',

@@ -32,6 +32,12 @@ const prismaMock = {
     updateMany:  jest.fn(),
     delete:      jest.fn(),
   },
+  printJob: {
+    // Defaults survive jest.clearAllMocks() (which clears calls, not impls), so
+    // findAll's enrichment queries return empty unless a test overrides them.
+    groupBy:  jest.fn().mockResolvedValue([]),
+    findMany: jest.fn().mockResolvedValue([]),
+  },
   $transaction: jest.fn(),
 };
 
@@ -182,6 +188,31 @@ describe('PrinterService', () => {
           where: expect.objectContaining({ connectionType: 'BLUETOOTH' }),
         }),
       );
+    });
+
+    it('enriches each printer with lastPrintAt and lastError', async () => {
+      prismaMock.printer.findMany.mockResolvedValue([mockPrinter]);
+      prismaMock.printer.count.mockResolvedValue(1);
+      const printedAt = new Date('2026-11-13T10:00:00Z');
+      const failedAt  = new Date('2026-11-12T09:00:00Z');
+      prismaMock.printJob.groupBy.mockResolvedValueOnce([{ printerId: mockPrinter.id, _max: { printedAt } }]);
+      prismaMock.printJob.findMany.mockResolvedValueOnce([
+        { printerId: mockPrinter.id, errorMessage: 'Imprimante hors ligne', createdAt: failedAt },
+      ]);
+
+      const result = await service.findAll('cltenant00000000000000000001', { page: 1, limit: 20 });
+      const row = (result.data as Array<{ lastPrintAt: Date | null; lastError: { message: string | null; at: Date } | null }>)[0];
+
+      expect(row.lastPrintAt).toEqual(printedAt);
+      expect(row.lastError).toEqual({ message: 'Imprimante hors ligne', at: failedAt });
+      expect(prismaMock.printJob.groupBy).toHaveBeenCalledWith(expect.objectContaining({
+        by: ['printerId'],
+        where: expect.objectContaining({ status: 'COMPLETED', printerId: { in: [mockPrinter.id] } }),
+      }));
+      expect(prismaMock.printJob.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        distinct: ['printerId'],
+        where: expect.objectContaining({ status: 'FAILED' }),
+      }));
     });
   });
 

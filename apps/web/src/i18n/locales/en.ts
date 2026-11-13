@@ -852,7 +852,7 @@ const en = {
     connectionMode: 'Connection mode',
     online:         'Online',
     modes:   { NETWORK: 'Network (direct IP)', LOCAL_AGENT: 'Local agent (USB)', BLUETOOTH: 'Bluetooth', PRINTNODE: 'PrintNode' },
-    cols:    { connection: 'Connection', target: 'Target', siteZone: 'Site / Zone', status: 'Status' },
+    cols:    { connection: 'Connection', target: 'Target', siteZone: 'Site / Zone', status: 'Status', lastPrint: 'Last print', error: 'Error' },
     printNode: {
       title:             'PrintNode connection',
       configured:        'API configured',

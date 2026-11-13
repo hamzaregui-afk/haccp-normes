@@ -853,7 +853,7 @@ const ar = {
     connectionMode: 'وضع الاتصال',
     online:         'متصل',
     modes:   { NETWORK: 'شبكة (IP مباشر)', LOCAL_AGENT: 'وكيل محلي (USB)', BLUETOOTH: 'بلوتوث', PRINTNODE: 'PrintNode' },
-    cols:    { connection: 'الاتصال', target: 'الهدف', siteZone: 'الموقع / المنطقة', status: 'الحالة' },
+    cols:    { connection: 'الاتصال', target: 'الهدف', siteZone: 'الموقع / المنطقة', status: 'الحالة', lastPrint: 'آخر طباعة', error: 'خطأ' },
     printNode: {
       title:             'اتصال PrintNode',
       configured:        'تم ضبط المفتاح',
