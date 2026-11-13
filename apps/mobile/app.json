@@ -2,7 +2,7 @@
   "expo": {
     "name": "NORMES HACCP",
     "slug": "normes-haccp",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.normeshaccp.app",
-      "buildNumber": "4",
+      "buildNumber": "5",
       "infoPlist": {
         "NSCameraUsageDescription": "NORMES HACCP utilise votre caméra pour prendre des photos lors des contrôles qualité et de sécurité alimentaire.",
         "NSPhotoLibraryUsageDescription": "NORMES HACCP accède à votre photothèque pour joindre des photos aux non-conformités et aux contrôles.",
@@ -35,15 +35,17 @@
         "backgroundColor": "#0A0F3F"
       },
       "package": "com.normeshaccp.app",
-      "versionCode": 4,
+      "versionCode": 5,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.INTERNET",
         "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
         "android.permission.BLUETOOTH_CONNECT",
         "android.permission.BLUETOOTH_SCAN",
+        "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.RECORD_AUDIO"
       ]
     },
@@ -57,6 +59,14 @@
         }
       ],
       "expo-notifications",
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "modes": ["central"],
+          "bluetoothAlwaysPermission": "NORMES HACCP utilise le Bluetooth pour imprimer les étiquettes DLC sur les imprimantes thermiques."
+        }
+      ],
       [
         "expo-build-properties",
         {

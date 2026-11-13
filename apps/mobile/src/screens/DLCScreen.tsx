@@ -1,7 +1,7 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   ActivityIndicator,
@@ -18,6 +18,7 @@ import {
 
 import { dlcClient } from '../api/client';
 import { useTranslation } from '@/i18n';
+import { scanForPrinters, printToDevice, BtError, type BtPrinter } from '@/lib/bluetoothPrint';
 import type { MainTabParamList } from '../navigation/MainNavigator';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -275,6 +276,11 @@ export function DLCScreen(_props: Props) {
   const [lastResult, setLastResult]       = useState<DLCResult | null>(null);
   const [showPrinterPicker, setShowPrinterPicker] = useState(false);
   const [selectedPrinterId, setSelectedPrinterId] = useState('');
+  // Bluetooth-direct (Lot B)
+  const [btPrinting, setBtPrinting]     = useState(false);
+  const [btDevices, setBtDevices]       = useState<BtPrinter[]>([]);
+  const [showBtPicker, setShowBtPicker] = useState(false);
+  const btBytesRef = useRef<string | null>(null);
 
   // Fetch active printers for this tenant
   const { data: printersData } = useQuery<PrinterOption[]>({
@@ -408,6 +414,83 @@ export function DLCScreen(_props: Props) {
     }
   };
 
+  const btErrorMessage = (err: unknown): string => {
+    if (err instanceof BtError) {
+      switch (err.code) {
+        case 'BLUETOOTH_OFF':              return t('dlc.bt.btOff');
+        case 'PERMISSION_DENIED':          return t('dlc.bt.permDenied');
+        case 'NO_WRITABLE_CHARACTERISTIC': return t('dlc.bt.incompatible');
+        default:                           return t('dlc.bt.printFailed');
+      }
+    }
+    return isApiError(err)
+      ? String(err.response?.data?.message ?? t('dlc.errorMsg'))
+      : t('dlc.bt.printFailed');
+  };
+
+  // Bluetooth-direct (Lot B): calculate → render bytes server-side → scan → pick → write over BLE.
+  const handleBluetoothPrint = async () => {
+    if (!productName.trim() || !lotNumber.trim() || !fabDate.trim()) {
+      Alert.alert(t('dlc.errorTitle'), t('dlc.validation.requiredFields'));
+      return;
+    }
+    const days = parseInt(shelfLife, 10);
+    if (isNaN(days) || days <= 0) { Alert.alert(t('dlc.errorTitle'), t('dlc.validation.invalidDays')); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fabDate.trim())) { Alert.alert(t('dlc.errorTitle'), t('dlc.validation.invalidDate')); return; }
+
+    setBtPrinting(true);
+    try {
+      const calcRes = await dlcClient.post<DLCResponse>('/api/v1/dlc/calculate', {
+        productId:   productName.trim(),
+        productName: productName.trim(),
+        dlcDays:     days,
+        producedAt:  fabDate.trim(),
+      });
+      const result = calcRes.data.data;
+      setLastResult(result);
+
+      // Render bytes server-side (ESC/POS — the de-facto Bluetooth thermal format).
+      const render = await dlcClient.post<{ data: { protocol: string; contentBase64: string } }>(
+        '/api/v1/print-jobs/render',
+        {
+          protocol: 'ESC_POS',
+          copies: 1,
+          payload: {
+            productName: result.productName,
+            lotNumber:   lotNumber.trim(),
+            producedAt:  result.producedAt,
+            expiresAt:   result.expiresAt,
+          },
+        },
+      );
+      btBytesRef.current = render.data.data.contentBase64;
+
+      // Scan for nearby BLE printers; the user picks one in the modal.
+      const devices = await scanForPrinters();
+      setBtDevices(devices);
+      setShowBtPicker(true);
+    } catch (err: unknown) {
+      Alert.alert(t('dlc.errorTitle'), btErrorMessage(err));
+    } finally {
+      setBtPrinting(false);
+    }
+  };
+
+  const handleBtDeviceSelected = async (deviceId: string) => {
+    setShowBtPicker(false);
+    const bytes = btBytesRef.current;
+    if (!bytes) return;
+    setBtPrinting(true);
+    try {
+      await printToDevice(deviceId, bytes);
+      Alert.alert('✅', t('dlc.bt.success'));
+    } catch (err: unknown) {
+      Alert.alert(t('dlc.errorTitle'), btErrorMessage(err));
+    } finally {
+      setBtPrinting(false);
+    }
+  };
+
   const expirationLabel = lastResult
     ? new Date(lastResult.expiresAt).toLocaleDateString(lang, {
         day: '2-digit',
@@ -524,6 +607,22 @@ export function DLCScreen(_props: Props) {
         )}
       </TouchableOpacity>
 
+      <TouchableOpacity
+        style={[styles.networkPrintBtn, btPrinting && styles.printBtnDisabled]}
+        onPress={handleBluetoothPrint}
+        disabled={btPrinting}
+        activeOpacity={0.85}
+      >
+        {btPrinting ? (
+          <ActivityIndicator color="#0A0F3F" />
+        ) : (
+          <>
+            <Text style={styles.networkPrintBtnIcon}>📶</Text>
+            <Text style={styles.networkPrintBtnText}>{t('dlc.bt.print')}</Text>
+          </>
+        )}
+      </TouchableOpacity>
+
       <Text style={styles.hint}>{t('dlc.shareHint')}</Text>
 
       <PrinterPickerModal
@@ -532,6 +631,14 @@ export function DLCScreen(_props: Props) {
         selected={effectivePrinterId}
         onSelect={setSelectedPrinterId}
         onClose={() => setShowPrinterPicker(false)}
+      />
+
+      <PrinterPickerModal
+        visible={showBtPicker}
+        printers={btDevices}
+        selected=""
+        onSelect={handleBtDeviceSelected}
+        onClose={() => setShowBtPicker(false)}
       />
     </ScrollView>
   );

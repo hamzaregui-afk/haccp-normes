@@ -28,6 +28,29 @@ jest.mock('expo-sharing', () => ({
   shareAsync:       jest.fn(),
 }));
 
+// react-native-ble-plx: native BLE module — stub the manager so imports resolve
+// in jest. Tests that exercise bluetoothPrint override these per-case.
+// virtual:true so the mock resolves even when the native package is not
+// physically installed in the local tree (it is installed in CI/EAS builds).
+jest.mock(
+  'react-native-ble-plx',
+  () => {
+    class BleManager {
+      state = jest.fn().mockResolvedValue('PoweredOn');
+      onStateChange = jest.fn((cb: (s: string) => void, emitCurrent: boolean) => {
+        if (emitCurrent) cb('PoweredOn');
+        return { remove: jest.fn() };
+      });
+      startDeviceScan = jest.fn();
+      stopDeviceScan = jest.fn();
+      connectToDevice = jest.fn();
+      cancelDeviceConnection = jest.fn().mockResolvedValue(undefined);
+    }
+    return { BleManager, State: { PoweredOn: 'PoweredOn', PoweredOff: 'PoweredOff' } };
+  },
+  { virtual: true },
+);
+
 // React Native's Alert — control it in tests
 jest.spyOn(require('react-native').Alert, 'alert').mockImplementation(() => undefined);
 
